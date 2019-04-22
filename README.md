@@ -19,4 +19,8 @@ This package provides some basic modules for medical image computing that can be
 * Implementation of evaluation metrics to get quantitative evaluation of your methods (for segmentation). 
 
 # Examples
-Go to 'examples' to see some examples for using PyMIC. For beginners, you only need to simply change the configuration files to select different datasets, networks and training methods for running the code. For advanced users, you can develop your own modules based on this packange.
+Go to 'examples' to see some examples for using PyMIC. For beginners, you only need to simply change the configuration files to select different datasets, networks and training methods for running the code. For advanced users, you can develop your own modules based on this packange. You can find the following examples:
+
+1, using a U-Net for heart segmentation from X-ray images.
+
+2, using a U-Net for fetal brain segmentation from ultrasound images.
