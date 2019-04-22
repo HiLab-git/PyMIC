@@ -71,11 +71,11 @@ def obtain_patient_names():
         
 if __name__ == "__main__":
     # create cvs file for training set
-    data_root   = '/home/guotai/data/Fetal_HC'
+    HC_root     = '/home/guotai/data/Fetal_HC'
     output_file = 'config/fetal_hc_train_all.csv'
-    create_csv_file(data_root, output_file)
+    create_csv_file(HC_root, output_file)
 
-    # # split fetal_hc training_set in to training, validation and testing
+    # split fetal_hc training_set in to training, validation and testing
     random_split_dataset()
 
     # obtain patient names the splitted dataset
