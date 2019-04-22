@@ -13,15 +13,30 @@ In this example, we use U-Net to segment the heart from X-Ray images. First we d
 [scr_link]:https://www.isi.uu.nl/Research/Databases/SCR/ 
 
 ## Training
-1. Edit `config/train_test.cfg` by setting the value of `root_dir` in that file. Then start to train by running:
+1. Edit `config/train_test.cfg` by setting the value of `root_dir` as your `JSRT_root`. Then add the path of `PyMIC` to `PYTHONPATH` environment variable and start to train by running:
  
 ```bash
+export PYTHONPATH=$PYTHONPATH:your_path_of_PyMIC
 python ../../pymic/train_infer/train_infer.py train config/train_test.cfg
 ```
 
-2. During training or after training, run `tensorboard --logdir model/unet` and you will see a link in the output, such as `http://your-computer:6006`. Open the link in the browser and you can observe the average Dice score and loss during the training.
+2. During training or after training, run `tensorboard --logdir model/unet` and you will see a link in the output, such as `http://your-computer:6006`. Open the link in the browser and you can observe the average Dice score and loss during the training stage, where red and blue curves are for training set and validation set respectively. We can observe some over-fitting on the training set. 
 
 ![avg_dice](./jsrt_avg_dice.png)
 ![avg_loss](./jsrt_avg_loss.png)
 
+3. When training is finished. Run the following command to obtain segmentation results of testing images:
+
+```bash
+mkdir result
+python ../../pymic/train_infer/train_infer.py test config/train_test.cfg
+```
+
+4. Then edit `config/evaluation.cfg` by setting `ground_truth_folder` as your `JSRT_root/label`, and run the following command to obtain quantitative evaluation results in terms of dice. 
+
+```bash
+python ../../pymic/util/evaluation.py config/evaluation.cfg
+```
+
+The obtained dice score by default setting should be close to 94.59+/-3.16. You can set `metric = assd` in `config/evaluation.cfg` and run the evaluation command again. You will get assd evaluation results. By default setting, the assd is close to 2.21+/-1.23 pixels.
 
