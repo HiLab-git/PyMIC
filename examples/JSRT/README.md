@@ -3,14 +3,14 @@
 ![image_example](./picture/JPCLN001.png)
 ![label_example](./picture/JPCLN001_seg.png)
 
-In this example, we use U-Net to segment the heart from X-Ray images. First we download the images from internet, then edit the configuration file for training and testing. During training, we use tensorboard to observe the performance of the network at different iterations. We then apply the trained model to some testing images and obtain quantitative evaluation results.
+In this example, we use U-Net to segment the heart from X-Ray images. First we download the images from internet, then edit the configuration file for training and testing. During training, we use tensorboard to observe the performance of the network at different iterations. We then apply the trained model to testing images and obtain quantitative evaluation results.
 
 ## Data and preprocessing
 1. The JSRT dataset is available at the [JSRT website][jsrt_link]. It consists of 247 chest radiographs. Create a new folder as `JSRT_root`, and download the images and save them in to a single folder, like `JSRT_root/All247images`. 
 2. The annotation of this dataset is provided by the [SCR database][scr_link]. Download the annotations and move the unzipped folder `scratch` to `JSRT_root/scratch`.
 3. Create two new folders  `JSRT_root/image` and `JSRT_root/label` for preprocessing.
-4. Set `JSRT_root` according to your computer in `image_convert.py` and run `python image_convert.py` for preprocessing. This command converts the raw image format to png and resize all images into 256X256. The processed image and label are saved in `JSRT_root/image` and `JSRT_root/label` respectively.
-5. Set `JSRT_root` according to your computer in `write_csv_files.py` and run `python write_csv_files.py` to randomly split images into training, validation and testing set. The output csv files are saved in `config`.
+4. Set `JSRT_root` according to your computer in `image_convert.py` and run `python image_convert.py` for preprocessing. This command converts the raw image format to png and resizes all images into 256X256. The processed image and label are saved in `JSRT_root/image` and `JSRT_root/label` respectively.
+5. Set `JSRT_root` according to your computer in `write_csv_files.py` and run `python write_csv_files.py` to randomly split images into training, validation and testing sets. The output csv files are saved in `config`.
 
 [jsrt_link]:http://db.jsrt.or.jp/eng.php
 [scr_link]:https://www.isi.uu.nl/Research/Databases/SCR/ 
@@ -42,5 +42,5 @@ python ../../pymic/train_infer/train_infer.py test config/train_test.cfg
 python ../../pymic/util/evaluation.py config/evaluation.cfg
 ```
 
-The obtained dice score by default setting should be close to 94.59+/-3.16. You can set `metric = assd` in `config/evaluation.cfg` and run the evaluation command again. You will get assd evaluation results. By default setting, the assd is close to 2.21+/-1.23 pixels.
+The obtained dice score by default setting should be close to 94.59+/-3.16. You can set `metric = assd` in `config/evaluation.cfg` and run the evaluation command again. You will get average symmetric surface distance (assd) evaluation results. By default setting, the assd is close to 2.21+/-1.23 pixels.
 
