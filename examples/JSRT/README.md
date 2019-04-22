@@ -1,5 +1,8 @@
 # Heart segmentation from JSRT dataset
 
+![image_example](./picture/JPCLN001.png)
+![label_example](./picture/JPCLN001_seg.png)
+
 In this example, we use U-Net to segment the heart from X-Ray images. First we download the images from internet, then edit the configuration file for training and testing. During training, we use tensorboard to observe the performance of the network at different iterations. We then apply the trained model to some testing images and obtain quantitative evaluation results.
 
 ## Data and preprocessing
@@ -22,8 +25,8 @@ python ../../pymic/train_infer/train_infer.py train config/train_test.cfg
 
 2. During training or after training, run `tensorboard --logdir model/unet` and you will see a link in the output, such as `http://your-computer:6006`. Open the link in the browser and you can observe the average Dice score and loss during the training stage, such as shown in the following images, where red and blue curves are for training set and validation set respectively. We can observe some over-fitting on the training set. 
 
-![avg_dice](./jsrt_avg_dice.png)
-![avg_loss](./jsrt_avg_loss.png)
+![avg_dice](./picture/jsrt_avg_dice.png)
+![avg_loss](./picture/jsrt_avg_loss.png)
 
 ## Testing and evaluation
 1. When training is finished. Run the following command to obtain segmentation results of testing images:
