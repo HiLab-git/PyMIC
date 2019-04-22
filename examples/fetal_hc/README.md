@@ -1,6 +1,6 @@
 # Fetal brain segmentation from ultrasound images
 
-![image_example](./picture/001_HC.png | width=256)
+<img src="./picture/001_HC.png" width="256" height="256"/>
 ![label_example](./picture/001_HC_seg.png | width=256)
 
 In this example, we use U-Net to segment the fetal brain from ultrasound images. First we download the images from internet, then edit the configuration file for training and testing. During training, we use tensorboard to observe the performance of the network at different iterations. We then apply the trained model to testing images and obtain quantitative evaluation results.
