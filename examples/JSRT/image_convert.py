@@ -57,10 +57,11 @@ def convert_JCRT_labels(input_dir, output_dir):
             label.save(output_full_name)
     
 if __name__ == "__main__":
-    input_image_dir = "/home/guotai/data/JSRT/All247images"
-    output_image_dir = "/home/guotai/data/JSRT/image"
+    JSRT_root  = "/home/guotai/data/JSRT"
+    input_image_dir  = JSRT_root + "/All247images"
+    output_image_dir = JSRT_root + "/image"
     convert_JCRT_images(input_image_dir, output_image_dir)
 
-    input_label_dir = "/home/guotai/data/JSRT/scratch"
-    output_label_dir = "/home/guotai/data/JSRT/label"
+    input_label_dir  = JSRT_root + "/scratch"
+    output_label_dir = JSRT_root + "/label"
     convert_JCRT_labels(input_label_dir, output_label_dir)

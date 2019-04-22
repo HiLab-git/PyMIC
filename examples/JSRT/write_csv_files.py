@@ -72,10 +72,10 @@ def obtain_patient_names():
         
 if __name__ == "__main__":
     # create cvs file for JSRT dataset
-    data_root   = '/home/guotai/data/JSRT'
+    JSRT_root   = '/home/guotai/data/JSRT'
     output_file = 'config/jsrt_all.csv'
     fields      = ['image', 'label']
-    create_csv_file(data_root, output_file, fields)
+    create_csv_file(JSRT_root, output_file, fields)
 
     # split JSRT dataset in to training, validation and testing
     random_split_dataset()
