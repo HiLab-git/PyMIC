@@ -10,13 +10,13 @@ In this example, we use U-Net to segment the heart from X-Ray images. First we d
 2. The annotation of this dataset is provided by the [SCR database][scr_link]. Download the annotations and move the unzipped folder `scratch` to `JSRT_root/scratch`.
 3. Create two new folders  `JSRT_root/image` and `JSRT_root/label` for preprocessing.
 4. Set `JSRT_root` according to your computer in `image_convert.py` and run `python image_convert.py` for preprocessing. This command converts the raw image format to png and resizes all images into 256X256. The processed image and label are saved in `JSRT_root/image` and `JSRT_root/label` respectively.
-5. Set `JSRT_root` according to your computer in `write_csv_files.py` and run `python write_csv_files.py` to randomly split images into training, validation and testing sets. The output csv files are saved in `config`.
+5. Set `JSRT_root` according to your computer in `write_csv_files.py` and run `python write_csv_files.py` to randomly split the 247 images into training (180), validation (20) and testing (47) sets. The output csv files are saved in `config`.
 
 [jsrt_link]:http://db.jsrt.or.jp/eng.php
 [scr_link]:https://www.isi.uu.nl/Research/Databases/SCR/ 
 
 ## Training
-1. Edit `config/train_test.cfg` by setting the value of `root_dir` as your `JSRT_root`. Then add the path of `PyMIC` to `PYTHONPATH` environment variable and start to train by running:
+1. Edit `config/train_test.cfg` by setting the value of `root_dir` as your `JSRT_root`. Then add the path of `PyMIC` to `PYTHONPATH` environment variable (if you haven't done this) and start to train by running:
  
 ```bash
 export PYTHONPATH=$PYTHONPATH:your_path_of_PyMIC
