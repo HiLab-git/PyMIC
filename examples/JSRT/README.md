@@ -23,7 +23,7 @@ export PYTHONPATH=$PYTHONPATH:your_path_of_PyMIC
 python ../../pymic/train_infer/train_infer.py train config/train_test.cfg
 ```
 
-2. During training or after training, run `tensorboard --logdir model/unet` and you will see a link in the output, such as `http://your-computer:6006`. Open the link in the browser and you can observe the average Dice score and loss during the training stage, such as shown in the following images, where red and blue curves are for training set and validation set respectively. We can observe some over-fitting on the training set. 
+2. During training or after training, run `tensorboard --logdir model/unet` and you will see a link in the output, such as `http://your-computer:6006`. Open the link in the browser and you can observe the average Dice score and loss during the training stage, such as shown in the following images, where blue and red curves are for training set and validation set respectively. We can observe some over-fitting on the training set. 
 
 ![avg_dice](./picture/jsrt_avg_dice.png)
 ![avg_loss](./picture/jsrt_avg_loss.png)
