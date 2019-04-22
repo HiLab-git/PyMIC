@@ -9,9 +9,13 @@ In this example, we use U-Net to segment the heart from X-Ray images. First we d
 4. Set `JSRT_root` according to your computer in `image_convert.py` and run `python image_convert.py` for preprocessing. This command will convert the raw image format to png and resize all images into 256X256. The processed image and label are saved in `JSRT_root/image` and `JSRT_root/label` respectively.
 5. Set `JSRT_root` according to your computer in `write_csv_files.py` and run `python write_csv_files.py` to randomly split images into training, validation and testing set. The output csv files are saved in `config`.
 
+[jsrt_link]:http://db.jsrt.or.jp/eng.php
+[scr_link]:https://www.isi.uu.nl/Research/Databases/SCR/ 
+
 ## Training
 1. Edit `config/train_test.cfg` by setting the value of `root_dir` in that file. Then run `python ../../pymic/train_infer/train_infer.py train config/train_test.cfg` for training.
-2. During training or after training, run `tensorboard --logdir model/unet` and you will see a link in the output, such as ` http://your-computer:6006`. Open the link in the browser and you can observe the average Dice score and loss during the training.
+2. During training or after training, run `tensorboard --logdir model/unet` and you will see a link in the output, such as `http://your-computer:6006`. Open the link in the browser and you can observe the average Dice score and loss during the training.
+
 [avg_dice](./jsrt_avg_dice.png)
 [avg_loss](./jsrt_avg_loss.png)
 
