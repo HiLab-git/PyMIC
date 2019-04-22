@@ -13,10 +13,15 @@ In this example, we use U-Net to segment the heart from X-Ray images. First we d
 [scr_link]:https://www.isi.uu.nl/Research/Databases/SCR/ 
 
 ## Training
-1. Edit `config/train_test.cfg` by setting the value of `root_dir` in that file. Then run `python ../../pymic/train_infer/train_infer.py train config/train_test.cfg` for training.
+1. Edit `config/train_test.cfg` by setting the value of `root_dir` in that file. Then start to train by running:
+ 
+```bash
+python ../../pymic/train_infer/train_infer.py train config/train_test.cfg
+```
+
 2. During training or after training, run `tensorboard --logdir model/unet` and you will see a link in the output, such as `http://your-computer:6006`. Open the link in the browser and you can observe the average Dice score and loss during the training.
 
-[avg_dice](./jsrt_avg_dice.png)
-[avg_loss](./jsrt_avg_loss.png)
+![avg_dice](./jsrt_avg_dice.png)
+![avg_loss](./jsrt_avg_loss.png)
 
 
