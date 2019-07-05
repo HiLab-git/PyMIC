@@ -2,6 +2,7 @@
 from __future__ import absolute_import, print_function
 
 import numpy as np
+from scipy import ndimage
 
 def get_ND_bounding_box(volume, margin = None):
     """
@@ -20,7 +21,7 @@ def get_ND_bounding_box(volume, margin = None):
 
     for i in range(len(input_shape)):
         idx_min[i] = max(idx_min[i] - margin[i], 0)
-        idx_max[i] = min(idx_max[i] + margin[i], input_shape[i] - 1)
+        idx_max[i] = min(idx_max[i] + margin[i], input_shape[i])
     return idx_min, idx_max
 
 def crop_ND_volume_with_bounding_box(volume, min_idx, max_idx):
@@ -79,6 +80,51 @@ def set_ND_volume_roi_with_bounding_box_range(volume, bb_min, bb_max, sub_volume
     else:
         raise ValueError("array dimension should be 2 to 5")
     return out
+
+def get_largest_component(image):
+    """
+    get the largest component from 2D or 3D binary image
+    image: nd array
+    """
+    dim = len(image.shape)
+    if(image.sum() == 0 ):
+        print('the largest component is null')
+        return image
+    if(dim == 2):
+        s = ndimage.generate_binary_structure(2,1)
+    elif(dim == 3):
+        s = ndimage.generate_binary_structure(3,1)
+    else:
+        raise ValueError("the dimension number should be 2 or 3")
+    labeled_array, numpatches = ndimage.label(image, s)
+    sizes = ndimage.sum(image, labeled_array, range(1, numpatches + 1))
+    max_label = np.where(sizes == sizes.max())[0] + 1
+    output = np.asarray(labeled_array == max_label, np.uint8)
+    return  output
+
+def get_euclidean_distance(image, dim = 3, spacing = [1.0, 1.0, 1.0]):
+    """
+    get euclidean distance transform of 2D or 3D binary images
+    the output distance map is unsigned
+    """
+    img_shape = image.shape
+    input_dim = len(img_shape)
+    if(input_dim != 3):
+        raise ValueError("Not implemented for {0:}D image".format(input_dim))
+    if(dim == 2):
+        raise ValueError("Not implemented for {0:}D image".format(input_dim))
+        # dis_map = np.ones_like(image, np.float32)
+        # for d in range(img_shape[0]):
+        #     if(image[d].sum() > 0):
+        #         dis_d = ndimage.morphology.distance_transform_edt(image[d])
+        #         dis_map[d] = dis_d/dis_d.max()
+    elif(dim == 3):
+        fg_dis_map = ndimage.morphology.distance_transform_edt(image > 0.5)
+        bg_dis_map = ndimage.morphology.distance_transform_edt(image <= 0.5)
+        dis_map = bg_dis_map - fg_dis_map
+    else:
+        raise ValueError("Not implemented for {0:}D distance".format(dim))
+    return dis_map
 
 def convert_label(label, source_list, target_list):
     """

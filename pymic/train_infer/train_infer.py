@@ -114,7 +114,7 @@ class TrainInferAgent():
 
         train_loss      = 0
         train_dice_list = []
-        loss_obj = SegmentationLossCalculator(loss_func)
+        loss_obj = SegmentationLossCalculator(loss_func, True)
         trainIter = iter(self.train_loader)
         print("{0:} training start".format(str(datetime.now())[:-7]))
         for it in range(iter_start, iter_max):
@@ -126,7 +126,7 @@ class TrainInferAgent():
             if(self.region_swop is not None):
                 data = self.region_swop(data)
             # get the inputs
-            inputs, labels = data['image'].double(), data['label']
+            inputs, labels_prob = data['image'].double(), data['label_prob'].double()
            
             # # for debug
             # for i in range(inputs.shape[0]):
@@ -137,22 +137,30 @@ class TrainInferAgent():
             #     save_nd_array_as_image(image_i, image_name, reference_name = None)
             #     save_nd_array_as_image(label_i, label_name, reference_name = None)
             # continue
-            inputs, labels = inputs.to(device), labels.to(device)
+            inputs, labels_prob = inputs.to(device), labels_prob.to(device)
+            
             # zero the parameter gradients
             self.optimizer.zero_grad()
             self.schedule.step()
                 
             # forward + backward + optimize
             outputs = self.net(inputs)
-            soft_y  = get_soft_label(labels, class_num)
-            loss    = loss_obj.get_loss(outputs, soft_y)
+            loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob}
+            if ('label_distance' in data):
+                label_distance = data['label_distance'].double()
+                loss_input_dict['label_distance'] = label_distance.to(device)
+            loss   = loss_obj.get_loss(loss_input_dict)
+            # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
 
             # get dice evaluation for each class
+            if(isinstance(outputs, tuple) or isinstance(outputs, list)):
+                outputs = outputs[0] 
             outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
-            soft_out  = get_soft_label(outputs_argmax, class_num)
-            dice_list = get_classwise_dice(soft_out, soft_y)
+            soft_out       = get_soft_label(outputs_argmax, class_num)
+            soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
+            dice_list = get_classwise_dice(soft_out, labels_prob)
             train_dice_list.append(dice_list.cpu().numpy())
 
             # evaluate performance on validation set
@@ -168,16 +176,22 @@ class TrainInferAgent():
                 valid_dice_list = []
                 with torch.no_grad():
                     for data in self.valid_loader:
-                        inputs, labels = data['image'].double(), data['label']
-                        inputs, labels = inputs.to(device), labels.to(device)
+                        inputs, labels_prob = data['image'].double(), data['label_prob'].double()
+                        inputs, labels_prob = inputs.to(device), labels_prob.to(device)
                         outputs = self.net(inputs)
-                        soft_y  = get_soft_label(labels, class_num)
-                        loss    = loss_obj.get_loss(outputs, soft_y)
+                        loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob}
+                        if ('label_distance' in data):
+                            label_distance = data['label_distance'].double()
+                            loss_input_dict['label_distance'] = label_distance.to(device)
+                        loss   = loss_obj.get_loss(loss_input_dict)
                         valid_loss = valid_loss + loss.item()
 
+                        if(isinstance(outputs, tuple) or isinstance(outputs, list)):
+                            outputs = outputs[0] 
                         outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
                         soft_out  = get_soft_label(outputs_argmax, class_num)
-                        dice_list = get_classwise_dice(soft_out, soft_y)
+                        soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
+                        dice_list = get_classwise_dice(soft_out, labels_prob)
                         valid_dice_list.append(dice_list.cpu().numpy())
 
                 valid_avg_loss = valid_loss / len(self.valid_loader)
@@ -209,15 +223,25 @@ class TrainInferAgent():
         # laod network parameters and set the network as evaluation mode
         self.checkpoint = torch.load(self.config['testing']['checkpoint_name'])
         self.net.load_state_dict(self.checkpoint['model_state_dict'])
-        self.net.eval()
-
-        output_dir   = self.config['testing']['output_dir']
+        
+        if(self.config['testing']['evaluation_mode'] == True):
+            self.net.eval()
+            if(self.config['testing']['test_time_dropout'] == True):
+                def test_time_dropout(m):
+                    if(type(m) == nn.Dropout):
+                        print('dropout layer')
+                        m.train()
+                self.net.apply(test_time_dropout)
+        output_dir       = self.config['testing']['output_dir']
         save_probability = self.config['testing']['save_probability']
         label_source = self.config['testing']['label_source']
         label_target = self.config['testing']['label_target']
         class_num    = self.config['network']['class_num']
         mini_batch_size     = self.config['testing']['mini_batch_size']
         mini_patch_inshape  = self.config['testing']['mini_patch_shape']
+        mini_patch_stride   = self.config['testing']['mini_patch_stride']
+        filename_replace_source = self.config['testing']['filename_replace_source']
+        filename_replace_target = self.config['testing']['filename_replace_target']
         mini_patch_outshape = None
         # automatically infer outupt shape
         if(mini_patch_inshape is not None):
@@ -227,6 +251,8 @@ class TrainInferAgent():
             testx = torch.tensor(testx)
             testx = testx.to(device)
             testy = self.net(testx)
+            if(isinstance(testy, tuple) or isinstance(testy, list)):
+                testy = testy[0] 
             testy = testy.detach().cpu().numpy()
             mini_patch_outshape = testy.shape[2:]
             print('mini patch in shape', mini_patch_inshape)
@@ -238,7 +264,7 @@ class TrainInferAgent():
                 names  = data['names']
                 print(names[0])
                 data['predict'] = volume_infer(images, self.net, device, class_num, 
-                    mini_batch_size, mini_patch_inshape, mini_patch_outshape)
+                    mini_batch_size, mini_patch_inshape, mini_patch_outshape, mini_patch_stride)
 
                 for i in reversed(range(len(self.transform_list))):
                     if (self.transform_list[i].inverse):
@@ -251,6 +277,8 @@ class TrainInferAgent():
                 # save the output and (optionally) probability predictions
                 root_dir  = self.config['dataset']['root_dir']
                 save_name = names[0].split('/')[-1]
+                if((filename_replace_source is  not None) and (filename_replace_target is not None)):
+                    save_name = save_name.replace(filename_replace_source, filename_replace_target)
                 save_name = "{0:}/{1:}".format(output_dir, save_name)
                 save_nd_array_as_image(output, save_name, root_dir + '/' + names[0])
                 if(save_probability):

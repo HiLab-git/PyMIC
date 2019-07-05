@@ -81,6 +81,12 @@ class UNet2D(nn.Module):
             kernel_size = 3, padding = 1)
 
     def forward(self, x):
+        x_shape = list(x.shape)
+        if(len(x_shape) == 5):
+          [N, C, D, H, W] = x_shape
+          new_shape = [N*D, C, H, W]
+          x = torch.transpose(x, 1, 2)
+          x = torch.reshape(x, new_shape)
         f1 = self.block1(x);  d1 = self.down1(f1)
         f2 = self.block2(d1); d2 = self.down2(f2)
         f3 = self.block3(d2); d3 = self.down3(f3)
@@ -104,6 +110,10 @@ class UNet2D(nn.Module):
         f9    = self.block9(f1cat)
 
         output = self.conv(f9)
+        if(len(x_shape) == 5):
+            new_shape = [N, D] + list(output.shape)[1:]
+            output = torch.reshape(output, new_shape)
+            output = torch.transpose(output, 1, 2)
         return output
 
 if __name__ == "__main__":
@@ -114,7 +124,7 @@ if __name__ == "__main__":
     Net = UNet2D(params)
     Net = Net.double()
 
-    x  = np.random.rand(4, 4, 96, 96)
+    x  = np.random.rand(4, 4, 10, 96, 96)
     xt = torch.from_numpy(x)
     xt = torch.tensor(xt)
     

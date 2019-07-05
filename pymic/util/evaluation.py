@@ -207,8 +207,8 @@ def binary_assd(s, g, spacing = None):
 
 # relative volume error evaluation
 def binary_relative_volume_error(s_volume, g_volume):
-    s_v = s_volume.sum()
-    g_v = g_volume.sum()
+    s_v = float(s_volume.sum())
+    g_v = float(g_volume.sum())
     assert(g_v > 0)
     rve = abs(s_v - g_v)/g_v
     return rve
@@ -247,10 +247,12 @@ def evaluation(config_file):
     metric = config['metric']
     labels = config['label_list']
     organ_name = config['organ_name']
-    label_convert_source = config.get('label_convert_source', None)
-    label_convert_target = config.get('label_convert_target', None)
-    s_folder = config['segmentation_folder']
-    g_folder = config['ground_truth_folder']
+    ground_truth_label_convert_source = config.get('ground_truth_label_convert_source', None)
+    ground_truth_label_convert_target = config.get('ground_truth_label_convert_target', None)
+    segmentation_label_convert_source = config.get('segmentation_label_convert_source', None)
+    segmentation_label_convert_target = config.get('segmentation_label_convert_target', None)
+    s_folder_list = config['segmentation_folder_list']
+    g_folder_list = config['ground_truth_folder_list']
     s_format  = config['segmentation_format']
     g_format  = config['ground_truth_format']
     s_postfix = config.get('segmentation_postfix',None)
@@ -270,16 +272,29 @@ def evaluation(config_file):
     score_all_data = []
     for i in range(len(patient_names)):
         # load segmentation and ground truth
-        s_name = os.path.join(s_folder, patient_names[i] + s_postfix_long)
-        g_name = os.path.join(g_folder, patient_names[i] + g_postfix_long)
+        for s_folder in s_folder_list:
+            s_name = os.path.join(s_folder, patient_names[i] + s_postfix_long)
+            if(os.path.isfile(s_name)):
+                break
+        for g_folder in g_folder_list:
+            g_name = os.path.join(g_folder, patient_names[i] + g_postfix_long)
+            if(os.path.isfile(g_name)):
+                break
         s_dict = load_image_as_nd_array(s_name)
         g_dict = load_image_as_nd_array(g_name)
         s_volume = s_dict["data_array"]; s_spacing = s_dict["spacing"]
         g_volume = g_dict["data_array"]; g_spacing = g_dict["spacing"]
         # for dim in range(len(s_spacing)):
         #     assert(s_spacing[dim] == g_spacing[dim])
-        if((label_convert_source is not None) and label_convert_target is not None):
-            s_volume = convert_label(s_volume, label_convert_source, label_convert_target)
+        if((ground_truth_label_convert_source is not None) and \
+            ground_truth_label_convert_target is not None):
+            g_volume = convert_label(g_volume, ground_truth_label_convert_source, \
+                ground_truth_label_convert_target)
+
+        if((segmentation_label_convert_source is not None) and \
+            segmentation_label_convert_target is not None):
+            s_volume = convert_label(s_volume, segmentation_label_convert_source, \
+                segmentation_label_convert_target)
 
         # fuse multiple labels
         s_volume_sub = np.zeros_like(s_volume)

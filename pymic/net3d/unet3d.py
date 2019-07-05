@@ -82,8 +82,8 @@ class UNet3D(nn.Module):
             stride = 2, acti_func = get_acti_func(self.acti_func, self.params))
 
         if(self.dropout):
-             self.drop1 = nn.Dropout(p=0.1)
-             self.drop2 = nn.Dropout(p=0.1)
+          #    self.drop1 = nn.Dropout(p=0.1)
+          #    self.drop2 = nn.Dropout(p=0.1)
              self.drop3 = nn.Dropout(p=0.2)
              self.drop4 = nn.Dropout(p=0.2)
              if(self.resolution_level == 5):
@@ -94,13 +94,9 @@ class UNet3D(nn.Module):
 
     def forward(self, x):
         f1 = self.block1(x)
-        if(self.dropout):
-             f1 = self.drop1(f1)
         d1 = self.down1(f1)
 
         f2 = self.block2(d1)
-        if(self.dropout):
-             f2 = self.drop2(f2)
         d2 = self.down2(f2)
 
         f3 = self.block3(d2)
