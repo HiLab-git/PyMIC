@@ -1,13 +1,16 @@
 # Prostate segmentation from 3D MRI
 <img src="./picture/seg_example.png" width="796" height="682"/> 
 
-In this example, we use 3D U-Net to segment the prostate brain from 3D MRI. First we download the images from internet, then edit the configuration file for training and testing. During training, we use tensorboard to observe the performance of the network at different iterations. We then apply the trained model to testing images and obtain quantitative evaluation results.
+In this example, we use 3D U-Net to segment the prostate from 3D MRI. First we download the images from internet, then edit the configuration file for training and testing. During training, we use tensorboard to observe the performance of the network at different iterations. We then apply the trained model to testing images and obtain quantitative evaluation results. 
+
+If you don't want to train the model by your self, you can download a pre-trained model [here][model_link] and jump to the `Testing and evaluation` section.
 
 ## Data and preprocessing
 1. We use the `Promise12` dataset for this example. The images are available from the [website][promise12_link]. Download the training set that consists of 50 3D MR images and their annotations. The whole dataset consists of three parts. Create a new folder such as `data/promise12`, and download the images and save them in a sub-folder, like `data/promise12/TrainingData_Part1`, `data/promise12/TrainingData_Part2`, and `data/promise12/TrainingData_Part3`. 
 2. Before we use these data, some preprocessing steps are needed, such as resampling them into a uniform resolution and crop the images to a smaller size. Create two folders `data/promise12/preprocess/image` and `data/promise12/preprocess/label`, then set `data_dir` in `preprocess.py` to according to your system. Run `python preprocess.py` for preprocessing.
 3. Open `write_csv_files.py` and set `data_dir` accordingly, such as `data/promise12/preprocess`. Run run `python write_csv_files.py` to randomly split the dataset into our own training (35), validation (5) and testing (10) sets. The output csv files are saved in `config`.
 
+[model_link]:https://drive.google.com/open?id=1pYwt0lRiV_QrCJe5ef9IsLf4NKyrFRRD
 [promise12_link]:https://promise12.grand-challenge.org/
 
 ## Training
@@ -24,7 +27,7 @@ python ../../pymic/train_infer/train_infer.py train config/train_test.cfg
 ![avg_loss](./picture/train_avg_loss.png)
 
 ## Testing and evaluation
-1. When training is finished. Run the following command to obtain segmentation results of testing images:
+1. Run the following command to obtain segmentation results of testing images. If you use [the pretrained model][model_link], you need to edit `checkpoint_name` in `config/train_test.cfg`.
 
 ```bash
 mkdir result
