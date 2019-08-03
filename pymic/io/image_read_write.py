@@ -112,6 +112,7 @@ def save_nd_array_as_image(data, image_name, reference_name = None):
 
     elif(image_name.endswith(".jpg") or image_name.endswith(".jpeg") or
          image_name.endswith(".tif") or image_name.endswith(".png")):
+         assert(data_dim == 2)
          save_array_as_rgb_image(data, image_name)
     else:
         raise ValueError("unsupported image format {0:}".format(

@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+from scipy import special
 from datetime import datetime
 from tensorboardX import SummaryWriter
 from pymic.io.image_read_write import save_nd_array_as_image
@@ -221,7 +222,7 @@ class TrainInferAgent():
         device = torch.device(self.config['testing']['device_name'])
         self.net.to(device)
         # laod network parameters and set the network as evaluation mode
-        self.checkpoint = torch.load(self.config['testing']['checkpoint_name'])
+        self.checkpoint = torch.load(self.config['testing']['checkpoint_name'], map_location = device)
         self.net.load_state_dict(self.checkpoint['model_state_dict'])
         
         if(self.config['testing']['evaluation_mode'] == True):
@@ -294,6 +295,8 @@ class TrainInferAgent():
                     for c in range(0, class_num):
                         temp_prob = prob[c]
                         prob_save_name = "{0:}_prob_{1:}.{2:}".format(save_prefix, c, save_format)
+                        if(len(temp_prob.shape) == 2):
+                            temp_prob = np.asarray(temp_prob * 255, np.uint8)
                         save_nd_array_as_image(temp_prob, prob_save_name, root_dir + '/' + names[0])
 
         avg_time = (time.time() - start_time) / len(self.test_loder)

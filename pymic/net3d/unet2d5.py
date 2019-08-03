@@ -99,12 +99,13 @@ if __name__ == "__main__":
     params = {'in_chns':4,
               'feature_chns':[2, 8, 32, 48, 64],
               'class_num': 2,
+              'dropout': True,
               'acti_func': 'leakyrelu',
               'leakyrelu_alpha': 0.01}
     Net = UNet2D5(params)
     Net = Net.double()
 
-    x  = np.random.rand(4, 4, 32, 96, 96)
+    x  = np.random.rand(1, 4, 16, 128, 128)
     xt = torch.from_numpy(x)
     xt = torch.tensor(xt)
     
