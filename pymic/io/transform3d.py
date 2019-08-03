@@ -363,7 +363,8 @@ class RandomCrop(object):
 
     def __init__(self, output_size, fg_focus = False, fg_ratio = 0.0, mask_label = None,  inverse = True):
         assert isinstance(output_size, (list, tuple))
-        assert isinstance(mask_label, (list, tuple))
+        if(mask_label is not None):
+            assert isinstance(mask_label, (list, tuple))
         self.output_size = output_size
         self.inverse  = inverse
         self.fg_focus = fg_focus
