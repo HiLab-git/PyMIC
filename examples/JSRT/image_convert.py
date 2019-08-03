@@ -57,7 +57,7 @@ def convert_JCRT_labels(input_dir, output_dir):
             label.save(output_full_name)
     
 if __name__ == "__main__":
-    JSRT_root  = "/home/guotai/data/JSRT"
+    JSRT_root  = "data/JSRT"
     input_image_dir  = JSRT_root + "/All247images"
     output_image_dir = JSRT_root + "/image"
     convert_JCRT_images(input_image_dir, output_image_dir)
