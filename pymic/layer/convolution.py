@@ -7,33 +7,91 @@ import torch.nn as nn
 class ConvolutionLayer(nn.Module):
     """
     A compose layer with the following components:
-    convolution -> (batch_norm) -> activation -> (dropout)
+    convolution -> (batch_norm / layer_norm / group_norm / instance_norm) -> activation -> (dropout)
     batch norm and dropout are optional
     """
     def __init__(self, in_channels, out_channels, kernel_size, dim = 3,
-            stride = 1, padding = 0, dilation =1, groups = 1, bias = True, 
-            batch_norm = True, acti_func = None):
+            stride = 1, padding = 0, dilation = 1, conv_group = 1, bias = True, 
+            norm_type = 'batch_norm', norm_group = 1, acti_func = None):
         super(ConvolutionLayer, self).__init__()
         self.n_in_chns  = in_channels
         self.n_out_chns = out_channels
-        self.batch_norm = batch_norm
+        self.norm_type  = norm_type
+        self.norm_group = norm_group
         self.acti_func  = acti_func
 
         assert(dim == 2 or dim == 3)
         if(dim == 2):
             self.conv = nn.Conv2d(in_channels, out_channels,
-                kernel_size, stride, padding, dilation, groups, bias)
-            if(self.batch_norm):
+                kernel_size, stride, padding, dilation, conv_group, bias)
+            if(self.norm_type == 'batch_norm'):
                 self.bn = nn.modules.BatchNorm2d(out_channels)
+            elif(self.norm_type == 'group_norm'):
+                self.bn = nn.GroupNorm(self.norm_group, out_channels)
+            else:
+                raise ValueError("unsupported normalization method {0:}".format(norm_type))
         else:        
             self.conv = nn.Conv3d(in_channels, out_channels,
-                kernel_size, stride, padding, dilation, groups, bias)
-            if(self.batch_norm):
+                kernel_size, stride, padding, dilation, conv_group, bias)
+            if(self.norm_type == 'batch_norm'):
                 self.bn = nn.modules.BatchNorm3d(out_channels)
+            elif(self.norm_type == 'group_norm'):
+                self.bn = nn.GroupNorm(self.norm_group, out_channels)
+            else:
+                raise ValueError("unsupported normalization method {0:}".format(norm_type))
 
     def forward(self, x):
         f = self.conv(x)
-        if(self.batch_norm):
+        if(self.norm_type is not None):
+            f = self.bn(f)
+        if(self.acti_func is not None):
+            f = self.acti_func(f)
+        return f
+
+class DepthSeperableConvolutionLayer(nn.Module):
+    """
+    A compose layer with the following components:
+    convolution -> (batch_norm) -> activation -> (dropout)
+    batch norm and dropout are optional
+    """
+    def __init__(self, in_channels, out_channels, kernel_size, dim = 3,
+            stride = 1, padding = 0, dilation =1, conv_group = 1, bias = True, 
+            norm_type = 'batch_norm', norm_group = 1, acti_func = None):
+        super(DepthSeperableConvolutionLayer, self).__init__()
+        self.n_in_chns  = in_channels
+        self.n_out_chns = out_channels
+        self.norm_type  = norm_type
+        self.norm_group = norm_group
+        self.acti_func  = acti_func
+
+        assert(dim == 2 or dim == 3)
+        if(dim == 2):
+            self.conv = nn.Conv2d(in_channels, in_channels,
+                kernel_size, stride, padding, dilation, groups = in_channels, bias = bias)
+            self.conv1x1 = nn.Conv2d(in_channels, out_channels,
+                kernel_size = 1, stride = stride, padding = 0, dilation = dilation, groups = conv_group, bias = bias)
+            if(self.norm_type == 'batch_norm'):
+                self.bn = nn.modules.BatchNorm2d(out_channels)
+            elif(self.norm_type == 'group_norm'):
+                self.bn = nn.GroupNorm(self.norm_group, out_channels)
+            else:
+                raise ValueError("unsupported normalization method {0:}".format(norm_type))
+        else:        
+            self.conv = nn.Conv3d(in_channels, in_channels,
+                kernel_size, stride, padding, dilation, groups = in_channels, bias = bias)
+            self.conv1x1 = nn.Conv3d(in_channels, out_channels,
+                kernel_size = 1, stride = 0, padding = 0, dilation = 0, groups = conv_group, bias = bias)
+            if(self.norm_type == 'batch_norm'):
+                self.bn = nn.modules.BatchNorm3d(out_channels)
+            elif(self.norm_type == 'group_norm'):
+                self.bn = nn.GroupNorm(self.norm_group, out_channels)
+            else:
+                raise ValueError("unsupported normalization method {0:}".format(norm_type))
+
+    def forward(self, x):
+        f = self.conv(x)
+        f = self.conv1x1(f)
+        if(self.norm_type is not None):
             f = self.bn(f)
         if(self.acti_func is not None):
             f = self.acti_func(f)

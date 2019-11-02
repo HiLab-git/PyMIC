@@ -237,6 +237,12 @@ def get_evaluation_score(s_volume, g_volume, spacing, metric):
 
     elif(metric_lower == "rve"):
         score = binary_relative_volume_error(s_volume, g_volume)
+
+    elif(metric_lower == "volume"):
+        voxel_size = 1.0
+        for dim in range(len(spacing)):
+            voxel_size = voxel_size * spacing[dim]
+        score = s_volume.sum()*voxel_size
     else:
         raise ValueError("unsupported evaluation metric: {0:}".format(metric))
 

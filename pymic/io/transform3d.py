@@ -9,6 +9,7 @@ import numpy as np
 
 from scipy import ndimage
 from pymic.util.image_process import *
+import matplotlib.pyplot as plt
 
 class Rescale(object):
     """Rescale the image in a sample to a given size.
@@ -386,7 +387,11 @@ class RandomCrop(object):
             mask  = np.zeros_like(label)
             for temp_lab in self.mask_label:
                 mask = np.maximum(mask, label == temp_lab)
-            bb_min, bb_max = get_ND_bounding_box(mask)
+            if(mask.sum() == 0):
+                bb_min = [0] * (input_dim + 1)
+                bb_max = mask.shape
+            else:
+                bb_min, bb_max = get_ND_bounding_box(mask)
             bb_min, bb_max = bb_min[1:], bb_max[1:]
             crop_min = [random.randint(bb_min[i], bb_max[i]) - int(self.output_size[i]/2) \
                 for i in range(input_dim)]

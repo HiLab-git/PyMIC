@@ -81,13 +81,11 @@ class UNet3D(nn.Module):
         self.up4 = DeconvolutionLayer(self.ft_chns[1], self.ft_chns[0], kernel_size = 2,
             stride = 2, acti_func = get_acti_func(self.acti_func, self.params))
 
-        if(self.dropout):
-          #    self.drop1 = nn.Dropout(p=0.1)
-          #    self.drop2 = nn.Dropout(p=0.1)
-             self.drop3 = nn.Dropout(p=0.2)
-             self.drop4 = nn.Dropout(p=0.2)
+        if(self.dropout > 0.0):
+             self.drop3 = nn.Dropout(self.dropout)
+             self.drop4 = nn.Dropout(self.dropout)
              if(self.resolution_level == 5):
-                  self.drop5 = nn.Dropout(p=0.3)
+                  self.drop5 = nn.Dropout(self.dropout)
                   
         self.conv = nn.Conv3d(self.ft_chns[0], self.n_class, 
             kernel_size = 3, padding = 1)

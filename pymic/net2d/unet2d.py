@@ -34,7 +34,9 @@ class UNet2D(nn.Module):
         self.ft_chns   = self.params['feature_chns']
         self.n_class   = self.params['class_num']
         self.acti_func = self.params['acti_func']
-        assert(len(self.ft_chns) == 5)
+        self.dropout   = self.params['dropout']
+        self.resolution_level = len(self.ft_chns)
+        assert(self.resolution_level == 5 or self.resolution_level == 4)
 
         self.block1 = UNetBlock(self.in_chns, self.ft_chns[0], 
              self.acti_func, self.params)
@@ -48,11 +50,12 @@ class UNet2D(nn.Module):
         self.block4 = UNetBlock(self.ft_chns[2], self.ft_chns[3], 
              self.acti_func, self.params)
 
-        self.block5 = UNetBlock(self.ft_chns[3], self.ft_chns[4], 
-             self.acti_func, self.params)
+        if(self.resolution_level == 5):
+            self.block5 = UNetBlock(self.ft_chns[3], self.ft_chns[4], 
+                self.acti_func, self.params)
 
-        self.block6 = UNetBlock(self.ft_chns[3] * 2, self.ft_chns[3], 
-             self.acti_func, self.params)
+            self.block6 = UNetBlock(self.ft_chns[3] * 2, self.ft_chns[3], 
+                self.acti_func, self.params)
 
         self.block7 = UNetBlock(self.ft_chns[2] * 2, self.ft_chns[2], 
              self.acti_func, self.params)
@@ -66,16 +69,23 @@ class UNet2D(nn.Module):
         self.down1 = nn.MaxPool2d(kernel_size = 2)
         self.down2 = nn.MaxPool2d(kernel_size = 2)
         self.down3 = nn.MaxPool2d(kernel_size = 2)
-        self.down4 = nn.MaxPool2d(kernel_size = 2)
+        if(self.resolution_level == 5):
+            self.down4 = nn.MaxPool2d(kernel_size = 2)
 
-        self.up1 = DeconvolutionLayer(self.ft_chns[4], self.ft_chns[3], kernel_size = 2,
-            dim = 2, stride = 2, acti_func = get_acti_func(self.acti_func, self.params))
+            self.up1 = DeconvolutionLayer(self.ft_chns[4], self.ft_chns[3], kernel_size = 2,
+                dim = 2, stride = 2, acti_func = get_acti_func(self.acti_func, self.params))
         self.up2 = DeconvolutionLayer(self.ft_chns[3], self.ft_chns[2], kernel_size = 2,
             dim = 2, stride = 2, acti_func = get_acti_func(self.acti_func, self.params))
         self.up3 = DeconvolutionLayer(self.ft_chns[2], self.ft_chns[1], kernel_size = 2,
             dim = 2, stride = 2, acti_func = get_acti_func(self.acti_func, self.params))
         self.up4 = DeconvolutionLayer(self.ft_chns[1], self.ft_chns[0], kernel_size = 2,
             dim = 2, stride = 2, acti_func = get_acti_func(self.acti_func, self.params))
+
+        if(self.dropout > 0.0):
+            self.drop3 = nn.Dropout(self.dropout)
+            self.drop4 = nn.Dropout(self.dropout)
+            if(self.resolution_level == 5):
+                self.drop5 = nn.Dropout(self.dropout)
 
         self.conv = nn.Conv2d(self.ft_chns[0], self.n_class, 
             kernel_size = 3, padding = 1)
@@ -87,18 +97,36 @@ class UNet2D(nn.Module):
           new_shape = [N*D, C, H, W]
           x = torch.transpose(x, 1, 2)
           x = torch.reshape(x, new_shape)
-        f1 = self.block1(x);  d1 = self.down1(f1)
-        f2 = self.block2(d1); d2 = self.down2(f2)
-        f3 = self.block3(d2); d3 = self.down3(f3)
-        f4 = self.block4(d3); d4 = self.down4(f4)
-        f5 = self.block5(d4)
+        f1 = self.block1(x)
+        d1 = self.down1(f1)
+        
+        f2 = self.block2(d1)
+        d2 = self.down2(f2)
 
-        f5up  = self.up1(f5)
-        f4cat = torch.cat((f4, f5up), dim = 1)
-        f6    = self.block6(f4cat)
+        f3 = self.block3(d2)
+        if(self.dropout > 0):
+             f3 = self.drop3(f3)
+        d3 = self.down3(f3)
 
-        f6up  = self.up2(f6)
-        f3cat = torch.cat((f3, f6up), dim = 1)
+        f4 = self.block4(d3)
+        if(self.dropout > 0):
+             f4 = self.drop4(f4)
+        
+        if(self.resolution_level == 5):
+            d4 = self.down4(f4)
+            f5 = self.block5(d4)
+            if(self.dropout > 0):
+                 f5 = self.drop5(f5)
+
+            f5up  = self.up1(f5)
+            f4cat = torch.cat((f4, f5up), dim = 1)
+            f6    = self.block6(f4cat)
+
+            f6up  = self.up2(f6)
+            f3cat = torch.cat((f3, f6up), dim = 1)
+        else:
+            f4up  = self.up2(f4)
+            f3cat = torch.cat((f3, f4up), dim = 1)
         f7    = self.block7(f3cat)
 
         f7up  = self.up3(f7)
