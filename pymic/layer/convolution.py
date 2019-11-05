@@ -28,7 +28,7 @@ class ConvolutionLayer(nn.Module):
                 self.bn = nn.modules.BatchNorm2d(out_channels)
             elif(self.norm_type == 'group_norm'):
                 self.bn = nn.GroupNorm(self.norm_group, out_channels)
-            else:
+            elif(self.norm_type is not None):
                 raise ValueError("unsupported normalization method {0:}".format(norm_type))
         else:        
             self.conv = nn.Conv3d(in_channels, out_channels,
@@ -37,7 +37,7 @@ class ConvolutionLayer(nn.Module):
                 self.bn = nn.modules.BatchNorm3d(out_channels)
             elif(self.norm_type == 'group_norm'):
                 self.bn = nn.GroupNorm(self.norm_group, out_channels)
-            else:
+            elif(self.norm_type is not None):
                 raise ValueError("unsupported normalization method {0:}".format(norm_type))
 
     def forward(self, x):
@@ -74,7 +74,7 @@ class DepthSeperableConvolutionLayer(nn.Module):
                 self.bn = nn.modules.BatchNorm2d(out_channels)
             elif(self.norm_type == 'group_norm'):
                 self.bn = nn.GroupNorm(self.norm_group, out_channels)
-            else:
+            elif(self.norm_type is not None):
                 raise ValueError("unsupported normalization method {0:}".format(norm_type))
         else:        
             self.conv = nn.Conv3d(in_channels, in_channels,
@@ -85,7 +85,7 @@ class DepthSeperableConvolutionLayer(nn.Module):
                 self.bn = nn.modules.BatchNorm3d(out_channels)
             elif(self.norm_type == 'group_norm'):
                 self.bn = nn.GroupNorm(self.norm_group, out_channels)
-            else:
+            elif(self.norm_type is not None):
                 raise ValueError("unsupported normalization method {0:}".format(norm_type))
 
     def forward(self, x):
