@@ -14,8 +14,8 @@ def rename_model_variable(input_file, output_file, input_var_list, output_var_li
     torch.save(checkpoint, output_file)
 
 if __name__ == "__main__":
-    input_file  = '/home/disk2t/projects/dlls/training_fetal_brain/model2/unet2dres/model_15000.pt'
-    output_file = '/home/disk2t/projects/dlls/training_fetal_brain/model2/unet2dres/model_15000_rename.pt'
+    input_file  = '/home/guotai/disk2t/projects/PyMIC/examples/prostate/model/unet3db/model_15000.pt'
+    output_file = '/home/guotai/disk2t/projects/PyMIC/examples/prostate/model/unet3db/model_15000_rename.pt'
     input_var_list = ['conv.weight', 'conv.bias']
     output_var_list= ['conv9.weight', 'conv9.bias']
     rename_model_variable(input_file, output_file, input_var_list, output_var_list)

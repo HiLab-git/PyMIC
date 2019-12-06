@@ -26,13 +26,13 @@ from pymic.util.image_process import convert_label
 from pymic.util.parse_config import parse_config
 
 
-class TrainInferAgent():
+class TrainInferAgent(object):
     def __init__(self, config, stage = 'train'):
         self.config = config
         self.stage  = stage
         assert(stage in ['train', 'inference', 'test'])
 
-    def __create_dataset(self):
+    def create_dataset(self):
         root_dir  = self.config['dataset']['root_dir']
         train_csv = self.config['dataset'].get('train_csv', None)
         valid_csv = self.config['dataset'].get('valid_csv', None)
@@ -74,11 +74,11 @@ class TrainInferAgent():
             self.test_loder = torch.utils.data.DataLoader(test_dataset, 
                 batch_size=batch_size, shuffle=False, num_workers=batch_size)
 
-    def __create_network(self):
+    def create_network(self):
         self.net = get_network(self.config['network'])
         self.net.double()
 
-    def __create_optimizer(self):
+    def create_optimizer(self):
         self.optimizer = get_optimiser(self.config['training']['optimizer'],
                 self.net.parameters(), 
                 self.config['training'])
@@ -91,7 +91,7 @@ class TrainInferAgent():
                 self.config['training']['lr_gamma'],
                 last_epoch = last_iter)
 
-    def __train(self):
+    def train(self):
         device = torch.device(self.config['training']['device_name'])
         self.net.to(device)
 
@@ -111,7 +111,7 @@ class TrainInferAgent():
             self.net.load_state_dict(self.checkpoint['model_state_dict'])
         else:
             self.checkpoint = None
-        self.__create_optimizer()
+        self.create_optimizer()
 
         train_loss      = 0
         train_dice_list = []
@@ -218,7 +218,7 @@ class TrainInferAgent():
                 torch.save(save_dict, save_name)    
         summ_writer.close()
     
-    def __infer(self):
+    def infer(self):
         device = torch.device(self.config['testing']['device_name'])
         self.net.to(device)
         # laod network parameters and set the network as evaluation mode
@@ -264,6 +264,15 @@ class TrainInferAgent():
                 images = data['image'].double()
                 names  = data['names']
                 print(names[0])
+                # for debug
+                # for i in range(images.shape[0]):
+                #     image_i = images[i][0]
+                #     label_i = images[i][0]
+                #     image_name = "temp/{0:}_image.nii.gz".format(names[0])
+                #     label_name = "temp/{0:}_label.nii.gz".format(names[0])
+                #     save_nd_array_as_image(image_i, image_name, reference_name = None)
+                #     save_nd_array_as_image(label_i, label_name, reference_name = None)
+                # continue
                 data['predict'] = volume_infer(images, self.net, device, class_num, 
                     mini_batch_size, mini_patch_inshape, mini_patch_outshape, mini_patch_stride)
 
@@ -303,12 +312,12 @@ class TrainInferAgent():
         print("average testing time {0:}".format(avg_time))
 
     def run(self):
-        agent.__create_dataset()
-        agent.__create_network()
+        self.create_dataset()
+        self.create_network()
         if(self.stage == 'train'):
-            self.__train()
+            self.train()
         else:
-            self.__infer()
+            self.infer()
 
 if __name__ == "__main__":
     if(len(sys.argv) < 3):

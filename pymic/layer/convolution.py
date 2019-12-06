@@ -66,21 +66,21 @@ class DepthSeperableConvolutionLayer(nn.Module):
 
         assert(dim == 2 or dim == 3)
         if(dim == 2):
-            self.conv = nn.Conv2d(in_channels, in_channels,
-                kernel_size, stride, padding, dilation, groups = in_channels, bias = bias)
             self.conv1x1 = nn.Conv2d(in_channels, out_channels,
                 kernel_size = 1, stride = stride, padding = 0, dilation = dilation, groups = conv_group, bias = bias)
+            self.conv = nn.Conv2d(out_channels, out_channels,
+                kernel_size, stride, padding, dilation, groups = out_channels, bias = bias)
             if(self.norm_type == 'batch_norm'):
                 self.bn = nn.modules.BatchNorm2d(out_channels)
             elif(self.norm_type == 'group_norm'):
                 self.bn = nn.GroupNorm(self.norm_group, out_channels)
             elif(self.norm_type is not None):
                 raise ValueError("unsupported normalization method {0:}".format(norm_type))
-        else:        
-            self.conv = nn.Conv3d(in_channels, in_channels,
-                kernel_size, stride, padding, dilation, groups = in_channels, bias = bias)
+        else:     
             self.conv1x1 = nn.Conv3d(in_channels, out_channels,
-                kernel_size = 1, stride = 0, padding = 0, dilation = 0, groups = conv_group, bias = bias)
+                kernel_size = 1, stride = stride, padding = 0, dilation = dilation, groups = conv_group, bias = bias)   
+            self.conv = nn.Conv3d(out_channels, out_channels,
+                kernel_size, stride, padding, dilation, groups = out_channels, bias = bias)
             if(self.norm_type == 'batch_norm'):
                 self.bn = nn.modules.BatchNorm3d(out_channels)
             elif(self.norm_type == 'group_norm'):
@@ -89,8 +89,8 @@ class DepthSeperableConvolutionLayer(nn.Module):
                 raise ValueError("unsupported normalization method {0:}".format(norm_type))
 
     def forward(self, x):
-        f = self.conv(x)
-        f = self.conv1x1(f)
+        f = self.conv1x1(x)
+        f = self.conv(f)
         if(self.norm_type is not None):
             f = self.bn(f)
         if(self.acti_func is not None):

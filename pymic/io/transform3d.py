@@ -530,7 +530,7 @@ class ChannelWiseThreshold(object):
         image= sample['image']
         for chn in range(image.shape[0]):
             mask = np.asarray(image[chn] > self.threshold[chn], image.dtype)
-            image[chn] = mask * image[chn]
+            image[chn] = mask * (image[chn] - self.threshold[chn])
 
         sample['image'] = image
         return sample
