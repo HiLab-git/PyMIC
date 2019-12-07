@@ -28,54 +28,71 @@ from pymic.util.parse_config import parse_config
 
 class TrainInferAgent(object):
     def __init__(self, config, stage = 'train'):
+        assert(stage in ['train', 'inference', 'test'])
         self.config = config
         self.stage  = stage
-        assert(stage in ['train', 'inference', 'test'])
+        if(stage == 'inference'):
+            self.stage = 'test'
+        self.net    = None
+        self.train_set = None 
+        self.valid_set = None 
+        self.test_set  = None
+        self.loss_calculater = None 
+
+    def set_datasets(self, train_set, valid_set, test_set):
+        self.train_set = train_set
+        self.valid_set = valid_set
+        self.test_set  = test_set
+
+    def set_network(self, net):
+        self.net = net 
+
+    def set_loss_calculater(self, loss_calculater):
+        self.loss_calculater = loss_calculater
+
+    def get_stage_dataset_from_config(self, stage):
+        assert(stage in ['train', 'valid', 'test'])
+        root_dir  = self.config['dataset']['root_dir']
+        modal_num = self.config['dataset']['modal_num']
+        if(stage == "train" or stage == "valid"):
+            transform_names = self.config['dataset']['train_transform']
+        elif(stage == "test"):
+            transform_names = self.config['dataset']['test_transform']
+        else:
+            raise ValueError("Incorrect value for stage: {0:}".format(stage))
+
+        self.transform_list = [get_transform(name, self.config['dataset']) \
+                    for name in transform_names ]    
+        csv_file = self.config['dataset'].get(stage + '_csv', None)
+        dataset  = NiftyDataset(root_dir=root_dir,
+                                csv_file  = csv_file,
+                                modal_num = modal_num,
+                                with_label= not (stage == 'test'),
+                                transform = transforms.Compose(self.transform_list))
+        return dataset
 
     def create_dataset(self):
-        root_dir  = self.config['dataset']['root_dir']
-        train_csv = self.config['dataset'].get('train_csv', None)
-        valid_csv = self.config['dataset'].get('valid_csv', None)
-        test_csv  = self.config['dataset'].get('test_csv', None)
-        modal_num = self.config['dataset']['modal_num']
         if(self.stage == 'train'):
-            transform_names = self.config['dataset']['train_transform']
-        else:
-            transform_names = self.config['dataset']['test_transform']
-        self.transform_list = [get_transform(name, self.config['dataset']) \
-            for name in transform_names if name != 'RegionSwop']
-        if('RegionSwop' in transform_names):
-            self.region_swop = get_transform('RegionSwop', self.config['dataset']) 
-        else:
-            self.region_swop = None
-        if(self.stage == 'train'):
-            train_dataset = NiftyDataset(root_dir=root_dir,
-                                csv_file  = train_csv,
-                                modal_num = modal_num,
-                                with_label= True,
-                                transform = transforms.Compose(self.transform_list))
-            valid_dataset = NiftyDataset(root_dir=root_dir,
-                                csv_file  = valid_csv,
-                                modal_num = modal_num,
-                                with_label= True,
-                                transform = transforms.Compose(self.transform_list))
+            if(self.train_set is None):
+                self.train_set = self.get_stage_dataset_from_config('train')
+            if(self.valid_set is None):
+                self.valid_set = self.get_stage_dataset_from_config('valid')
+
             batch_size = self.config['training']['batch_size']
-            self.train_loader = torch.utils.data.DataLoader(train_dataset, 
+            self.train_loader = torch.utils.data.DataLoader(self.train_set, 
                 batch_size = batch_size, shuffle=True, num_workers=batch_size * 4)
-            self.valid_loader = torch.utils.data.DataLoader(valid_dataset, 
+            self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
                 batch_size = batch_size, shuffle=False, num_workers=batch_size * 4)
         else:
-            test_dataset = NiftyDataset(root_dir=root_dir,
-                                csv_file  = test_csv,
-                                modal_num = modal_num,
-                                with_label= False,
-                                transform = transforms.Compose(self.transform_list))
+            if(self.test_set  is None):
+                self.test_set  = self.get_stage_dataset_from_config('test')
             batch_size = 1
-            self.test_loder = torch.utils.data.DataLoader(test_dataset, 
+            self.test_loder = torch.utils.data.DataLoader(self.test_set, 
                 batch_size=batch_size, shuffle=False, num_workers=batch_size)
 
     def create_network(self):
-        self.net = get_network(self.config['network'])
+        if(self.net is None):
+            self.net = get_network(self.config['network'])
         self.net.double()
 
     def create_optimizer(self):
@@ -97,7 +114,6 @@ class TrainInferAgent(object):
 
         summ_writer = SummaryWriter(self.config['training']['summary_dir'])
         chpt_prefx  = self.config['training']['checkpoint_prefix']
-        loss_func   = self.config['training']['loss_function']
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
@@ -115,7 +131,9 @@ class TrainInferAgent(object):
 
         train_loss      = 0
         train_dice_list = []
-        loss_obj = SegmentationLossCalculator(loss_func, True)
+        if(self.loss_calculater is None):
+            loss_func   = self.config['training']['loss_function']
+            self.loss_calculater = SegmentationLossCalculator(loss_func, True)
         trainIter = iter(self.train_loader)
         print("{0:} training start".format(str(datetime.now())[:-7]))
         for it in range(iter_start, iter_max):
@@ -124,8 +142,7 @@ class TrainInferAgent(object):
             except StopIteration:
                 trainIter = iter(self.train_loader)
                 data = next(trainIter)
-            if(self.region_swop is not None):
-                data = self.region_swop(data)
+            
             # get the inputs
             inputs, labels_prob = data['image'].double(), data['label_prob'].double()
            
@@ -150,7 +167,7 @@ class TrainInferAgent(object):
             if ('label_distance' in data):
                 label_distance = data['label_distance'].double()
                 loss_input_dict['label_distance'] = label_distance.to(device)
-            loss   = loss_obj.get_loss(loss_input_dict)
+            loss   = self.loss_calculater.get_loss(loss_input_dict)
             # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
@@ -184,7 +201,7 @@ class TrainInferAgent(object):
                         if ('label_distance' in data):
                             label_distance = data['label_distance'].double()
                             loss_input_dict['label_distance'] = label_distance.to(device)
-                        loss   = loss_obj.get_loss(loss_input_dict)
+                        loss   = self.loss_calculater.get_loss(loss_input_dict)
                         valid_loss = valid_loss + loss.item()
 
                         if(isinstance(outputs, tuple) or isinstance(outputs, list)):

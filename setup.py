@@ -21,15 +21,10 @@ setuptools.setup(
     license  = 'Apache 2.0',
     packages = setuptools.find_packages(),
     classifiers=[
-        'Development Status :: 0 - Alpha',
         'License :: OSI Approved :: Apache Software License',
-
         'Programming Language :: Python',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 3',
-
-        'Topic :: Scientific/Engineering :: Artificial Intelligence',
-        'Topic :: Scientific/Engineering :: Medical Image Computing',
     ],
     python_requires = '>=3.6',
 )
