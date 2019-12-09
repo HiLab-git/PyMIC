@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-def get_soft_label(input_tensor, num_class):
+def get_soft_label(input_tensor, num_class, data_type = 'float'):
     """
         convert a label tensor to soft label 
         input_tensor: tensor with shae [B, 1, D, H, W]
@@ -16,7 +16,12 @@ def get_soft_label(input_tensor, num_class):
         temp_prob = input_tensor == i*torch.ones_like(input_tensor)
         tensor_list.append(temp_prob)
     output_tensor = torch.cat(tensor_list, dim = 1)
-    output_tensor = output_tensor.double()
+    if(data_type == 'float'):
+        output_tensor = output_tensor.float()
+    elif(data_type == 'double'):
+        output_tensor = output_tensor.double()
+    else:
+        raise ValueError("data type can only be float and double: {0:}".format(data_type))
 
     return output_tensor
 
@@ -85,6 +90,14 @@ def ce_dice_loss(predict, soft_y, softmax = True):
 
     loss = ce + dice_loss
     return loss
+
+def uncertainty_dice_loss(predict, soft_y, gumb, softmax = True):
+    predict_g = predict + gumb
+    predict_g = nn.Softmax(dim = 1)(predict_g)
+    predict_g, soft_y = reshape_prediction_and_ground_truth(predict_g, soft_y) 
+    dice_score = get_classwise_dice(predict_g, soft_y)
+    dice_loss  = 1.0 - torch.mean(dice_score)  
+    return dice_loss
 
 def volume_dice_loss(predict, soft_y, softmax = True):
     if(softmax):
@@ -199,7 +212,8 @@ segmentation_loss_dict = {'dice_loss': soft_dice_loss,
         'cross_entropy_loss': cross_entropy_loss,
         'ce_dice_loss': ce_dice_loss,
         'distance_loss':distance_loss,
-        'dice_distance_loss': dice_distance_loss}
+        'dice_distance_loss': dice_distance_loss, 
+        'uncertainty_dice_loss':uncertainty_dice_loss}
 
 class SegmentationLossCalculator():
     def __init__(self, loss_name = 'dice_loss', deep_supervision = True):
@@ -227,12 +241,20 @@ class SegmentationLossCalculator():
                 loss = self.get_loss_of_single_prediction(predict[0], soft_y, lab_dis, softmax)
         else:
             loss = self.get_loss_of_single_prediction(predict, soft_y, lab_dis, softmax)
+        if(self.loss_name == "uncertainty_dice_loss"):
+            if(isinstance(predict, tuple) or isinstance(predict, list)):
+                w = torch.mean(predict[0] * predict[0])
+            else:
+                w = torch.mean(predict * predict)
+            loss = loss + 0.08*w
         return loss
     
     def get_loss_of_single_prediction(self, predict, soft_y, lab_dis = None, softmax = True):
         if(self.loss_name == 'distance_loss'):
             loss = self.loss_func(predict, lab_dis, softmax)
         elif(self.loss_name == "dice_distance_loss"):
+            loss = self.loss_func(predict, soft_y, lab_dis, softmax)
+        elif(self.loss_name ==  "uncertainty_dice_loss"):
             loss = self.loss_func(predict, soft_y, lab_dis, softmax)
         else:
             loss = self.loss_func(predict, soft_y, softmax)

@@ -38,7 +38,8 @@ class TrainInferAgent(object):
         self.valid_set = None 
         self.test_set  = None
         self.loss_calculater = None 
-
+        self.tensor_type = config['dataset']['tensor_type']
+        
     def set_datasets(self, train_set, valid_set, test_set):
         self.train_set = train_set
         self.valid_set = valid_set
@@ -93,8 +94,11 @@ class TrainInferAgent(object):
     def create_network(self):
         if(self.net is None):
             self.net = get_network(self.config['network'])
-        self.net.double()
-
+        if(self.tensor_type == 'float'):
+            self.net.float()
+        else:
+            self.net.double()
+        
     def create_optimizer(self):
         self.optimizer = get_optimiser(self.config['training']['optimizer'],
                 self.net.parameters(), 
@@ -107,6 +111,12 @@ class TrainInferAgent(object):
                 self.config['training']['lr_milestones'],
                 self.config['training']['lr_gamma'],
                 last_epoch = last_iter)
+
+    def convert_tensor_type(self, input_tensor):
+        if(self.tensor_type == 'float'):
+            return input_tensor.float()
+        else:
+            return input_tensor.double()
 
     def train(self):
         device = torch.device(self.config['training']['device_name'])
@@ -144,8 +154,9 @@ class TrainInferAgent(object):
                 data = next(trainIter)
             
             # get the inputs
-            inputs, labels_prob = data['image'].double(), data['label_prob'].double()
-           
+            inputs      = self.convert_tensor_type(data['image'])
+            labels_prob = self.convert_tensor_type(data['label_prob']) 
+
             # # for debug
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
@@ -165,7 +176,7 @@ class TrainInferAgent(object):
             outputs = self.net(inputs)
             loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob}
             if ('label_distance' in data):
-                label_distance = data['label_distance'].double()
+                label_distance = self.convert_tensor_type(data['label_distance'])
                 loss_input_dict['label_distance'] = label_distance.to(device)
             loss   = self.loss_calculater.get_loss(loss_input_dict)
             # if (self.config['training']['use'])
@@ -176,7 +187,7 @@ class TrainInferAgent(object):
             if(isinstance(outputs, tuple) or isinstance(outputs, list)):
                 outputs = outputs[0] 
             outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
-            soft_out       = get_soft_label(outputs_argmax, class_num)
+            soft_out       = get_soft_label(outputs_argmax, class_num, self.tensor_type)
             soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
             dice_list = get_classwise_dice(soft_out, labels_prob)
             train_dice_list.append(dice_list.cpu().numpy())
@@ -194,12 +205,13 @@ class TrainInferAgent(object):
                 valid_dice_list = []
                 with torch.no_grad():
                     for data in self.valid_loader:
-                        inputs, labels_prob = data['image'].double(), data['label_prob'].double()
+                        inputs      = self.convert_tensor_type(data['image'])
+                        labels_prob = self.convert_tensor_type(data['label_prob'])
                         inputs, labels_prob = inputs.to(device), labels_prob.to(device)
                         outputs = self.net(inputs)
                         loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob}
                         if ('label_distance' in data):
-                            label_distance = data['label_distance'].double()
+                            label_distance = self.convert_tensor_type(data['label_distance'])
                             loss_input_dict['label_distance'] = label_distance.to(device)
                         loss   = self.loss_calculater.get_loss(loss_input_dict)
                         valid_loss = valid_loss + loss.item()
@@ -207,7 +219,7 @@ class TrainInferAgent(object):
                         if(isinstance(outputs, tuple) or isinstance(outputs, list)):
                             outputs = outputs[0] 
                         outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
-                        soft_out  = get_soft_label(outputs_argmax, class_num)
+                        soft_out  = get_soft_label(outputs_argmax, class_num, self.tensor_type)
                         soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
                         dice_list = get_classwise_dice(soft_out, labels_prob)
                         valid_dice_list.append(dice_list.cpu().numpy())
@@ -278,7 +290,8 @@ class TrainInferAgent(object):
         start_time = time.time()
         with torch.no_grad():
             for data in self.test_loder:
-                images = data['image'].double()
+                images = self.convert_tensor_type(data['image'])
+                images = data['image'].float()
                 names  = data['names']
                 print(names[0])
                 # for debug
