@@ -26,13 +26,13 @@ class DeconvolutionLayer(nn.Module):
                 kernel_size, stride, padding, output_padding,
                 groups, bias, dilation)
             if(self.batch_norm):
-                self.bn = nn.modules.BatchNorm2d(out_channels)
+                self.bn = nn.BatchNorm2d(out_channels)
         else:
             self.conv = nn.ConvTranspose3d(in_channels, out_channels,
                 kernel_size, stride, padding, output_padding,
                 groups, bias, dilation)
             if(self.batch_norm):
-                self.bn = nn.modules.BatchNorm3d(out_channels)
+                self.bn = nn.BatchNorm3d(out_channels)
 
     def forward(self, x):
         f = self.conv(x)
@@ -68,7 +68,7 @@ class  DepthSeperableDeconvolutionLayer(nn.Module):
                 groups = out_channels, bias = bias, dilation = dilation)
             
             if(self.batch_norm):
-                self.bn = nn.modules.BatchNorm2d(out_channels)
+                self.bn = nn.BatchNorm2d(out_channels)
         else:
             self.conv1x1 = nn.Conv3d(in_channels, out_channels,
                 kernel_size = 1, stride = 1, padding = 0, dilation = dilation, 
@@ -77,7 +77,7 @@ class  DepthSeperableDeconvolutionLayer(nn.Module):
                 kernel_size, stride, padding, output_padding,
                 groups = out_channels, bias = bias, dilation = dilation)
             if(self.batch_norm):
-                self.bn = nn.modules.BatchNorm3d(out_channels)
+                self.bn = nn.BatchNorm3d(out_channels)
 
     def forward(self, x):
         f = self.conv1x1(x)

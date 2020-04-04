@@ -111,15 +111,16 @@ def get_sampled_surface_points(img):
         point_list = get_points_on_contour(img)
     else:
         point_list = get_points_on_surface(img)
-        point_list = random.sample(point_list, 500) 
     return point_list
 
-def hausdorff_distance_from_one_surface_to_another(point_list_s, point_list_g, spacing):
+def hausdorff95_from_one_surface_to_another(point_list_s, point_list_g, spacing):
     point_dim = len(spacing)
-    dis_square = 0.0
     n_max = 300
     if(len(point_list_s) > n_max):
         point_list_s = random.sample(point_list_s, n_max)
+    if(len(point_list_g) > n_max * 10):
+        point_list_g = random.sample(point_list_g, n_max * 10)
+    dist_list = []
     for ps in point_list_s:
         ps_nearest = 1e8
         for pg in point_list_g:
@@ -131,14 +132,13 @@ def hausdorff_distance_from_one_surface_to_another(point_list_s, point_list_g, s
                 temp_dis_square += dw*dw
             if(temp_dis_square < ps_nearest):
                 ps_nearest = temp_dis_square
-        if(dis_square < ps_nearest):
-            dis_square = ps_nearest
-    dis = math.sqrt(dis_square)
-    if(dis == 1e4):
-        dis = 50
-    return dis
+        dis = math.sqrt(ps_nearest)
+        dist_list.append(dis)
+    dist_list = sorted(dist_list)
+    hd95 = dist_list[int(len(dist_list)*0.95)]
+    return hd95
 
-def binary_hausdorff(s, g, spacing = None):
+def binary_hausdorff95(s, g, spacing = None):
     """
     get the hausdorff distance between a binary segmentation and the ground truth
     inputs:
@@ -155,9 +155,9 @@ def binary_hausdorff(s, g, spacing = None):
     point_list_s = get_sampled_surface_points(s)
     point_list_g = get_sampled_surface_points(g)
 
-    dis1 = hausdorff_distance_from_one_surface_to_another(
+    dis1 = hausdorff95_from_one_surface_to_another(
             point_list_s, point_list_g, spacing)
-    dis2 = hausdorff_distance_from_one_surface_to_another(
+    dis2 = hausdorff95_from_one_surface_to_another(
             point_list_g, point_list_s, spacing)
     return max(dis1, dis2)
 
@@ -232,8 +232,8 @@ def get_evaluation_score(s_volume, g_volume, spacing, metric):
     elif(metric_lower == 'assd'):
         score = binary_assd(s_volume, g_volume, spacing)
 
-    elif(metric_lower == "hausdorff"):
-        score = binary_hausdorff(s_volume, g_volume, spacing)
+    elif(metric_lower == "hausdorff95"):
+        score = binary_hausdorff95(s_volume, g_volume, spacing)
 
     elif(metric_lower == "rve"):
         score = binary_relative_volume_error(s_volume, g_volume)
@@ -242,7 +242,7 @@ def get_evaluation_score(s_volume, g_volume, spacing, metric):
         voxel_size = 1.0
         for dim in range(len(spacing)):
             voxel_size = voxel_size * spacing[dim]
-        score = s_volume.sum()*voxel_size
+        score = g_volume.sum()*voxel_size
     else:
         raise ValueError("unsupported evaluation metric: {0:}".format(metric))
 
@@ -275,53 +275,55 @@ def evaluation(config_file):
     with open(patient_names_file) as f:
             content = f.readlines()
             patient_names = [x.strip() for x in content] 
-    score_all_data = []
-    for i in range(len(patient_names)):
-        # load segmentation and ground truth
-        for s_folder in s_folder_list:
+
+    for s_folder in s_folder_list:
+        score_all_data = []
+        for i in range(len(patient_names)):
+            # load segmentation and ground truth
             s_name = os.path.join(s_folder, patient_names[i] + s_postfix_long)
-            if(os.path.isfile(s_name)):
+            if(not os.path.isfile(s_name)):
                 break
-        for g_folder in g_folder_list:
-            g_name = os.path.join(g_folder, patient_names[i] + g_postfix_long)
-            if(os.path.isfile(g_name)):
-                break
-        s_dict = load_image_as_nd_array(s_name)
-        g_dict = load_image_as_nd_array(g_name)
-        s_volume = s_dict["data_array"]; s_spacing = s_dict["spacing"]
-        g_volume = g_dict["data_array"]; g_spacing = g_dict["spacing"]
-        # for dim in range(len(s_spacing)):
-        #     assert(s_spacing[dim] == g_spacing[dim])
-        if((ground_truth_label_convert_source is not None) and \
-            ground_truth_label_convert_target is not None):
-            g_volume = convert_label(g_volume, ground_truth_label_convert_source, \
-                ground_truth_label_convert_target)
 
-        if((segmentation_label_convert_source is not None) and \
-            segmentation_label_convert_target is not None):
-            s_volume = convert_label(s_volume, segmentation_label_convert_source, \
-                segmentation_label_convert_target)
+            for g_folder in g_folder_list:
+                g_name = os.path.join(g_folder, patient_names[i] + g_postfix_long)
+                if(os.path.isfile(g_name)):
+                    break
+            s_dict = load_image_as_nd_array(s_name)
+            g_dict = load_image_as_nd_array(g_name)
+            s_volume = s_dict["data_array"]; s_spacing = s_dict["spacing"]
+            g_volume = g_dict["data_array"]; g_spacing = g_dict["spacing"]
+            # for dim in range(len(s_spacing)):
+            #     assert(s_spacing[dim] == g_spacing[dim])
+            if((ground_truth_label_convert_source is not None) and \
+                ground_truth_label_convert_target is not None):
+                g_volume = convert_label(g_volume, ground_truth_label_convert_source, \
+                    ground_truth_label_convert_target)
 
-        # fuse multiple labels
-        s_volume_sub = np.zeros_like(s_volume)
-        g_volume_sub = np.zeros_like(g_volume)
-        for lab in labels:
-            s_volume_sub = s_volume_sub + np.asarray(s_volume == lab, np.uint8)
-            g_volume_sub = g_volume_sub + np.asarray(g_volume == lab, np.uint8)
+            if((segmentation_label_convert_source is not None) and \
+                segmentation_label_convert_target is not None):
+                s_volume = convert_label(s_volume, segmentation_label_convert_source, \
+                    segmentation_label_convert_target)
 
-        # get evaluation score
-        temp_score = get_evaluation_score(s_volume_sub > 0, g_volume_sub > 0,
-                     g_spacing, metric)
-        score_all_data.append(temp_score)
-        print(patient_names[i], temp_score)
-    score_all_data = np.asarray(score_all_data)
-    score_mean = [score_all_data.mean(axis = 0)]
-    score_std  = [score_all_data.std(axis = 0)]
-    np.savetxt("{0:}/{1:}_{2:}_all.txt".format(s_folder, organ_name, metric), score_all_data)
-    np.savetxt("{0:}/{1:}_{2:}_mean.txt".format(s_folder, organ_name, metric), score_mean)
-    np.savetxt("{0:}/{1:}_{2:}_std.txt".format(s_folder, organ_name, metric), score_std)
-    print("{0:} mean ".format(metric), score_mean)
-    print("{0:} std  ".format(metric), score_std) 
+            # fuse multiple labels
+            s_volume_sub = np.zeros_like(s_volume)
+            g_volume_sub = np.zeros_like(g_volume)
+            for lab in labels:
+                s_volume_sub = s_volume_sub + np.asarray(s_volume == lab, np.uint8)
+                g_volume_sub = g_volume_sub + np.asarray(g_volume == lab, np.uint8)
+            
+            # get evaluation score
+            temp_score = get_evaluation_score(s_volume_sub > 0, g_volume_sub > 0,
+                        g_spacing, metric)
+            score_all_data.append(temp_score)
+            print(patient_names[i], temp_score)
+        score_all_data = np.asarray(score_all_data)
+        score_mean = [score_all_data.mean(axis = 0)]
+        score_std  = [score_all_data.std(axis = 0)]
+        np.savetxt("{0:}/{1:}_{2:}_all.txt".format(s_folder, organ_name, metric), score_all_data)
+        np.savetxt("{0:}/{1:}_{2:}_mean.txt".format(s_folder, organ_name, metric), score_mean)
+        np.savetxt("{0:}/{1:}_{2:}_std.txt".format(s_folder, organ_name, metric), score_std)
+        print("{0:} mean ".format(metric), score_mean)
+        print("{0:} std  ".format(metric), score_std) 
     
 if __name__ == '__main__':
     if(len(sys.argv) < 2):

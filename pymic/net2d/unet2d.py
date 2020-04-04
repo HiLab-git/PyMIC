@@ -3,91 +3,82 @@ from __future__ import print_function, division
 
 import torch
 import torch.nn as nn
-import numpy as np
-from pymic.layer.activation import get_acti_func
-from pymic.layer.convolution import ConvolutionLayer
-from pymic.layer.deconvolution import DeconvolutionLayer
 
-class UNetBlock(nn.Module):
-    def __init__(self,in_channels, out_channels, acti_func, acti_func_param):
-        super(UNetBlock, self).__init__()
-        
-        self.in_chns   = in_channels
-        self.out_chns  = out_channels
-        self.acti_func = acti_func
+class ConvBlock(nn.Module):
+    """two convolution layers with batch norm and leaky relu"""
+    def __init__(self,in_channels, out_channels):
+        super(ConvBlock, self).__init__()
+        self.conv_conv = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.LeakyReLU(),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.LeakyReLU(),
+        )
+       
+    def forward(self, x):
+        return self.conv_conv(x)
 
-        self.conv1 = ConvolutionLayer(in_channels,  out_channels, 3, 
-                dim = 2, padding = 1, acti_func=get_acti_func(acti_func, acti_func_param))
-        self.conv2 = ConvolutionLayer(out_channels, out_channels, 3, 
-                dim = 2, padding = 1, acti_func=get_acti_func(acti_func, acti_func_param))
+class DownBlock(nn.Module):
+    """Downsampling followed by ConvBlock"""
+    def __init__(self, in_channels, out_channels):
+        super(DownBlock, self).__init__()
+        self.maxpool_conv = nn.Sequential(
+            nn.MaxPool2d(2),
+            ConvBlock(in_channels, out_channels)
+        )
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)
-        return x
+        return self.maxpool_conv(x)
+
+class UpBlock(nn.Module):
+    """Upssampling followed by ConvBlock"""
+    def __init__(self, in_channels1, in_channels2, out_channels, 
+                 bilinear=True, dropout = False):
+        super(UpBlock, self).__init__()
+        self.bilinear = bilinear
+        self.dropout  = dropout
+        if bilinear:
+            self.conv1x1 = nn.Conv2d(in_channels1, in_channels2, kernel_size = 1)
+            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        else:
+            self.up = nn.ConvTranspose2d(in_channels1, in_channels2, kernel_size=2, stride=2)
+        if dropout:
+            self.drop = nn.Dropout(0.5)
+        self.conv = ConvBlock(in_channels2 * 2, out_channels)
+
+    def forward(self, x1, x2):
+        if self.bilinear:
+            x1 = self.conv1x1(x1)
+        x1 = self.up(x1)
+        x = torch.cat([x2, x1], dim=1)
+        if self.dropout:
+            x = self.drop(x)
+        return self.conv(x)
 
 class UNet2D(nn.Module):
     def __init__(self, params):
         super(UNet2D, self).__init__()
-        self.params = params
+        self.params    = params
         self.in_chns   = self.params['in_chns']
         self.ft_chns   = self.params['feature_chns']
         self.n_class   = self.params['class_num']
-        self.acti_func = self.params['acti_func']
+        self.bilinear  = self.params['bilinear']
         self.dropout   = self.params['dropout']
-        self.resolution_level = len(self.ft_chns)
-        assert(self.resolution_level == 5 or self.resolution_level == 4)
+        assert(len(self.ft_chns) == 5)
 
-        self.block1 = UNetBlock(self.in_chns, self.ft_chns[0], 
-             self.acti_func, self.params)
-
-        self.block2 = UNetBlock(self.ft_chns[0], self.ft_chns[1], 
-             self.acti_func, self.params)
-
-        self.block3 = UNetBlock(self.ft_chns[1], self.ft_chns[2], 
-             self.acti_func, self.params)
-
-        self.block4 = UNetBlock(self.ft_chns[2], self.ft_chns[3], 
-             self.acti_func, self.params)
-
-        if(self.resolution_level == 5):
-            self.block5 = UNetBlock(self.ft_chns[3], self.ft_chns[4], 
-                self.acti_func, self.params)
-
-            self.block6 = UNetBlock(self.ft_chns[3] * 2, self.ft_chns[3], 
-                self.acti_func, self.params)
-
-        self.block7 = UNetBlock(self.ft_chns[2] * 2, self.ft_chns[2], 
-             self.acti_func, self.params)
-
-        self.block8 = UNetBlock(self.ft_chns[1] * 2, self.ft_chns[1], 
-             self.acti_func, self.params)
-
-        self.block9 = UNetBlock(self.ft_chns[0] * 2, self.ft_chns[0], 
-             self.acti_func, self.params)
-
-        self.down1 = nn.MaxPool2d(kernel_size = 2)
-        self.down2 = nn.MaxPool2d(kernel_size = 2)
-        self.down3 = nn.MaxPool2d(kernel_size = 2)
-        if(self.resolution_level == 5):
-            self.down4 = nn.MaxPool2d(kernel_size = 2)
-
-            self.up1 = DeconvolutionLayer(self.ft_chns[4], self.ft_chns[3], kernel_size = 2,
-                dim = 2, stride = 2, acti_func = get_acti_func(self.acti_func, self.params))
-        self.up2 = DeconvolutionLayer(self.ft_chns[3], self.ft_chns[2], kernel_size = 2,
-            dim = 2, stride = 2, acti_func = get_acti_func(self.acti_func, self.params))
-        self.up3 = DeconvolutionLayer(self.ft_chns[2], self.ft_chns[1], kernel_size = 2,
-            dim = 2, stride = 2, acti_func = get_acti_func(self.acti_func, self.params))
-        self.up4 = DeconvolutionLayer(self.ft_chns[1], self.ft_chns[0], kernel_size = 2,
-            dim = 2, stride = 2, acti_func = get_acti_func(self.acti_func, self.params))
-
-        if(self.dropout > 0.0):
-            self.drop3 = nn.Dropout(self.dropout)
-            self.drop4 = nn.Dropout(self.dropout)
-            if(self.resolution_level == 5):
-                self.drop5 = nn.Dropout(self.dropout)
-
-        self.conv = nn.Conv2d(self.ft_chns[0], self.n_class, 
+        self.in_conv= ConvBlock(self.in_chns, self.ft_chns[0])
+        self.down1  = DownBlock(self.ft_chns[0], self.ft_chns[1])
+        self.down2  = DownBlock(self.ft_chns[1], self.ft_chns[2])
+        self.down3  = DownBlock(self.ft_chns[2], self.ft_chns[3])
+        self.down4  = DownBlock(self.ft_chns[3], self.ft_chns[4])
+        self.up1    = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], dropout = self.dropout)
+        self.up2    = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], dropout = self.dropout)
+        self.up3    = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1])
+        self.up4    = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0])
+    
+        self.out_conv = nn.Conv2d(self.ft_chns[0], self.n_class,  
             kernel_size = 3, padding = 1)
 
     def forward(self, x):
@@ -97,66 +88,20 @@ class UNet2D(nn.Module):
           new_shape = [N*D, C, H, W]
           x = torch.transpose(x, 1, 2)
           x = torch.reshape(x, new_shape)
-        f1 = self.block1(x)
-        d1 = self.down1(f1)
+        x0 = self.in_conv(x)
+        x1 = self.down1(x0)
+        x2 = self.down2(x1)
+        x3 = self.down3(x2)
+        x4 = self.down4(x3)
         
-        f2 = self.block2(d1)
-        d2 = self.down2(f2)
+        x = self.up1(x4, x3)
+        x = self.up2(x, x2)
+        x = self.up3(x, x1)
+        x = self.up4(x, x0)
+        output = self.out_conv(x)
 
-        f3 = self.block3(d2)
-        if(self.dropout > 0):
-             f3 = self.drop3(f3)
-        d3 = self.down3(f3)
-
-        f4 = self.block4(d3)
-        if(self.dropout > 0):
-             f4 = self.drop4(f4)
-        
-        if(self.resolution_level == 5):
-            d4 = self.down4(f4)
-            f5 = self.block5(d4)
-            if(self.dropout > 0):
-                 f5 = self.drop5(f5)
-
-            f5up  = self.up1(f5)
-            f4cat = torch.cat((f4, f5up), dim = 1)
-            f6    = self.block6(f4cat)
-
-            f6up  = self.up2(f6)
-            f3cat = torch.cat((f3, f6up), dim = 1)
-        else:
-            f4up  = self.up2(f4)
-            f3cat = torch.cat((f3, f4up), dim = 1)
-        f7    = self.block7(f3cat)
-
-        f7up  = self.up3(f7)
-        f2cat = torch.cat((f2, f7up), dim = 1)
-        f8    = self.block8(f2cat)
-
-        f8up  = self.up4(f8)
-        f1cat = torch.cat((f1, f8up), dim = 1)
-        f9    = self.block9(f1cat)
-
-        output = self.conv(f9)
         if(len(x_shape) == 5):
             new_shape = [N, D] + list(output.shape)[1:]
             output = torch.reshape(output, new_shape)
             output = torch.transpose(output, 1, 2)
         return output
-
-if __name__ == "__main__":
-    params = {'in_chns':4,
-              'feature_chns':[2, 8, 32, 48, 64],
-              'class_num': 2,
-              'acti_func': 'relu'}
-    Net = UNet2D(params)
-    Net = Net.double()
-
-    x  = np.random.rand(4, 4, 10, 96, 96)
-    xt = torch.from_numpy(x)
-    xt = torch.tensor(xt)
-    
-    y = Net(xt)
-    print(len(y.size()))
-    y = y.detach().numpy()
-    print(y.shape)
