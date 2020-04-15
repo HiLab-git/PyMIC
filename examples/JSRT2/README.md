@@ -5,7 +5,7 @@
 
 In this example, we show how to use a customized CNN to segment the heart from X-Ray images. The configurations are the same as those in the `JSRT` example except the network structure. 
 
-The customized CNN is detailed in `my_net2d.py`, which is a modification of the 2D UNet. In this new network, we use a residual connection in each block and only down-sample the feature maps three times in the encoder. 
+The customized CNN is detailed in `my_net2d.py`, which is a modification of the 2D UNet. In this new network, we use a residual connection in each block. 
 
 To use the customized CNN, we also write a customized main function in `jsrt_train_infer.py`, where we import a TrainInferAgent from PyMIC and set the network as our customized CNN.
 
@@ -38,4 +38,4 @@ python jsrt_train_infer.py test config/train_test.cfg
 python ../../pymic/util/evaluation.py config/evaluation.cfg
 ```
 
-The obtained dice score by default setting should be close to 92.51+/-3.96%. 
+The obtained dice score by default setting should be close to 94.61+/-2.84%. 
