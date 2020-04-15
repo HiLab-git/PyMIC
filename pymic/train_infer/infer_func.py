@@ -97,10 +97,9 @@ def volume_infer_by_patch(image, net, device, class_num,
         data_mini_batch = torch.from_numpy(data_mini_batch)
         data_mini_batch = torch.tensor(data_mini_batch)
         data_mini_batch = data_mini_batch.to(device)
-        # out_mini_batch  = []
+
         out_mini_batch  = net(data_mini_batch) # the network may give multiple predictions
         if(not(isinstance(out_mini_batch, tuple) or isinstance(out_mini_batch, list))):
-            print("")
             out_mini_batch = [out_mini_batch]
         out_mini_batch  = [item.cpu().numpy() for item in out_mini_batch]
         mask_mini_batch = np.ones_like(out_mini_batch[0])
@@ -114,7 +113,7 @@ def volume_infer_by_patch(image, net, device, class_num,
                 out_list[i] = set_ND_volume_roi_with_bounding_box_range(out_list[i], crop_start, crop_end, 
                      out_mini_batch[i][batch_idx-batch_start_idx])
             temp_mask = np.zeros_like(out_mask)
-            temp_mask = set_ND_volume_roi_with_bounding_box_range(out_mask, crop_start, crop_end, 
+            temp_mask = set_ND_volume_roi_with_bounding_box_range(temp_mask, crop_start, crop_end, 
                      mask_mini_batch[batch_idx-batch_start_idx])
             out_mask = out_mask + temp_mask
     if(max(margin) > 0):

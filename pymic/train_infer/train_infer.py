@@ -125,7 +125,7 @@ class TrainInferAgent(object):
         self.net.to(device)
 
         summ_writer = SummaryWriter(self.config['training']['summary_dir'])
-        multi_pred_weight  = self.config['training']['multi_pred_weight']
+        multi_pred_weight  = self.config['training'].get('multi_pred_weight', None)
         chpt_prefx  = self.config['training']['checkpoint_prefix']
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
@@ -271,19 +271,20 @@ class TrainInferAgent(object):
                         print('dropout layer')
                         m.train()
                 self.net.apply(test_time_dropout)
-        output_dir       = self.config['testing']['output_dir']
-        output_num       = self.config['testing']['output_num']
-        multi_pred_avg   = self.config['testing']['multi_pred_avg']
-        save_probability = self.config['testing']['save_probability']
-        label_source = self.config['testing'].get('label_source', None)
-        label_target = self.config['testing'].get('label_target', None)
+        output_dir   = self.config['testing']['output_dir']
         class_num    = self.config['network']['class_num']
         mini_batch_size      = self.config['testing']['mini_batch_size']
         mini_patch_inshape   = self.config['testing']['mini_patch_input_shape']
         mini_patch_outshape  = self.config['testing']['mini_patch_output_shape']
         mini_patch_stride    = self.config['testing']['mini_patch_stride']
-        filename_replace_source = self.config['testing']['filename_replace_source']
-        filename_replace_target = self.config['testing']['filename_replace_target']
+        output_num       = self.config['testing'].get('output_num', 1)
+        multi_pred_avg   = self.config['testing'].get('multi_pred_avg', False)
+        save_probability = self.config['testing'].get('save_probability', False)
+        save_var         = self.config['testing'].get('save_multi_pred_var', False)
+        label_source = self.config['testing'].get('label_source', None)
+        label_target = self.config['testing'].get('label_target', None)
+        filename_replace_source = self.config['testing'].get('filename_replace_source', None)
+        filename_replace_target = self.config['testing'].get('filename_replace_target', None)
 
         # automatically infer outupt shape
         # if(mini_patch_inshape is not None):
@@ -328,18 +329,22 @@ class TrainInferAgent(object):
                 if(isinstance(data['predict'], tuple) or isinstance(data['predict'], list)):
                     predict_list = data['predict']
 
-                if(multi_pred_avg):
-                    output = np.asarray(predict_list)
-                    output = np.mean(output, axis = 0)[0]
-                else:
-                    output = output_list[0][0]
-
-                prob   = scipy.special.softmax(output, axis = 0)
-                output = np.asarray(np.argmax(output,  axis = 0), np.uint8)
+                # for item in predict_list:
+                #     print("predict shape", item.shape, item[0][0].mean(), item[0][1].mean())
 
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
-                
+
+                prob_list = [scipy.special.softmax(predict[0], axis = 0) for predict in predict_list]
+                if(multi_pred_avg):
+                    prob_stack   = np.asarray(prob_list, np.float32)
+                    prob   = np.mean(prob_stack, axis = 0)
+                    var    = np.var(prob_stack, axis = 0)
+                else:
+                    prob = prob_list[0]
+                # output = predict_list[2][0]
+                output = np.asarray(np.argmax(prob,  axis = 0), np.uint8)
+
                 if((label_source is not None) and (label_target is not None)):
                     output = convert_label(output, label_source, label_target)
                 # save the output and (optionally) probability predictions
@@ -349,15 +354,14 @@ class TrainInferAgent(object):
                     save_name = save_name.replace(filename_replace_source, filename_replace_target)
                 save_name = "{0:}/{1:}".format(output_dir, save_name)
                 save_nd_array_as_image(output, save_name, root_dir + '/' + names[0])
+                save_name_split = save_name.split('.')
+                if('.nii.gz' in save_name):
+                    save_prefix = '.'.join(save_name_split[:-2])
+                    save_format = 'nii.gz'
+                else:
+                    save_prefix = '.'.join(save_name_split[:-1])
+                    save_format = save_name_split[-1]
                 if(save_probability):
-                    save_name_split = save_name.split('.')
-                    if('.nii.gz' in save_name):
-                        save_prefix = '.'.join(save_name_split[:-2])
-                        save_format = 'nii.gz'
-                    else:
-                        save_prefix = '.'.join(save_name_split[:-1])
-                        save_format = save_name_split[-1]
-
                     class_num = prob.shape[0]
                     for c in range(0, class_num):
                         temp_prob = prob[c]
@@ -365,6 +369,10 @@ class TrainInferAgent(object):
                         if(len(temp_prob.shape) == 2):
                             temp_prob = np.asarray(temp_prob * 255, np.uint8)
                         save_nd_array_as_image(temp_prob, prob_save_name, root_dir + '/' + names[0])
+                if(save_var):
+                    var = var[1]
+                    var_save_name = "{0:}_var.{1:}".format(save_prefix, save_format)
+                    save_nd_array_as_image(var, var_save_name, root_dir + '/' + names[0])
 
         infer_time_list = np.asarray(infer_time_list)
         time_avg = infer_time_list.mean()

@@ -119,8 +119,7 @@ if __name__ == "__main__":
               'feature_chns':[2, 8, 32, 48, 64],
               'dropout':  [0, 0, 0.3, 0.4, 0.5],
               'class_num': 2,
-              'bilinear': True,
-              'acti_func': 'relu'}
+              'bilinear': True}
     Net = UNet2D(params)
     Net = Net.double()
 
