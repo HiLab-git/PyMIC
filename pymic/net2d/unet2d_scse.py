@@ -1,25 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-An implementation of the U-Net paper:
-    Olaf Ronneberger, Philipp Fischer, Thomas Brox:
-    U-Net: Convolutional Networks for Biomedical Image Segmentation. 
-    MICCAI (3) 2015: 234-241
-Note that there are some modifications from the original paper, such as
-the use of batch normalization, dropout, and leaky relu here.
+Combining U-Net with SCSE module according to the following paper:
+    Abhijit Guha Roy, Nassir Navab, Christian Wachinger:
+    Recalibrating Fully Convolutional Networks With Spatial and Channel "Squeeze and Excitation" Blocks. \
+    IEEE Trans. Med. Imaging 38(2): 540-549 (2019)
 """
 from __future__ import print_function, division
 
 import torch
 import torch.nn as nn
 import numpy as np 
+from pymic.net2d.squeeze_and_excitation import *
 
-class ConvBlock(nn.Module):
+class ConvScSEBlock(nn.Module):
     """two convolution layers with batch norm and leaky relu"""
     def __init__(self,in_channels, out_channels, dropout_p):
-        """
-        dropout_p: probability to be zeroed
-        """
-        super(ConvBlock, self).__init__()
+        super(ConvScSEBlock, self).__init__()
         self.conv_conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels),
@@ -27,7 +23,8 @@ class ConvBlock(nn.Module):
             nn.Dropout(dropout_p),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels),
-            nn.LeakyReLU()
+            nn.LeakyReLU(),
+            ChannelSpatialSELayer(out_channels)
         )
        
     def forward(self, x):
@@ -39,7 +36,8 @@ class DownBlock(nn.Module):
         super(DownBlock, self).__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
-            ConvBlock(in_channels, out_channels, dropout_p)
+            ConvScSEBlock(in_channels, out_channels, dropout_p)
+
         )
 
     def forward(self, x):
@@ -47,7 +45,7 @@ class DownBlock(nn.Module):
 
 class UpBlock(nn.Module):
     """Upssampling followed by ConvBlock"""
-    def __init__(self, in_channels1, in_channels2, out_channels, dropout_p,
+    def __init__(self, in_channels1, in_channels2, out_channels, dropout_p, 
                  bilinear=True):
         super(UpBlock, self).__init__()
         self.bilinear = bilinear
@@ -56,7 +54,7 @@ class UpBlock(nn.Module):
             self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         else:
             self.up = nn.ConvTranspose2d(in_channels1, in_channels2, kernel_size=2, stride=2)
-        self.conv = ConvBlock(in_channels2 * 2, out_channels, dropout_p)
+        self.conv = ConvScSEBlock(in_channels2 * 2, out_channels, dropout_p)
 
     def forward(self, x1, x2):
         if self.bilinear:
@@ -65,9 +63,9 @@ class UpBlock(nn.Module):
         x = torch.cat([x2, x1], dim=1)
         return self.conv(x)
 
-class UNet2D(nn.Module):
+class UNet2D_ScSE(nn.Module):
     def __init__(self, params):
-        super(UNet2D, self).__init__()
+        super(UNet2D_ScSE, self).__init__()
         self.params    = params
         self.in_chns   = self.params['in_chns']
         self.ft_chns   = self.params['feature_chns']
@@ -76,7 +74,7 @@ class UNet2D(nn.Module):
         self.dropout   = self.params['dropout']
         assert(len(self.ft_chns) == 5)
 
-        self.in_conv= ConvBlock(self.in_chns, self.ft_chns[0], self.dropout[0])
+        self.in_conv= ConvScSEBlock(self.in_chns, self.ft_chns[0], self.dropout[0])
         self.down1  = DownBlock(self.ft_chns[0], self.ft_chns[1], self.dropout[1])
         self.down2  = DownBlock(self.ft_chns[1], self.ft_chns[2], self.dropout[2])
         self.down3  = DownBlock(self.ft_chns[2], self.ft_chns[3], self.dropout[3])
@@ -119,8 +117,9 @@ if __name__ == "__main__":
               'feature_chns':[2, 8, 32, 48, 64],
               'dropout':  [0, 0, 0.3, 0.4, 0.5],
               'class_num': 2,
-              'bilinear': True}
-    Net = UNet2D(params)
+              'bilinear': True,
+              'acti_func': 'relu'}
+    Net = UNet2D_ScSE(params)
     Net = Net.double()
 
     x  = np.random.rand(4, 4, 10, 96, 96)

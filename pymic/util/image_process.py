@@ -53,30 +53,52 @@ def crop_ND_volume_with_bounding_box(volume, min_idx, max_idx):
         raise ValueError("the dimension number shoud be 2 to 5")
     return output
 
-def set_ND_volume_roi_with_bounding_box_range(volume, bb_min, bb_max, sub_volume):
+def set_ND_volume_roi_with_bounding_box_range(volume, bb_min, bb_max, sub_volume, addition = True):
     """
-    set a subregion to an nd image.
+    set a subregion to an nd image. if addition is True, the original volume is added by the subregion.
     """
     dim = len(bb_min)
     out = volume
     if(dim == 2):
-        out[np.ix_(range(bb_min[0], bb_max[0]),
-                   range(bb_min[1], bb_max[1]))] = sub_volume
+        if(addition):
+            out[np.ix_(range(bb_min[0], bb_max[0]),
+                    range(bb_min[1], bb_max[1]))]  += sub_volume
+        else:
+            out[np.ix_(range(bb_min[0], bb_max[0]),
+                    range(bb_min[1], bb_max[1]))]   = sub_volume
     elif(dim == 3):
-        out[np.ix_(range(bb_min[0], bb_max[0]),
-                   range(bb_min[1], bb_max[1]),
-                   range(bb_min[2], bb_max[2]))] = sub_volume
+        if(addition):
+            out[np.ix_(range(bb_min[0], bb_max[0]),
+                    range(bb_min[1], bb_max[1]),
+                    range(bb_min[2], bb_max[2]))]  += sub_volume
+        else:
+            out[np.ix_(range(bb_min[0], bb_max[0]),
+                    range(bb_min[1], bb_max[1]),
+                    range(bb_min[2], bb_max[2]))]   = sub_volume
     elif(dim == 4):
-        out[np.ix_(range(bb_min[0], bb_max[0]),
-                   range(bb_min[1], bb_max[1]),
-                   range(bb_min[2], bb_max[2]),
-                   range(bb_min[3], bb_max[3]))] = sub_volume
+        if(addition):
+            out[np.ix_(range(bb_min[0], bb_max[0]),
+                    range(bb_min[1], bb_max[1]),
+                    range(bb_min[2], bb_max[2]),
+                    range(bb_min[3], bb_max[3]))]  += sub_volume
+        else:
+            out[np.ix_(range(bb_min[0], bb_max[0]),
+                    range(bb_min[1], bb_max[1]),
+                    range(bb_min[2], bb_max[2]),
+                    range(bb_min[3], bb_max[3]))]   = sub_volume
     elif(dim == 5):
-        out[np.ix_(range(bb_min[0], bb_max[0]),
-                   range(bb_min[1], bb_max[1]),
-                   range(bb_min[2], bb_max[2]),
-                   range(bb_min[3], bb_max[3]),
-                   range(bb_min[4], bb_max[4]))] = sub_volume
+        if(addition):
+            out[np.ix_(range(bb_min[0], bb_max[0]),
+                    range(bb_min[1], bb_max[1]),
+                    range(bb_min[2], bb_max[2]),
+                    range(bb_min[3], bb_max[3]),
+                    range(bb_min[4], bb_max[4]))]  += sub_volume
+        else:
+            out[np.ix_(range(bb_min[0], bb_max[0]),
+                    range(bb_min[1], bb_max[1]),
+                    range(bb_min[2], bb_max[2]),
+                    range(bb_min[3], bb_max[3]),
+                    range(bb_min[4], bb_max[4]))]   = sub_volume
     else:
         raise ValueError("array dimension should be 2 to 5")
     return out

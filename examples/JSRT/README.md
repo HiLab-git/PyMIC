@@ -45,5 +45,5 @@ python ../../pymic/train_infer/train_infer.py test config/train_test.cfg
 python ../../pymic/util/evaluation.py config/evaluation.cfg
 ```
 
-The obtained dice score by default setting should be close to 94.59+/-3.16%. You can set `metric = assd` in `config/evaluation.cfg` and run the evaluation command again. You will get average symmetric surface distance (assd) evaluation results. By default setting, the assd is close to 2.21+/-1.23 pixels.
+The obtained dice score by default setting should be close to 94.88+/-2.72%. You can set `metric = assd` in `config/evaluation.cfg` and run the evaluation command again. You will get average symmetric surface distance (assd) evaluation results. By default setting, the assd is close to 2.08+/-1.06 pixels.
 

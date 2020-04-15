@@ -11,6 +11,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
 
 from scipy import special
 from datetime import datetime
@@ -20,113 +21,25 @@ from pymic.io.nifty_dataset import NiftyDataset
 from pymic.io.transform3d import get_transform
 from pymic.train_infer.net_factory import get_network
 from pymic.train_infer.infer_func import volume_infer
+from pymic.train_infer.train_infer import TrainInferAgent
 from pymic.train_infer.loss import *
 from pymic.train_infer.get_optimizer import get_optimiser
 from pymic.util.image_process import convert_label
 from pymic.util.parse_config import parse_config
 
-
-class TrainInferAgent(object):
+class TrainInferAgentUncertainty(TrainInferAgent):
     def __init__(self, config, stage = 'train'):
-        assert(stage in ['train', 'inference', 'test'])
-        self.config = config
-        self.stage  = stage
-        if(stage == 'inference'):
-            self.stage = 'test'
-        self.net    = None
-        self.train_set = None 
-        self.valid_set = None 
-        self.test_set  = None
-        self.loss_calculater = None 
-        self.tensor_type = config['dataset']['tensor_type']
+        super(TrainInferAgentUncertainty, self).__init__(config, stage)
         
-    def set_datasets(self, train_set, valid_set, test_set):
-        self.train_set = train_set
-        self.valid_set = valid_set
-        self.test_set  = test_set
-
-    def set_network(self, net):
-        self.net = net 
-
-    def set_loss_calculater(self, loss_calculater):
-        self.loss_calculater = loss_calculater
-
-    def get_stage_dataset_from_config(self, stage):
-        assert(stage in ['train', 'valid', 'test'])
-        root_dir  = self.config['dataset']['root_dir']
-        modal_num = self.config['dataset']['modal_num']
-        if(stage == "train" or stage == "valid"):
-            transform_names = self.config['dataset']['train_transform']
-        elif(stage == "test"):
-            transform_names = self.config['dataset']['test_transform']
-        else:
-            raise ValueError("Incorrect value for stage: {0:}".format(stage))
-
-        self.transform_list = [get_transform(name, self.config['dataset']) \
-                    for name in transform_names ]    
-        csv_file = self.config['dataset'].get(stage + '_csv', None)
-        dataset  = NiftyDataset(root_dir=root_dir,
-                                csv_file  = csv_file,
-                                modal_num = modal_num,
-                                with_label= not (stage == 'test'),
-                                transform = transforms.Compose(self.transform_list))
-        return dataset
-
-    def create_dataset(self):
-        if(self.stage == 'train'):
-            if(self.train_set is None):
-                self.train_set = self.get_stage_dataset_from_config('train')
-            if(self.valid_set is None):
-                self.valid_set = self.get_stage_dataset_from_config('valid')
-
-            batch_size = self.config['training']['batch_size']
-            self.train_loader = torch.utils.data.DataLoader(self.train_set, 
-                batch_size = batch_size, shuffle=True, num_workers=batch_size * 4)
-            self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
-                batch_size = batch_size, shuffle=False, num_workers=batch_size * 4)
-        else:
-            if(self.test_set  is None):
-                self.test_set  = self.get_stage_dataset_from_config('test')
-            batch_size = 1
-            self.test_loder = torch.utils.data.DataLoader(self.test_set, 
-                batch_size=batch_size, shuffle=False, num_workers=batch_size)
-
-    def create_network(self):
-        if(self.net is None):
-            self.net = get_network(self.config['network'])
-        if(self.tensor_type == 'float'):
-            self.net.float()
-        else:
-            self.net.double()
-        param_number = sum(p.numel() for p in self.net.parameters() if p.requires_grad)
-        print('parameter number:', param_number)
-        
-    def create_optimizer(self):
-        self.optimizer = get_optimiser(self.config['training']['optimizer'],
-                self.net.parameters(), 
-                self.config['training'])
-        last_iter = -1
-        if(self.checkpoint is not None):
-            self.optimizer.load_state_dict(self.checkpoint['optimizer_state_dict'])
-            last_iter = self.checkpoint['iteration'] - 1
-        self.schedule = optim.lr_scheduler.MultiStepLR(self.optimizer,
-                self.config['training']['lr_milestones'],
-                self.config['training']['lr_gamma'],
-                last_epoch = last_iter)
-
-    def convert_tensor_type(self, input_tensor):
-        if(self.tensor_type == 'float'):
-            return input_tensor.float()
-        else:
-            return input_tensor.double()
-
     def train(self):
         device = torch.device(self.config['training']['device_name'])
         self.net.to(device)
 
         summ_writer = SummaryWriter(self.config['training']['summary_dir'])
-        multi_pred_weight  = self.config['training'].get('multi_pred_weight', None)
+        multi_pred_weight  = self.config['training']['multi_pred_weight']
         chpt_prefx  = self.config['training']['checkpoint_prefix']
+        loss_func   = self.config['training']['loss_function']
+        uncertain_reg_wht = self.config['training']['uncertain_reg_wht']
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
@@ -144,11 +57,8 @@ class TrainInferAgent(object):
 
         train_loss      = 0
         train_dice_list = []
-        if(self.loss_calculater is None):
-            loss_func   = self.config['training']['loss_function']
-            self.loss_calculater = SegmentationLossCalculator(loss_func, multi_pred_weight)
-            if(loss_func == 'noise_robust_dice_loss'):
-                self.loss_calculater.set_noise_robust_dice_loss_p(self.config['training']['noise_robust_dice_loss_p'])
+        loss_obj = SegmentationLossCalculator(loss_func, multi_pred_weight)
+        loss_obj.set_uncertainty_dice_loss_reg_weight(uncertain_reg_wht)
         trainIter = iter(self.train_loader)
         print("{0:} training start".format(str(datetime.now())[:-7]))
         for it in range(iter_start, iter_max):
@@ -158,18 +68,13 @@ class TrainInferAgent(object):
                 trainIter = iter(self.train_loader)
                 data = next(trainIter)
 
-            # if (it % iter_valid == iter_valid - 1):
-            #     print("{0:} it {1:}".format(str(datetime.now())[:-7], it))
-            # print('iterations', it)
-            # continue
-            # get the inputs
             inputs      = self.convert_tensor_type(data['image'])
             labels_prob = self.convert_tensor_type(data['label_prob']) 
-
+           
             # # for debug
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
-            #     label_i = labels_prob[i][0]
+            #     label_i = labels[i][0]
             #     image_name = "temp/image_{0:}_{1:}.nii.gz".format(it, i)
             #     label_name = "temp/label_{0:}_{1:}.nii.gz".format(it, i)
             #     save_nd_array_as_image(image_i, image_name, reference_name = None)
@@ -179,24 +84,30 @@ class TrainInferAgent(object):
             
             # zero the parameter gradients
             self.optimizer.zero_grad()
+            self.schedule.step()
                 
             # forward + backward + optimize
             outputs = self.net(inputs)
             loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob}
-            if ('label_distance' in data):
-                label_distance = self.convert_tensor_type(data['label_distance'])
-                loss_input_dict['label_distance'] = label_distance.to(device)
-            loss   = self.loss_calculater.get_loss(loss_input_dict)
+            # if ('label_distance' in data):
+            #     label_distance = data['label_distance'].double()
+            #     loss_input_dict['label_distance'] = label_distance.to(device)
+            gumb_list = []
+            for n in range(4):
+                gumb_n = np.random.gumbel(size = list(labels_prob.shape))
+                gumb_n = torch.from_numpy(gumb_n).to(device)
+                gumb_list.append(gumb_n)
+            loss_input_dict['label_distance'] = gumb_list
+            loss   = loss_obj.get_loss(loss_input_dict)
             # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
-            self.schedule.step()
 
             # get dice evaluation for each class
             if(isinstance(outputs, tuple) or isinstance(outputs, list)):
                 outputs = outputs[0] 
             outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
-            soft_out       = get_soft_label(outputs_argmax, class_num, self.tensor_type)
+            soft_out       = get_soft_label(outputs_argmax, class_num)
             soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
             dice_list = get_classwise_dice(soft_out, labels_prob)
             train_dice_list.append(dice_list.cpu().numpy())
@@ -219,16 +130,22 @@ class TrainInferAgent(object):
                         inputs, labels_prob = inputs.to(device), labels_prob.to(device)
                         outputs = self.net(inputs)
                         loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob}
-                        if ('label_distance' in data):
-                            label_distance = self.convert_tensor_type(data['label_distance'])
-                            loss_input_dict['label_distance'] = label_distance.to(device)
-                        loss   = self.loss_calculater.get_loss(loss_input_dict)
+                        # if ('label_distance' in data):
+                        #     label_distance = data['label_distance'].double()
+                        #     loss_input_dict['label_distance'] = label_distance.to(device)
+                        gumb_list = []
+                        for n in range(4):
+                            gumb_n = np.random.gumbel(size = list(labels_prob.shape))
+                            gumb_n = torch.from_numpy(gumb_n).to(device)
+                            gumb_list.append(gumb_n)
+                        loss_input_dict['label_distance'] = gumb_list
+                        loss   = loss_obj.get_loss(loss_input_dict)
                         valid_loss = valid_loss + loss.item()
 
                         if(isinstance(outputs, tuple) or isinstance(outputs, list)):
                             outputs = outputs[0] 
                         outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
-                        soft_out  = get_soft_label(outputs_argmax, class_num, self.tensor_type)
+                        soft_out  = get_soft_label(outputs_argmax, class_num)
                         soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
                         dice_list = get_classwise_dice(soft_out, labels_prob)
                         valid_dice_list.append(dice_list.cpu().numpy())
@@ -255,7 +172,7 @@ class TrainInferAgent(object):
                 save_name = "{0:}_{1:}.pt".format(chpt_prefx, it + 1)
                 torch.save(save_dict, save_name)    
         summ_writer.close()
-    
+
     def infer(self):
         device = torch.device(self.config['testing']['device_name'])
         self.net.to(device)
@@ -271,20 +188,19 @@ class TrainInferAgent(object):
                         print('dropout layer')
                         m.train()
                 self.net.apply(test_time_dropout)
-        output_dir   = self.config['testing']['output_dir']
+        output_dir       = self.config['testing']['output_dir']
+        output_num       = self.config['testing']['output_num']
+        multi_pred_avg   = self.config['testing']['multi_pred_avg']
+        save_probability = self.config['testing']['save_probability']
+        label_source = self.config['testing'].get('label_source', None)
+        label_target = self.config['testing'].get('label_target', None)
         class_num    = self.config['network']['class_num']
         mini_batch_size      = self.config['testing']['mini_batch_size']
         mini_patch_inshape   = self.config['testing']['mini_patch_input_shape']
         mini_patch_outshape  = self.config['testing']['mini_patch_output_shape']
         mini_patch_stride    = self.config['testing']['mini_patch_stride']
-        output_num       = self.config['testing'].get('output_num', 1)
-        multi_pred_avg   = self.config['testing'].get('multi_pred_avg', False)
-        save_probability = self.config['testing'].get('save_probability', False)
-        save_var         = self.config['testing'].get('save_multi_pred_var', False)
-        label_source = self.config['testing'].get('label_source', None)
-        label_target = self.config['testing'].get('label_target', None)
-        filename_replace_source = self.config['testing'].get('filename_replace_source', None)
-        filename_replace_target = self.config['testing'].get('filename_replace_target', None)
+        filename_replace_source = self.config['testing']['filename_replace_source']
+        filename_replace_target = self.config['testing']['filename_replace_target']
 
         # automatically infer outupt shape
         # if(mini_patch_inshape is not None):
@@ -301,49 +217,54 @@ class TrainInferAgent(object):
         #     mini_patch_outshape = testy.shape[2:]
         #     print('mini patch in shape', mini_patch_inshape)
         #     print('mini patch out shape', mini_patch_outshape)
-        
         infer_time_list = []
+        # img_id = 0
         with torch.no_grad():
             for data in self.test_loder:
                 images = self.convert_tensor_type(data['image'])
                 names  = data['names']
                 print(names[0])
-                # for debug
-                # for i in range(images.shape[0]):
-                #     image_i = images[i][0]
-                #     label_i = images[i][0]
-                #     image_name = "temp/{0:}_image.nii.gz".format(names[0])
-                #     label_name = "temp/{0:}_label.nii.gz".format(names[0])
-                #     save_nd_array_as_image(image_i, image_name, reference_name = None)
-                #     save_nd_array_as_image(label_i, label_name, reference_name = None)
-                # continue
                 start_time = time.time()
-                
-                data['predict']  = volume_infer(images, self.net, device, class_num, 
+                data['predict'] = volume_infer(images, self.net, device, class_num, 
                     mini_batch_size, mini_patch_inshape, mini_patch_outshape, mini_patch_stride, output_num)
-                
+
                 for i in reversed(range(len(self.transform_list))):
                     if (self.transform_list[i].inverse):
                         data = self.transform_list[i].inverse_transform_for_prediction(data) 
                 predict_list = [data['predict']]
                 if(isinstance(data['predict'], tuple) or isinstance(data['predict'], list)):
                     predict_list = data['predict']
+                pred_n = len(predict_list)
+                print("predict number", pred_n)
+                uncertain_list = []
+                output_list    = []
+                for n in range(pred_n):
+                    predict = predict_list[n][0]
+                    print('predict shape', predict.shape)
+                    alpha   = np.exp(predict)
+                    av0     = np.sum(alpha, axis = 0)
+                    alpha_sq = np.square(alpha)
+                    avq     = np.sum(alpha_sq, axis = 0)
+                    uncertain = (av0*av0 - avq)/(av0 * av0 *(1.0 + av0))
+                    uncertain_list.append(uncertain)
+                    output_list.append(predict_list[n][0])
+                if(multi_pred_avg):
+                    uncertain = np.asarray(uncertain_list)
+                    uncertain = np.mean(uncertain, axis = 0)
+                    output = np.asarray(output_list)
+                    output = np.mean(output, axis = 0)
+                    output = np.asarray(np.argmax(output, axis = 0), np.uint8)
+                    prob_list = [scipy.special.softmax(item,axis = 0)[1] for item in output_list]
+                    prob_list = np.asarray(prob_list)
+                    uncertain_esb = np.var(prob_list, axis = 0)
 
-                # for item in predict_list:
-                #     print("predict shape", item.shape, item[0][0].mean(), item[0][1].mean())
+                else:
+                    uncertain = uncertain_list[0]
+                    output = np.argmax(output_list[0], axis = 0)
+                    print('output shape', output.shape)
 
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
-
-                prob_list = [scipy.special.softmax(predict[0], axis = 0) for predict in predict_list]
-                if(multi_pred_avg):
-                    prob_stack   = np.asarray(prob_list, np.float32)
-                    prob   = np.mean(prob_stack, axis = 0)
-                    var    = np.var(prob_stack, axis = 0)
-                else:
-                    prob = prob_list[0]
-                # output = predict_list[2][0]
-                output = np.asarray(np.argmax(prob,  axis = 0), np.uint8)
 
                 if((label_source is not None) and (label_target is not None)):
                     output = convert_label(output, label_source, label_target)
@@ -352,27 +273,32 @@ class TrainInferAgent(object):
                 save_name = names[0].split('/')[-1]
                 if((filename_replace_source is  not None) and (filename_replace_target is not None)):
                     save_name = save_name.replace(filename_replace_source, filename_replace_target)
-                save_name = "{0:}/{1:}".format(output_dir, save_name)
-                save_nd_array_as_image(output, save_name, root_dir + '/' + names[0])
-                save_name_split = save_name.split('.')
-                if('.nii.gz' in save_name):
-                    save_prefix = '.'.join(save_name_split[:-2])
-                    save_format = 'nii.gz'
-                else:
-                    save_prefix = '.'.join(save_name_split[:-1])
-                    save_format = save_name_split[-1]
+                save_full_name = "{0:}/{1:}".format(output_dir, save_name)
+                save_nd_array_as_image(output, save_full_name, root_dir + '/' + names[0])
                 if(save_probability):
-                    class_num = prob.shape[0]
-                    for c in range(0, class_num):
-                        temp_prob = prob[c]
-                        prob_save_name = "{0:}_prob_{1:}.{2:}".format(save_prefix, c, save_format)
-                        if(len(temp_prob.shape) == 2):
-                            temp_prob = np.asarray(temp_prob * 255, np.uint8)
-                        save_nd_array_as_image(temp_prob, prob_save_name, root_dir + '/' + names[0])
-                if(save_var):
-                    var = var[1]
-                    var_save_name = "{0:}_var.{1:}".format(save_prefix, save_format)
-                    save_nd_array_as_image(var, var_save_name, root_dir + '/' + names[0])
+                    save_name_split = save_name.split('.')
+                    if('.nii.gz' in save_name):
+                        save_prefix = '.'.join(save_name_split[:-2])
+                        save_format = 'nii.gz'
+                    else:
+                        save_prefix = '.'.join(save_name_split[:-1])
+                        save_format = save_name_split[-1]
+                    # prob = scipy.special.softmax(data['predict'][0],axis = 0)
+                    # class_num = prob.shape[0]
+                    # for c in range(0, class_num):
+                    #     temp_prob = prob[c]
+                    #     prob_save_name = "{0:}_prob_{1:}.{2:}".format(save_prefix, c, save_format)
+                    #     if(len(temp_prob.shape) == 2):
+                    #         temp_prob = np.asarray(temp_prob * 255, np.uint8)
+                    #     save_nd_array_as_image(temp_prob, prob_save_name, root_dir + '/' + names[0])
+
+                    # save uncertainty
+                    save_full_name = "{0:}_uncertain/{1:}".format(output_dir, save_name)
+                    save_nd_array_as_image(uncertain, save_full_name, root_dir + '/' + names[0])
+                    if(multi_pred_avg):
+                        save_full_name = "{0:}_uncertain_esb/{1:}".format(output_dir, save_name)
+                        save_nd_array_as_image(uncertain_esb, save_full_name, root_dir + '/' + names[0])
+
 
         infer_time_list = np.asarray(infer_time_list)
         time_avg = infer_time_list.mean()
@@ -395,6 +321,6 @@ if __name__ == "__main__":
     stage    = str(sys.argv[1])
     cfg_file = str(sys.argv[2])
     config   = parse_config(cfg_file)
-    agent    = TrainInferAgent(config, stage)
+    agent    = TrainInferAgentUncertainty(config, stage)
     agent.run()
 

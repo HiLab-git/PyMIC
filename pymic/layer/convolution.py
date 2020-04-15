@@ -25,7 +25,7 @@ class ConvolutionLayer(nn.Module):
             self.conv = nn.Conv2d(in_channels, out_channels,
                 kernel_size, stride, padding, dilation, conv_group, bias)
             if(self.norm_type == 'batch_norm'):
-                self.bn = nn.modules.BatchNorm2d(out_channels)
+                self.bn = nn.BatchNorm2d(out_channels)
             elif(self.norm_type == 'group_norm'):
                 self.bn = nn.GroupNorm(self.norm_group, out_channels)
             elif(self.norm_type is not None):
@@ -34,7 +34,7 @@ class ConvolutionLayer(nn.Module):
             self.conv = nn.Conv3d(in_channels, out_channels,
                 kernel_size, stride, padding, dilation, conv_group, bias)
             if(self.norm_type == 'batch_norm'):
-                self.bn = nn.modules.BatchNorm3d(out_channels)
+                self.bn = nn.BatchNorm3d(out_channels)
             elif(self.norm_type == 'group_norm'):
                 self.bn = nn.GroupNorm(self.norm_group, out_channels)
             elif(self.norm_type is not None):
@@ -71,7 +71,7 @@ class DepthSeperableConvolutionLayer(nn.Module):
             self.conv = nn.Conv2d(out_channels, out_channels,
                 kernel_size, stride, padding, dilation, groups = out_channels, bias = bias)
             if(self.norm_type == 'batch_norm'):
-                self.bn = nn.modules.BatchNorm2d(out_channels)
+                self.bn = nn.BatchNorm2d(out_channels)
             elif(self.norm_type == 'group_norm'):
                 self.bn = nn.GroupNorm(self.norm_group, out_channels)
             elif(self.norm_type is not None):
@@ -82,7 +82,7 @@ class DepthSeperableConvolutionLayer(nn.Module):
             self.conv = nn.Conv3d(out_channels, out_channels,
                 kernel_size, stride, padding, dilation, groups = out_channels, bias = bias)
             if(self.norm_type == 'batch_norm'):
-                self.bn = nn.modules.BatchNorm3d(out_channels)
+                self.bn = nn.BatchNorm3d(out_channels)
             elif(self.norm_type == 'group_norm'):
                 self.bn = nn.GroupNorm(self.norm_group, out_channels)
             elif(self.norm_type is not None):
@@ -128,7 +128,7 @@ class ConvolutionSepAll3DLayer(nn.Module):
             1, stride, 0, dilation, 1, bias)
         
         if(self.batch_norm):
-                self.bn = nn.modules.BatchNorm3d(out_channels)
+                self.bn = nn.BatchNorm3d(out_channels)
 
     def forward(self, x):
         in_shape = list(x.shape)

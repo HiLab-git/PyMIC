@@ -41,7 +41,9 @@ def load_rgb_image_as_3d_array(filename):
         image = np.expand_dims(image, axis = 0)
     else:
         # transpose rgb image from [H, W, C] to [C, H, W]
-        assert(image_shape[2] == 3)
+        assert(image_shape[2] == 3 or image_shape[2] == 4)
+        if(image_shape[2] == 4):
+            image = image[:, :, range(3)]
         image = np.transpose(image, axes = [2, 0, 1])
     output = {}
     output['data_array'] = image

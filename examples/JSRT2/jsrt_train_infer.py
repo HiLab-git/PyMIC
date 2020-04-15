@@ -16,11 +16,11 @@ if __name__ == "__main__":
     config   = parse_config(cfg_file)
 
     # use custormized CNN
-    net_param = {'in_chns': 1,
-                 'feature_chns':[16, 32, 64, 128],
-                 'class_num': 2,
-                 'acti_func': 'relu',
-                 'dropout': True}
+    net_param = {'in_chns':1,
+              'feature_chns':[4, 16, 32, 64, 128],
+              'dropout':  [0, 0, 0.3, 0.4, 0.5],
+              'class_num': 2,
+              'bilinear': True}
     config['network'] = net_param
     net    = MyUNet2D(net_param)
 

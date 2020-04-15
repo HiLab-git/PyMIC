@@ -262,13 +262,24 @@ class Pad(object):
         margin_lower = params[0]
         margin_upper = params[1]
         predict = sample['predict']
-        predict_shape = predict.shape
-        crop_min = [0, 0] + margin_lower
-        crop_max = [predict_shape[2:][i] - margin_upper[i] \
-            for i in range(len(margin_lower))]
-        crop_max = list(predict_shape[:2]) + crop_max
+        if(isinstance(predict, tuple) or isinstance(predict, list)):
+            output_predict = []
+            for predict_i in predict:
+                predict_shape = predict_i.shape
+                crop_min = [0, 0] + margin_lower
+                crop_max = [predict_shape[2:][i] - margin_upper[i] \
+                    for i in range(len(margin_lower))]
+                crop_max = list(predict_shape[:2]) + crop_max
+                crop_predict = crop_ND_volume_with_bounding_box(predict_i, crop_min, crop_max)
+                output_predict.append(crop_predict)
+        else:
+            predict_shape = predict.shape
+            crop_min = [0, 0] + margin_lower
+            crop_max = [predict_shape[2:][i] - margin_upper[i] \
+                for i in range(len(margin_lower))]
+            crop_max = list(predict_shape[:2]) + crop_max
 
-        output_predict = crop_ND_volume_with_bounding_box(predict, crop_min, crop_max)
+            output_predict = crop_ND_volume_with_bounding_box(predict, crop_min, crop_max)
         sample['predict'] = output_predict
         return sample
 
@@ -538,6 +549,71 @@ class ChannelWiseThreshold(object):
     def inverse_transform_for_prediction(self, sample):
         raise(ValueError("not implemented"))
 
+class ChannelWiseThresholdWithNormalize(object):
+    """Threshold the image (shape [C, D, H, W] or [C, H, W]) for each channel
+       and then normalize the image based on remaining pixels
+
+    Args:
+        threshold_lower (tuple/list/None): The lower threshold value along each channel.
+        threshold_upper (typle/list/None): The upper threshold value along each channel.
+        mean_std_mode (bool): If true, nomalize the image based on mean and std values,
+            and pixels values outside the threshold value are replaced random number.
+            If false, use the min and max values for normalization.
+    """
+    def __init__(self, threshold_lower, threshold_upper, mean_std_mode = True, inverse = False):
+        self.threshold_lower = threshold_lower
+        self.threshold_upper = threshold_upper
+        self.mean_std_mode   = mean_std_mode
+        self.inverse = inverse
+
+    def __call__(self, sample):
+        image= sample['image']
+        for chn in range(image.shape[0]):
+            v0 = self.threshold_lower[chn]
+            v1 = self.threshold_upper[chn]
+            if(self.mean_std_mode == True):
+                mask = np.ones_like(image[chn])
+                if(v0 is not None):
+                    mask = mask * np.asarray(image[chn] > v0)
+                if(v1 is not None):
+                    mask = mask * np.asarray(image[chn] < v1)
+                pixels   = image[chn][mask > 0]
+                chn_mean = pixels.mean()
+                chn_std  = pixels.std()
+                chn_norm = (image[chn] - chn_mean)/chn_std
+                chn_random = np.random.normal(0, 1, size = chn_norm.shape)
+                chn_norm[mask == 0] = chn_random[mask == 0]
+                image[chn] = chn_norm
+            else:
+                img_chn = image[chn]
+                if(v0 is not None):
+                    img_chn[img_chn < v0] = v0
+                    min_value = v0 
+                else:
+                    min_value = img_chn.min()
+                if(v1 is not None):
+                    img_chn[img_chn > v1] = v1 
+                    max_value = img_chn.max() 
+                else:
+                    max_value = img_chn.max() 
+                img_chn = (img_chn - min_value) / (max_value - min_value)
+                image[chn] = img_chn
+        sample['image'] = image
+        return sample
+
+class ReduceLabelDim(object):
+    def __init__(self, inverse = False):
+        self.inverse = inverse
+    
+    def __call__(self, sample):
+        label = sample['label']
+        label_converted = label[0]
+        sample['label'] = label_converted
+        return sample
+    
+    def inverse_transform_for_prediction(self, sample):
+        raise(ValueError("not implemented"))
+
 class LabelConvert(object):
     """ Convert a list of labels to another list
     Args:
@@ -553,6 +629,24 @@ class LabelConvert(object):
     def __call__(self, sample):
         label = sample['label']
         label_converted = convert_label(label, self.source_list, self.target_list)
+        sample['label'] = label_converted
+        return sample
+    
+    def inverse_transform_for_prediction(self, sample):
+        raise(ValueError("not implemented"))
+
+class LabelConvertNonzero(object):
+    """ Convert a list of labels to another list
+    Args:
+        source_list (tuple/list): A list of labels to be converted
+        target_list (tuple/list): The target label list
+    """
+    def __init__(self, inverse = False):
+        self.inverse = inverse
+    
+    def __call__(self, sample):
+        label = sample['label']
+        label_converted = np.asarray(label > 0, np.uint8)
         sample['label'] = label_converted
         return sample
     
@@ -702,12 +796,27 @@ def get_transform(name, params):
         inverse   = params['ChannelWiseThreshold_inverse'.lower()]
         return ChannelWiseThreshold(threshold, inverse)
 
+    elif(name == 'ChannelWiseThresholdWithNormalize'):
+        threshold_lower = params['ChannelWiseThresholdWithNormalize_threshold_lower'.lower()]
+        threshold_upper = params['ChannelWiseThresholdWithNormalize_threshold_upper'.lower()]
+        mean_std_mode = params['ChannelWiseThresholdWithNormalize_mean_std_mode'.lower()]
+        inverse       = params['ChannelWiseThresholdWithNormalize_inverse'.lower()]
+        return ChannelWiseThresholdWithNormalize(threshold_lower, threshold_upper, mean_std_mode, inverse)
+    
+    elif(name == 'ReduceLabelDim'):
+        inverse   = params['ReduceLabelDim_inverse'.lower()]
+        return ReduceLabelDim(inverse)
+
     elif(name == 'LabelConvert'):
         source_list = params['LabelConvert_source_list'.lower()]
         target_list = params['LabelConvert_target_list'.lower()]
         inverse = params['LabelConvert_inverse'.lower()]
         return LabelConvert(source_list, target_list, inverse)
     
+    elif(name == 'LabelConvertNonzero'):
+        inverse = params['LabelConvertNonzero_inverse'.lower()]
+        return LabelConvertNonzero(inverse)
+
     elif(name == 'LabelToProbability'):
         class_num = params['LabelToProbability_class_num'.lower()]
         inverse   = params['LabelToProbability_inverse'.lower()]
