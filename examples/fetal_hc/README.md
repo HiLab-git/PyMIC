@@ -19,8 +19,7 @@ If you don't want to train the model by yourself, you can download a pre-trained
 1. Edit `config/train_test.cfg` by setting the value of `root_dir` as your `HC_root`. Then add the path of `PyMIC` to `PYTHONPATH` environment variable (if you haven't done this) and start to train by running:
  
 ```bash
-export PYTHONPATH=$PYTHONPATH:your_path_of_PyMIC
-python ../../pymic/train_infer/train_infer.py train config/train_test.cfg
+pymic_net_run train config/train_test.cfg
 ```
 
 2. During training or after training, run `tensorboard --logdir model/unet` and you will see a link in the output, such as `http://your-computer:6006`. Open the link in the browser and you can observe the average Dice score and loss during the training stage, such as shown in the following images, where red and blue curves are for training set and validation set respectively. 
@@ -33,13 +32,13 @@ python ../../pymic/train_infer/train_infer.py train config/train_test.cfg
 
 ```bash
 mkdir result
-python ../../pymic/train_infer/train_infer.py test config/train_test.cfg
+pymic_net_run test config/train_test.cfg
 ```
 
 2. Then edit `config/evaluation.cfg` by setting `ground_truth_folder_list` as your `HC_root/training_set_label`, and run the following command to obtain quantitative evaluation results in terms of dice. 
 
 ```bash
-python ../../pymic/util/evaluation.py config/evaluation.cfg
+pymic_evaluate config/evaluation.cfg
 ```
 
 The obtained dice score by default setting should be close to 97.41+/-1.95%. You can set `metric = assd` in `config/evaluation.cfg` and run the evaluation command again. You will get average symmetric surface distance (assd) evaluation results. By default setting, the assd is close to 5.46+/-6.36 pixels. We find that the assd values are high for the segmentation results. You can try your efforts to improve the performance with different networks or training strategies by changing the configuration file `config/train_test.cfg`.
