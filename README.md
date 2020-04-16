@@ -18,7 +18,11 @@ This package provides some basic modules for medical image computing that can be
 * Implementation of loss functions (for image segmentation).
 * Implementation of evaluation metrics to get quantitative evaluation of your methods (for segmentation). 
 
-# Examples
+# Usage
+Run the following command to install PYMIC:
+```bash
+pip install PYMIC
+```
 Go to `examples` to see some examples for using PyMIC. For beginners, you only need to simply change the configuration files to select different datasets, networks and training methods for running the code (example 1 - 3). For advanced users, you can develop your own modules based on this package (example 4). You can find the following examples:
 
 1, `examples\JSRT`: use a predefined 2D U-Net for heart segmentation from X-ray images.
