@@ -14,7 +14,7 @@ If you don't want to train the model by yourself, you can download a pre-trained
 [promise12_link]:https://promise12.grand-challenge.org/
 
 ## Training
-1. Edit `config/train_test.cfg` by setting the value of `root_dir` as your `data/promise12/preprocess`. Then add the path of `PyMIC` to `PYTHONPATH` environment variable (if you haven't done this) and start to train by running:
+1. Edit `config/train_test.cfg` by setting the value of `root_dir` as your `data/promise12/preprocess`. Then start to train by running:
  
 ```bash
 pymic_net_run train config/train_test.cfg
