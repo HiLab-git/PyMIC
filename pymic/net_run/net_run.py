@@ -18,10 +18,10 @@ from tensorboardX import SummaryWriter
 from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.io.nifty_dataset import NiftyDataset
 from pymic.io.transform3d import get_transform
-from pymic.train_infer.net_factory import get_network
-from pymic.train_infer.infer_func import volume_infer
-from pymic.train_infer.loss import *
-from pymic.train_infer.get_optimizer import get_optimiser
+from pymic.net_run.net_factory import get_network
+from pymic.net_run.infer_func import volume_infer
+from pymic.net_run.loss import *
+from pymic.net_run.get_optimizer import get_optimiser
 from pymic.util.image_process import convert_label
 from pymic.util.parse_config import parse_config
 
@@ -387,7 +387,7 @@ class TrainInferAgent(object):
         else:
             self.infer()
 
-if __name__ == "__main__":
+def main():
     if(len(sys.argv) < 3):
         print('Number of arguments should be 3. e.g.')
         print('    python train_infer.py train config.cfg')
@@ -397,4 +397,8 @@ if __name__ == "__main__":
     config   = parse_config(cfg_file)
     agent    = TrainInferAgent(config, stage)
     agent.run()
+
+if __name__ == "__main__":
+    main()
+    
 

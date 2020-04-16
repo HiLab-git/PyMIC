@@ -27,4 +27,10 @@ setuptools.setup(
         'Programming Language :: Python :: 3',
     ],
     python_requires = '>=3.6',
+    entry_points = {
+        'console_scripts': [
+            'pymic_net_run  = pymic.net_run.net_run:main',
+            'pymic_evaluate = pymic.util.evaluation:main'
+        ],
+    },
 )
