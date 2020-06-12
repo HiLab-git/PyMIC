@@ -1,6 +1,11 @@
 # PyMIC: A Pytorch-Based Toolkit for Medical Image Computing
 
-This repository proivdes a library and some examples of using pytorch for medical image computing. The package is under development. Currently it supports 2D and 3D image segmentation.
+This repository proivdes a library and some examples of using pytorch for medical image computing. The toolkit is under development. Currently it supports 2D and 3D image segmentation. It was originally developped for COVID-19 pneumonia lesion segmentation from CT images. If you use this toolkit, please cite the following paper:
+
+*  G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. 
+[A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images.][tmi2020] IEEE Transactions on Medical Imaging. 2020. DOI: [10.1109/TMI.2020.3000314][tmi2020]
+
+[tmi2020]:https://ieeexplore.ieee.org/document/9109297
 
 # Requirement
 * [Pytorch][torch_link] version >=1.0.1
