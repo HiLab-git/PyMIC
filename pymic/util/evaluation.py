@@ -5,6 +5,7 @@ import os
 import sys
 import math
 import random
+import GeodisTK
 import configparser
 import numpy as np
 from scipy import ndimage
@@ -57,86 +58,20 @@ def iou_of_images(s_name, g_name):
     g = get_detection_binary_bounding_box(g, margin)
     return binary_iou(s, g)
 
-# Hausdorff and ASD evaluation
-def get_points_on_contour(img):
-    assert(len(img.shape) == 2)
-    point_list = []
-    [H, W] = img.shape
-    offset_h  = [ -1, 1,  0, 0]
-    offset_w  = [ 0, 0, -1, 1]
-    for h in range(1, H-1):
-        for w in range(1, W-1):
-            if(img[h, w] > 0):
-                edge_flag = False
-                for idx in range(4):
-                    if(img[h + offset_h[idx], w + offset_w[idx]] == 0):
-                        edge_flag = True
-                        break
-                if(edge_flag):
-                    point_list.append([h, w])
-    return point_list
-
-def get_points_on_surface(img):
-    strt = ndimage.generate_binary_structure(3,2)
-    img  = ndimage.morphology.binary_closing(img, strt, 5)
-    point_list = []
-    [D, H, W] = img.shape
-    offset_d  = [-1, 1,  0, 0,  0, 0]
-    offset_h  = [ 0, 0, -1, 1,  0, 0]
-    offset_w  = [ 0, 0,  0, 0, -1, 1]
-    for d in range(1, D-1):
-        for h in range(1, H-1):
-            for w in range(1, W-1):
-                if(img[d, h, w] > 0):
-                    edge_flag = False
-                    for idx in range(6):
-                        if(img[d + offset_d[idx], h + offset_h[idx], w + offset_w[idx]] == 0):
-                            edge_flag = True
-                            break
-                    if(edge_flag):
-                        point_list.append([d, h, w])
-    return point_list
-
-def get_sampled_surface_points(img):
+# Hausdorff and ASSD evaluation
+def get_edge_points(img):
     """
-    get list of surface points of an images. If the image is in 3D, the 
-    surface point list is resampled for efficiency
-    inputs:
-        img: a 2D or 3D numpy array with binary values 
-    outputs:
-        a list of surface points
+    get edge points of a binary segmentation result
     """
-    image_dim = len(img.shape)
-    if(image_dim == 2):
-        point_list = get_points_on_contour(img)
+    dim = len(img.shape)
+    if(dim == 2):
+        strt = ndimage.generate_binary_structure(2,1)
     else:
-        point_list = get_points_on_surface(img)
-    return point_list
+        strt = ndimage.generate_binary_structure(3,1)
+    ero  = ndimage.morphology.binary_erosion(img, strt)
+    edge = np.asarray(img, np.uint8) - np.asarray(ero, np.uint8) 
+    return edge 
 
-def hausdorff95_from_one_surface_to_another(point_list_s, point_list_g, spacing):
-    point_dim = len(spacing)
-    n_max = 300
-    if(len(point_list_s) > n_max):
-        point_list_s = random.sample(point_list_s, n_max)
-    if(len(point_list_g) > n_max * 10):
-        point_list_g = random.sample(point_list_g, n_max * 10)
-    dist_list = []
-    for ps in point_list_s:
-        ps_nearest = 1e8
-        for pg in point_list_g:
-            dd = spacing[0]*(ps[0] - pg[0])
-            dh = spacing[1]*(ps[1] - pg[1])
-            temp_dis_square = dd*dd + dh*dh
-            if(point_dim == 3):
-                dw = spacing[2]*(ps[2] - pg[2])
-                temp_dis_square += dw*dw
-            if(temp_dis_square < ps_nearest):
-                ps_nearest = temp_dis_square
-        dis = math.sqrt(ps_nearest)
-        dist_list.append(dis)
-    dist_list = sorted(dist_list)
-    hd95 = dist_list[int(len(dist_list)*0.95)]
-    return hd95
 
 def binary_hausdorff95(s, g, spacing = None):
     """
@@ -146,63 +81,60 @@ def binary_hausdorff95(s, g, spacing = None):
         g: a 2D or 2D binary image for ground truth
         spacing: a list for image spacing, length should be 3 or 2
     """
+    s_edge = get_edge_points(s)
+    g_edge = get_edge_points(g)
     image_dim = len(s.shape)
     assert(image_dim == len(g.shape))
     if(spacing == None):
         spacing = [1.0] * image_dim
     else:
         assert(image_dim == len(spacing))
-    point_list_s = get_sampled_surface_points(s)
-    point_list_g = get_sampled_surface_points(g)
+    img = np.zeros_like(s)
+    if(image_dim == 2):
+        s_dis = GeodisTK.geodesic2d_raster_scan(img, s_edge, 0.0, 2)
+        g_dis = GeodisTK.geodesic2d_raster_scan(img, g_edge, 0.0, 2)
+    elif(image_dim ==3):
+        s_dis = GeodisTK.geodesic3d_raster_scan(img, s_edge, spacing, 0.0, 2)
+        g_dis = GeodisTK.geodesic3d_raster_scan(img, g_edge, spacing, 0.0, 2)
 
-    dis1 = hausdorff95_from_one_surface_to_another(
-            point_list_s, point_list_g, spacing)
-    dis2 = hausdorff95_from_one_surface_to_another(
-            point_list_g, point_list_s, spacing)
-    return max(dis1, dis2)
+    dist_list1 = s_dis[g_edge > 0]
+    dist_list1 = sorted(dist_list1)
+    dist1 = dist_list1[int(len(dist_list1)*0.95)]
+    dist_list2 = g_dis[s_edge > 0]
+    dist_list2 = sorted(dist_list2)
+    dist2 = dist_list2[int(len(dist_list2)*0.95)]
+    return max(dist1, dist2)
 
-
-def average_surface_distance(point_list_s, point_list_g, spacing):
-    """
-    ASD for 2D contours or 3D surfaces 
-    """
-    distance_sum = 0.0
-    assert(len(spacing) == 2 or len(spacing) == 3)
-    assert(len(point_list_s[0]) == len(point_list_g[0]) and \
-        len(point_list_s[0]) == len(spacing))
-    for ps in point_list_s:
-        ps_nearest = 1e10
-        for pg in point_list_g:
-            dd = spacing[0]*(ps[0] - pg[0])
-            dh = spacing[1]*(ps[1] - pg[1])
-            temp_dis_square = dd*dd + dh*dh
-            if(len(spacing) == 3):
-                dw = spacing[2]*(ps[2] - pg[2])
-                temp_dis_square = temp_dis_square + dw*dw
-            if(temp_dis_square < ps_nearest):
-                ps_nearest = temp_dis_square
-        distance_sum = distance_sum + math.sqrt(ps_nearest)
-    asd = distance_sum/len(point_list_s)
-    return asd
 
 def binary_assd(s, g, spacing = None):
     """
-    ASD for 2D contours and 3D surfaces 
+    get the average symetric surface distance between a binary segmentation and the ground truth
+    inputs:
+        s: a 3D or 2D binary image for segmentation
+        g: a 2D or 2D binary image for ground truth
+        spacing: a list for image spacing, length should be 3 or 2
     """
+    s_edge = get_edge_points(s)
+    g_edge = get_edge_points(g)
     image_dim = len(s.shape)
     assert(image_dim == len(g.shape))
     if(spacing == None):
         spacing = [1.0] * image_dim
     else:
         assert(image_dim == len(spacing))
-    point_list_s = get_sampled_surface_points(s)
-    point_list_g = get_sampled_surface_points(g)
+    img = np.zeros_like(s)
+    if(image_dim == 2):
+        s_dis = GeodisTK.geodesic2d_raster_scan(img, s_edge, 0.0, 2)
+        g_dis = GeodisTK.geodesic2d_raster_scan(img, g_edge, 0.0, 2)
+    elif(image_dim ==3):
+        s_dis = GeodisTK.geodesic3d_raster_scan(img, s_edge, spacing, 0.0, 2)
+        g_dis = GeodisTK.geodesic3d_raster_scan(img, g_edge, spacing, 0.0, 2)
 
-    n1 = len(point_list_s)
-    n2 = len(point_list_g)
-    asd1 = average_surface_distance(point_list_s, point_list_g, spacing)
-    asd2 = average_surface_distance(point_list_g, point_list_s, spacing)
-    assd = (asd1 * n1 + asd2 * n2)/(n1 + n2)
+    ns = s_edge.sum()
+    ng = g_edge.sum()
+    s_dis_g_edge = s_dis * g_edge
+    g_dis_s_edge = g_dis * s_edge
+    assd = (s_dis_g_edge.sum() + g_dis_s_edge.sum()) / (ns + ng) 
     return assd
 
 # relative volume error evaluation
@@ -313,7 +245,7 @@ def evaluation(config_file):
             
             # get evaluation score
             temp_score = get_evaluation_score(s_volume_sub > 0, g_volume_sub > 0,
-                        g_spacing, metric)
+                        s_spacing, metric)
             score_all_data.append(temp_score)
             print(patient_names[i], temp_score)
         score_all_data = np.asarray(score_all_data)

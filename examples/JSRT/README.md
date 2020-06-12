@@ -44,5 +44,5 @@ pymic_net_run test config/train_test.cfg
 pymic_evaluate config/evaluation.cfg
 ```
 
-The obtained dice score by default setting should be close to 94.88+/-2.72%. You can set `metric = assd` in `config/evaluation.cfg` and run the evaluation command again. You will get average symmetric surface distance (assd) evaluation results. By default setting, the assd is close to 2.08+/-1.06 pixels.
+The obtained dice score by default setting should be close to 94.88+/-2.72%. You can set `metric = assd` in `config/evaluation.cfg` and run the evaluation command again. You will get average symmetric surface distance (assd) evaluation results. By default setting, the assd is close to 2.13+/-1.09 pixels.
 
