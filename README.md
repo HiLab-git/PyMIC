@@ -39,3 +39,10 @@ Go to `examples` to see some examples for using PyMIC. For beginners, you only n
 3, `examples\prostate`: use a predefined 3D U-Net for prostate segmentation from 3D MRI.
 
 4, `examples\JSRT2`: define a network by yourself for heart segmentation from X-ray images.
+
+# Projects based on PyMIC
+Using PyMIC, it becomes easy to develop deep learning models for different projects, such as the following:
+1, [COPLE-Net][coplenet] COVID-19 Pneumonia Segmentation from CT images. 
+2, [Head-Neck-GTV][hn_gtv] Nasopharyngeal Carcinoma (NPC) GTV segmentation from Head and Neck CT images. 
+[coplenet]:https://github.com/HiLab-git/COPLE-Net
+[hn_gtv]: https://github.com/HiLab-git/Head-Neck-GTV
