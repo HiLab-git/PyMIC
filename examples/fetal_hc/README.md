@@ -35,7 +35,7 @@ mkdir result
 pymic_net_run test config/train_test.cfg
 ```
 
-2. Then edit `config/evaluation.cfg` by setting `ground_truth_folder_list` as your `HC_root/training_set_label`, and run the following command to obtain quantitative evaluation results in terms of dice. 
+2. Then edit `config/evaluation.cfg` by setting `ground_truth_folder_root` as your `HC_root`, and run the following command to obtain quantitative evaluation results in terms of dice. 
 
 ```bash
 pymic_evaluate config/evaluation.cfg

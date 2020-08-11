@@ -3,11 +3,11 @@
 ![image_example](../JSRT/picture/JPCLN001.png)
 ![label_example](../JSRT/picture/JPCLN001_seg.png)
 
-In this example, we show how to use a customized CNN to segment the heart from X-Ray images. The configurations are the same as those in the `JSRT` example except the network structure. 
+In this example, we show how to use a customized CNN and a customized loss function to segment the heart from X-Ray images. The configurations are the same as those in the `JSRT` example except the network structure and loss function. 
 
-The customized CNN is detailed in `my_net2d.py`, which is a modification of the 2D UNet. In this new network, we use a residual connection in each block. 
+The customized CNN is detailed in `my_net2d.py`, which is a modification of the 2D UNet. In this new network, we use a residual connection in each block. The customized loss is detailed in `my_loss.py`, where we combine Dice loss and MAE loss as our new loss function.
 
-To use the customized CNN, we also write a customized main function in `jsrt_train_infer.py`, where we import a TrainInferAgent from PyMIC and set the network as our customized CNN.
+We also write a customized main function in `jsrt_train_infer.py` so that we can combine TrainInferAgent from PyMIC with our customized CNN and loss function.
 
 ## Data and preprocessing
 1. Data preprocessing is the same as that in the the `JSRT` example. Please follow that example for details.
@@ -31,7 +31,7 @@ python jsrt_net_run.py train config/train_test.cfg
 python jsrt_net_run.py test config/train_test.cfg
 ```
 
-2. Edit `config/evaluation.cfg` by setting `ground_truth_folder_list` as your `JSRT_root/label`, and run the following command to obtain quantitative evaluation results in terms of dice.
+2. Edit `config/evaluation.cfg` by setting `ground_truth_folder_root` as your `JSRT_root`, and run the following command to obtain quantitative evaluation results in terms of dice.
 
 ```
 pymic_evaluate config/evaluation.cfg
