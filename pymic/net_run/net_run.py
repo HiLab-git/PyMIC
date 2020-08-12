@@ -20,11 +20,13 @@ from pymic.io.nifty_dataset import NiftyDataset
 from pymic.io.transform3d import get_transform
 from pymic.net_run.net_factory import get_network
 from pymic.net_run.infer_func import volume_infer
-from pymic.net_run.loss import *
 from pymic.net_run.get_optimizer import get_optimiser
+from pymic.loss.loss_factory import get_loss
+from pymic.loss.util import get_soft_label
+from pymic.loss.util import reshape_prediction_and_ground_truth
+from pymic.loss.util import get_classwise_dice
 from pymic.util.image_process import convert_label
 from pymic.util.parse_config import parse_config
-
 
 class TrainInferAgent(object):
     def __init__(self, config, stage = 'train'):
@@ -55,20 +57,25 @@ class TrainInferAgent(object):
         assert(stage in ['train', 'valid', 'test'])
         root_dir  = self.config['dataset']['root_dir']
         modal_num = self.config['dataset']['modal_num']
+
         if(stage == "train" or stage == "valid"):
             transform_names = self.config['dataset']['train_transform']
+            with_weight = self.config['dataset']['load_pixelwise_weight']
         elif(stage == "test"):
             transform_names = self.config['dataset']['test_transform']
+            with_weight = False 
         else:
             raise ValueError("Incorrect value for stage: {0:}".format(stage))
 
         self.transform_list = [get_transform(name, self.config['dataset']) \
                     for name in transform_names ]    
         csv_file = self.config['dataset'].get(stage + '_csv', None)
+    
         dataset  = NiftyDataset(root_dir=root_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
                                 with_label= not (stage == 'test'),
+                                with_weight = with_weight,
                                 transform = transforms.Compose(self.transform_list))
         return dataset
 
@@ -123,15 +130,24 @@ class TrainInferAgent(object):
     def train(self):
         device = torch.device(self.config['training']['device_name'])
         self.net.to(device)
-
+        
+        class_num   = self.config['network']['class_num']
         summ_writer = SummaryWriter(self.config['training']['summary_dir'])
-        multi_pred_weight  = self.config['training'].get('multi_pred_weight', None)
         chpt_prefx  = self.config['training']['checkpoint_prefix']
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training']['iter_save']
-        class_num   = self.config['network']['class_num']
+        pixelweight_enabled = False
+        for item in self.config['training']:
+            if('enable_pixel_weight' in item):
+                pixelweight_enabled = self.config['training'][item]
+        class_weight = self.config['training'].get('class_weight', None)
+        if(class_weight is not None):
+            assert(len(class_weight) == class_num)
+            class_weight = torch.from_numpy(np.asarray(class_weight))
+            class_weight = self.convert_tensor_type(class_weight)
+            class_weight = class_weight.to(device)
 
         if(iter_start > 0):
             checkpoint_file = "{0:}_{1:}.pt".format(chpt_prefx, iter_start)
@@ -145,10 +161,7 @@ class TrainInferAgent(object):
         train_loss      = 0
         train_dice_list = []
         if(self.loss_calculater is None):
-            loss_func   = self.config['training']['loss_function']
-            self.loss_calculater = SegmentationLossCalculator(loss_func, multi_pred_weight)
-            if(loss_func == 'noise_robust_dice_loss'):
-                self.loss_calculater.set_noise_robust_dice_loss_p(self.config['training']['noise_robust_dice_loss_p'])
+            self.loss_calculater = get_loss(self.config['training'])
         trainIter = iter(self.train_loader)
         print("{0:} training start".format(str(datetime.now())[:-7]))
         for it in range(iter_start, iter_max):
@@ -164,8 +177,12 @@ class TrainInferAgent(object):
             # continue
             # get the inputs
             inputs      = self.convert_tensor_type(data['image'])
-            labels_prob = self.convert_tensor_type(data['label_prob']) 
-
+            labels_prob = self.convert_tensor_type(data['label_prob'])
+            if(pixelweight_enabled):
+                pix_w = self.convert_tensor_type(data['weight'])
+            else:
+                pix_w = None  
+            
             # # for debug
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
@@ -176,17 +193,18 @@ class TrainInferAgent(object):
             #     save_nd_array_as_image(label_i, label_name, reference_name = None)
             # continue
             inputs, labels_prob = inputs.to(device), labels_prob.to(device)
+            if(pix_w is not None):
+                pix_w = pix_w.to(device)
             
             # zero the parameter gradients
             self.optimizer.zero_grad()
                 
             # forward + backward + optimize
             outputs = self.net(inputs)
-            loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob}
-            if ('label_distance' in data):
-                label_distance = self.convert_tensor_type(data['label_distance'])
-                loss_input_dict['label_distance'] = label_distance.to(device)
-            loss   = self.loss_calculater.get_loss(loss_input_dict)
+            loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob,
+                'pixel_weight': pix_w, 'class_weight': class_weight, 'softmax': True}
+
+            loss   = self.loss_calculater(loss_input_dict)
             # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
@@ -217,12 +235,16 @@ class TrainInferAgent(object):
                         inputs      = self.convert_tensor_type(data['image'])
                         labels_prob = self.convert_tensor_type(data['label_prob'])
                         inputs, labels_prob = inputs.to(device), labels_prob.to(device)
+                        if(pixelweight_enabled):
+                            pix_w = self.convert_tensor_type(data['weight'])
+                            pix_w = pix_w.to(device)
+                        else:
+                            pix_w = None
+                    
                         outputs = self.net(inputs)
-                        loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob}
-                        if ('label_distance' in data):
-                            label_distance = self.convert_tensor_type(data['label_distance'])
-                            loss_input_dict['label_distance'] = label_distance.to(device)
-                        loss   = self.loss_calculater.get_loss(loss_input_dict)
+                        loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob,
+                            'pixel_weight': pix_w, 'class_weight': class_weight, 'softmax': True}
+                        loss   = self.loss_calculater(loss_input_dict)
                         valid_loss = valid_loss + loss.item()
 
                         if(isinstance(outputs, tuple) or isinstance(outputs, list)):
