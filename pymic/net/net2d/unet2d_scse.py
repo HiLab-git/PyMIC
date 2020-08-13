@@ -10,7 +10,7 @@ from __future__ import print_function, division
 import torch
 import torch.nn as nn
 import numpy as np 
-from pymic.net2d.squeeze_and_excitation import *
+from pymic.net.net2d.squeeze_and_excitation import *
 
 class ConvScSEBlock(nn.Module):
     """two convolution layers with batch norm and leaky relu"""
