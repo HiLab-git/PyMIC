@@ -18,7 +18,7 @@ from tensorboardX import SummaryWriter
 from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.io.nifty_dataset import NiftyDataset
 from pymic.io.transform3d import get_transform
-from pymic.net_run.net_factory import get_network
+from pymic.net.net_factory import get_network
 from pymic.net_run.infer_func import volume_infer
 from pymic.net_run.get_optimizer import get_optimiser
 from pymic.loss.loss_factory import get_loss
@@ -138,10 +138,8 @@ class TrainInferAgent(object):
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training']['iter_save']
-        pixelweight_enabled = False
-        for item in self.config['training']:
-            if('enable_pixel_weight' in item):
-                pixelweight_enabled = self.config['training'][item]
+        pixelweight_key = self.config['training']['loss_type'] + "_enable_pixel_weight"
+        pixelweight_enabled = self.config['training'][pixelweight_key.lower()]
         class_weight = self.config['training'].get('class_weight', None)
         if(class_weight is not None):
             assert(len(class_weight) == class_num)
@@ -171,10 +169,6 @@ class TrainInferAgent(object):
                 trainIter = iter(self.train_loader)
                 data = next(trainIter)
 
-            # if (it % iter_valid == iter_valid - 1):
-            #     print("{0:} it {1:}".format(str(datetime.now())[:-7], it))
-            # print('iterations', it)
-            # continue
             # get the inputs
             inputs      = self.convert_tensor_type(data['image'])
             labels_prob = self.convert_tensor_type(data['label_prob'])
@@ -183,14 +177,17 @@ class TrainInferAgent(object):
             else:
                 pix_w = None  
             
-            # # for debug
+            # for debug
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
-            #     label_i = labels_prob[i][0]
+            #     label_i = labels_prob[i][1]
+            #     pixw_i  = pix_w[i][0]
             #     image_name = "temp/image_{0:}_{1:}.nii.gz".format(it, i)
             #     label_name = "temp/label_{0:}_{1:}.nii.gz".format(it, i)
+            #     weight_name= "temp/weight_{0:}_{1:}.nii.gz".format(it, i)
             #     save_nd_array_as_image(image_i, image_name, reference_name = None)
             #     save_nd_array_as_image(label_i, label_name, reference_name = None)
+            #     save_nd_array_as_image(pixw_i, weight_name, reference_name = None)
             # continue
             inputs, labels_prob = inputs.to(device), labels_prob.to(device)
             if(pix_w is not None):

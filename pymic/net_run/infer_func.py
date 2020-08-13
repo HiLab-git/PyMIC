@@ -95,7 +95,6 @@ def volume_infer_by_patch(image, net, device, class_num,
         data_mini_batch = sub_image_patches[batch_start_idx:batch_end_idx]
         data_mini_batch = np.concatenate(data_mini_batch, axis = 0)
         data_mini_batch = torch.from_numpy(data_mini_batch)
-        data_mini_batch = torch.tensor(data_mini_batch)
         data_mini_batch = data_mini_batch.to(device)
 
         out_mini_batch  = net(data_mini_batch) # the network may give multiple predictions
