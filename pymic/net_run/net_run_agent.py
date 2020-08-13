@@ -17,11 +17,11 @@ from datetime import datetime
 from tensorboardX import SummaryWriter
 from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.io.nifty_dataset import NiftyDataset
-from pymic.io.transform3d import get_transform
-from pymic.net.net_factory import get_network
+from pymic.transform.trans_dict import TransformDict
+from pymic.net.net_dict import NetDict
 from pymic.net_run.infer_func import volume_infer
 from pymic.net_run.get_optimizer import get_optimiser
-from pymic.loss.loss_factory import get_loss
+from pymic.loss.loss_dict import LossDict
 from pymic.loss.util import get_soft_label
 from pymic.loss.util import reshape_prediction_and_ground_truth
 from pymic.loss.util import get_classwise_dice
@@ -35,11 +35,14 @@ class NetRunAgent(object):
         self.stage  = stage
         if(stage == 'inference'):
             self.stage = 'test'
-        self.net    = None
         self.train_set = None 
         self.valid_set = None 
         self.test_set  = None
+        self.net       = None
         self.loss_calculater = None 
+        self.transform_dict  = TransformDict
+        self.loss_dict       = LossDict
+        self.net_dict        = NetDict
         self.tensor_type = config['dataset']['tensor_type']
         
     def set_datasets(self, train_set, valid_set, test_set):
@@ -47,11 +50,14 @@ class NetRunAgent(object):
         self.valid_set = valid_set
         self.test_set  = test_set
 
-    def set_network(self, net):
-        self.net = net 
+    def set_transform_dict(self, custom_transform_dict):
+        self.transform_dict = custom_transform_dict
 
-    def set_loss_calculater(self, loss_calculater):
-        self.loss_calculater = loss_calculater
+    def set_network_dict(self, custom_net_dict):
+        self.net_dict = custom_net_dict 
+
+    def set_loss_dict(self, custom_loss_dict):
+        self.loss_dict = custom_loss_dict
 
     def get_stage_dataset_from_config(self, stage):
         assert(stage in ['train', 'valid', 'test'])
@@ -66,11 +72,14 @@ class NetRunAgent(object):
             with_weight = False 
         else:
             raise ValueError("Incorrect value for stage: {0:}".format(stage))
+        self.transform_list  = []
+        for name in transform_names:
+            if(name not in self.transform_dict):
+                raise(ValueError("Undefined transform {0:}".format(name))) 
+            one_transform = self.transform_dict[name](self.config['dataset'])
+            self.transform_list.append(one_transform)
 
-        self.transform_list = [get_transform(name, self.config['dataset']) \
-                    for name in transform_names ]    
         csv_file = self.config['dataset'].get(stage + '_csv', None)
-    
         dataset  = NiftyDataset(root_dir=root_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
@@ -99,8 +108,10 @@ class NetRunAgent(object):
                 batch_size=batch_size, shuffle=False, num_workers=batch_size)
 
     def create_network(self):
-        if(self.net is None):
-            self.net = get_network(self.config['network'])
+        net_name = self.config['network']['net_type']
+        if(net_name not in self.net_dict):
+            raise ValueError("Undefined network {0:}".format(net_name))
+        self.net = self.net_dict[net_name](self.config['network'])
         if(self.tensor_type == 'float'):
             self.net.float()
         else:
@@ -156,11 +167,14 @@ class NetRunAgent(object):
             self.checkpoint = None
         self.create_optimizer()
 
-        train_loss      = 0
+        loss_name = self.config['training']['loss_type']
+        if(loss_name not in self.loss_dict):
+            raise ValueError("Undefined loss function {0:}".format(loss_name))
+        self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
+
+        trainIter  = iter(self.train_loader)
+        train_loss = 0
         train_dice_list = []
-        if(self.loss_calculater is None):
-            self.loss_calculater = get_loss(self.config['training'])
-        trainIter = iter(self.train_loader)
         print("{0:} training start".format(str(datetime.now())[:-7]))
         for it in range(iter_start, iter_max):
             try:
