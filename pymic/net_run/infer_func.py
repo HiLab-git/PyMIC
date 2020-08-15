@@ -21,6 +21,7 @@ def volume_infer(image, net, device, class_num,
         outputs = net(image)
         if(isinstance(outputs, tuple) or isinstance(outputs, list)):
             outputs = [item.cpu().numpy() for item in outputs]
+            outputs = outputs[:output_num]
         else:
             outputs = outputs.cpu().numpy()
     else:
@@ -101,6 +102,8 @@ def volume_infer_by_patch(image, net, device, class_num,
         if(not(isinstance(out_mini_batch, tuple) or isinstance(out_mini_batch, list))):
             out_mini_batch = [out_mini_batch]
         out_mini_batch  = [item.cpu().numpy() for item in out_mini_batch]
+
+        # use a mask to store overlapping regions
         mask_mini_batch = np.ones_like(out_mini_batch[0])
         for batch_idx in range(batch_start_idx, batch_end_idx):
             crop_start = sub_image_starts[batch_idx]

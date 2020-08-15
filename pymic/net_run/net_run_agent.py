@@ -370,6 +370,11 @@ class NetRunAgent(object):
 
                 prob_list = [scipy.special.softmax(predict[0], axis = 0) for predict in predict_list]
                 if(multi_pred_avg):
+                    if(output_num == 1):
+                        raise ValueError("multiple predictions expected, but output_num was set to 1")
+                    if(output_num != len(prob_list)):
+                        raise ValueError("expected output_num was set to {0:}, but {1:} outputs obtained".format(
+                              output_dir, len(prob_list)))
                     prob_stack   = np.asarray(prob_list, np.float32)
                     prob   = np.mean(prob_stack, axis = 0)
                     var    = np.var(prob_stack, axis = 0)
