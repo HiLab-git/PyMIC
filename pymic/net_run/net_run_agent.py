@@ -66,18 +66,22 @@ class NetRunAgent(object):
 
         if(stage == "train" or stage == "valid"):
             transform_names = self.config['dataset']['train_transform']
-            with_weight = self.config['dataset']['load_pixelwise_weight']
+            with_weight = self.config['dataset'].get('load_pixelwise_weight', False)
         elif(stage == "test"):
             transform_names = self.config['dataset']['test_transform']
             with_weight = False 
         else:
             raise ValueError("Incorrect value for stage: {0:}".format(stage))
         self.transform_list  = []
-        for name in transform_names:
-            if(name not in self.transform_dict):
-                raise(ValueError("Undefined transform {0:}".format(name))) 
-            one_transform = self.transform_dict[name](self.config['dataset'])
-            self.transform_list.append(one_transform)
+        if(transform_names is None or len(transform_names) == 0):
+            data_transform = None 
+        else:
+            for name in transform_names:
+                if(name not in self.transform_dict):
+                    raise(ValueError("Undefined transform {0:}".format(name))) 
+                one_transform = self.transform_dict[name](self.config['dataset'])
+                self.transform_list.append(one_transform)
+            data_transform = transforms.Compose(self.transform_list)
 
         csv_file = self.config['dataset'].get(stage + '_csv', None)
         dataset  = NiftyDataset(root_dir=root_dir,
@@ -85,7 +89,7 @@ class NetRunAgent(object):
                                 modal_num = modal_num,
                                 with_label= not (stage == 'test'),
                                 with_weight = with_weight,
-                                transform = transforms.Compose(self.transform_list))
+                                transform = data_transform )
         return dataset
 
     def create_dataset(self):
@@ -141,7 +145,6 @@ class NetRunAgent(object):
     def train(self):
         device = torch.device(self.config['training']['device_name'])
         self.net.to(device)
-        
         class_num   = self.config['network']['class_num']
         summ_writer = SummaryWriter(self.config['training']['summary_dir'])
         chpt_prefx  = self.config['training']['checkpoint_prefix']
@@ -171,7 +174,7 @@ class NetRunAgent(object):
         if(loss_name not in self.loss_dict):
             raise ValueError("Undefined loss function {0:}".format(loss_name))
         self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
-
+        
         trainIter  = iter(self.train_loader)
         train_loss = 0
         train_dice_list = []
