@@ -2,6 +2,7 @@
 from __future__ import absolute_import, print_function
 
 import numpy as np
+import SimpleITK as sitk
 from scipy import ndimage
 
 def get_ND_bounding_box(volume, margin = None):
@@ -16,8 +17,8 @@ def get_ND_bounding_box(volume, margin = None):
     idx_min = []
     idx_max = []
     for i in range(len(input_shape)):
-        idx_min.append(indxes[i].min())
-        idx_max.append(indxes[i].max() + 1)
+        idx_min.append(int(indxes[i].min()))
+        idx_max.append(int(indxes[i].max()) + 1)
 
     for i in range(len(input_shape)):
         idx_min[i] = max(idx_min[i] - margin[i], 0)
@@ -162,3 +163,19 @@ def convert_label(label, source_list, target_list):
         label_temp = label_temp * target_list[i]
         label_converted = label_converted + label_temp
     return label_converted
+
+def resample_sitk_image_to_given_spacing(image, spacing, order):
+    """
+    image: an sitk image object
+    spacing: 3D tuple / list for spacing along x, y, z direction
+    order: order for interpolation
+    """
+    spacing0 = image.GetSpacing()
+    data = sitk.GetArrayFromImage(image)
+    zoom = [spacing0[i] / spacing[i] for i in range(3)]
+    zoom = [zoom[2], zoom[0], zoom[1]]
+    data = ndimage.interpolation.zoom(data, zoom, order = order)
+    out_img = sitk.GetImageFromArray(data)
+    out_img.SetSpacing(spacing)
+    out_img.SetDirection(image.GetDirection())
+    return out_img

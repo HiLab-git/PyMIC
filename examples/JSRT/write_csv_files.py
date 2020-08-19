@@ -49,30 +49,25 @@ def random_split_dataset():
     with open(test_names_file, 'w') as f:
         f.writelines(lines[:1] + test_lines)
 
-def obtain_patient_names():
-    """
-    extract the patient names from csv files
-    """
-    split_names = ['train', 'valid', 'test']
-    for split_name in split_names:
-        csv_file = 'config/jsrt_{0:}.csv'.format(split_name)
-        with open(csv_file, 'r') as f:
-            lines = f.readlines()
-        data_lines = lines[1:]
-        patient_names = []
-        for data_line in data_lines:
-            patient_name = data_line.split(',')[0]
-            patient_name = patient_name[6:-4]
-            print(patient_name)
-            patient_names.append(patient_name)
-        output_filename = 'config/jsrt_{0:}_names.txt'.format(split_name)
-        with open(output_filename, 'w') as f:
-            for patient_name in patient_names:
-                f.write('{0:}\n'.format(patient_name))
-        
+def get_evaluation_image_pairs(test_csv, gt_seg_csv):
+    with open(test_csv, 'r') as f:
+        input_lines = f.readlines()[1:]
+        output_lines = []
+        for item in input_lines:
+            gt_name = item.split(',')[1]
+            gt_name = gt_name.rstrip()
+            seg_name = gt_name.split('/')[-1]
+            output_lines.append([gt_name, seg_name])
+    with open(gt_seg_csv, mode='w') as csv_file:
+        csv_writer = csv.writer(csv_file, delimiter=',', 
+                            quotechar='"',quoting=csv.QUOTE_MINIMAL)
+        csv_writer.writerow(["ground_truth", "segmentation"])
+        for item in output_lines:
+            csv_writer.writerow(item)
+
 if __name__ == "__main__":
     # create cvs file for JSRT dataset
-    JSRT_root   = '/home/guotai/data/JSRT'
+    JSRT_root   = '/home/disk2t/data/JSRT'
     output_file = 'config/jsrt_all.csv'
     fields      = ['image', 'label']
     create_csv_file(JSRT_root, output_file, fields)
@@ -80,5 +75,7 @@ if __name__ == "__main__":
     # split JSRT dataset in to training, validation and testing
     random_split_dataset()
 
-    # obtain patient names the splitted dataset
-    obtain_patient_names()
+    # obtain ground truth and segmentation pairs for evaluation
+    test_csv    = "./config/jsrt_test.csv"
+    gt_seg_csv  = "./config/jsrt_test_gt_seg.csv"
+    get_evaluation_image_pairs(test_csv, gt_seg_csv)

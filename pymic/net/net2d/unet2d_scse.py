@@ -10,7 +10,7 @@ from __future__ import print_function, division
 import torch
 import torch.nn as nn
 import numpy as np 
-from pymic.net2d.squeeze_and_excitation import *
+from pymic.net.net2d.squeeze_and_excitation import *
 
 class ConvScSEBlock(nn.Module):
     """two convolution layers with batch norm and leaky relu"""
@@ -117,8 +117,7 @@ if __name__ == "__main__":
               'feature_chns':[2, 8, 32, 48, 64],
               'dropout':  [0, 0, 0.3, 0.4, 0.5],
               'class_num': 2,
-              'bilinear': True,
-              'acti_func': 'relu'}
+              'bilinear': True}
     Net = UNet2D_ScSE(params)
     Net = Net.double()
 

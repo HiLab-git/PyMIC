@@ -107,6 +107,7 @@ class MyUNet2D(nn.Module):
             new_shape = [N, D] + list(output.shape)[1:]
             output = torch.reshape(output, new_shape)
             output = torch.transpose(output, 1, 2)
+
         return output
 
 if __name__ == "__main__":
@@ -122,7 +123,7 @@ if __name__ == "__main__":
     xt = torch.from_numpy(x)
     xt = torch.tensor(xt)
     
-    y = Net(xt)
+    y, y2 = Net(xt)
     print(len(y.size()))
     y = y.detach().numpy()
     print(y.shape)

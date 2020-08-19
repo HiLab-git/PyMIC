@@ -30,10 +30,10 @@ def create_csv_file(data_root, output_file):
 
 def random_split_dataset():
     random.seed(2019)
-    input_file = 'config/fetal_hc_train_all.csv'
-    train_names_file = 'config/fetal_hc_train_train.csv'
-    valid_names_file = 'config/fetal_hc_train_valid.csv'
-    test_names_file  = 'config/fetal_hc_train_test.csv'
+    input_file = 'config/fetal_hc_all.csv'
+    train_names_file = 'config/fetal_hc_train.csv'
+    valid_names_file = 'config/fetal_hc_valid.csv'
+    test_names_file  = 'config/fetal_hc_test.csv'
     with open(input_file, 'r') as f:
         lines = f.readlines()
     data_lines = lines[1:]
@@ -48,35 +48,33 @@ def random_split_dataset():
     with open(test_names_file, 'w') as f:
         f.writelines(lines[:1] + test_lines)
 
-def obtain_patient_names():
-    """
-    extract the patient names from csv files
-    """
-    split_names = ['train', 'valid', 'test']
-    for split_name in split_names:
-        csv_file = 'config/fetal_hc_train_{0:}.csv'.format(split_name)
-        with open(csv_file, 'r') as f:
-            lines = f.readlines()
-        data_lines = lines[1:]
-        patient_names = []
-        for data_line in data_lines:
-            patient_name = data_line.split(',')[0]
-            patient_name = patient_name.split('/')[-1][:-4]
-            print(patient_name)
-            patient_names.append(patient_name)
-        output_filename = 'config/fetal_hc_train_{0:}_patient.txt'.format(split_name)
-        with open(output_filename, 'w') as f:
-            for patient_name in patient_names:
-                f.write('{0:}\n'.format(patient_name))
-        
+def get_evaluation_image_pairs(test_csv, gt_seg_csv):
+    with open(test_csv, 'r') as f:
+        input_lines = f.readlines()[1:]
+        output_lines = []
+        for item in input_lines:
+            gt_name = item.split(',')[1]
+            gt_name = gt_name.rstrip()
+            seg_name = gt_name.split('/')[-1]
+            seg_name = seg_name.replace('_seg.', '.')
+            output_lines.append([gt_name, seg_name])
+    with open(gt_seg_csv, mode='w') as csv_file:
+        csv_writer = csv.writer(csv_file, delimiter=',', 
+                            quotechar='"',quoting=csv.QUOTE_MINIMAL)
+        csv_writer.writerow(["ground_truth", "segmentation"])
+        for item in output_lines:
+            csv_writer.writerow(item)
+
 if __name__ == "__main__":
     # create cvs file for training set
-    HC_root     = '/home/guotai/data/Fetal_HC'
-    output_file = 'config/fetal_hc_train_all.csv'
+    HC_root     = '/home/disk2t/data/Fetal_HC'
+    output_file = 'config/fetal_hc_all.csv'
     create_csv_file(HC_root, output_file)
 
     # split fetal_hc training_set in to training, validation and testing
     random_split_dataset()
 
-    # obtain patient names the splitted dataset
-    obtain_patient_names()
+    # obtain ground truth and segmentation pairs for evaluation
+    test_csv    = "./config/fetal_hc_test.csv"
+    gt_seg_csv  = "./config/fetal_hc_test_gt_seg.csv"
+    get_evaluation_image_pairs(test_csv, gt_seg_csv)

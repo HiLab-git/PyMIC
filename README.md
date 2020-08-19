@@ -3,7 +3,7 @@
 This repository proivdes a library and some examples of using pytorch for medical image computing. The toolkit is under development. Currently it supports 2D and 3D image segmentation. It was originally developped for COVID-19 pneumonia lesion segmentation from CT images. If you use this toolkit, please cite the following paper:
 
 *  G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. 
-[A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images.][tmi2020] IEEE Transactions on Medical Imaging. 2020. DOI: [10.1109/TMI.2020.3000314][tmi2020]
+[A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images.][tmi2020] IEEE Transactions on Medical Imaging. 39(8):2653-2663, 2020. DOI: [10.1109/TMI.2020.3000314][tmi2020]
 
 [tmi2020]:https://ieeexplore.ieee.org/document/9109297
 
@@ -38,7 +38,7 @@ Go to `examples` to see some examples for using PyMIC. For beginners, you only n
 
 3, `examples\prostate`: use a predefined 3D U-Net for prostate segmentation from 3D MRI.
 
-4, `examples\JSRT2`: define a network by yourself for heart segmentation from X-ray images.
+4, `examples\JSRT2`: define your custermized network and loss function for heart segmentation from X-ray images.
 
 # Projects based on PyMIC
 Using PyMIC, it becomes easy to develop deep learning models for different projects, such as the following:
