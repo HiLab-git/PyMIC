@@ -43,9 +43,13 @@ Go to `examples` to see some examples for using PyMIC. For beginners, you only n
 # Projects based on PyMIC
 Using PyMIC, it becomes easy to develop deep learning models for different projects, such as the following:
 
-1, [COPLE-Net][coplenet] COVID-19 Pneumonia Segmentation from CT images. 
+1, [COPLE-Net][coplenet] (TMI 2020), COVID-19 Pneumonia Segmentation from CT images. 
 
-2, [Head-Neck-GTV][hn_gtv] Nasopharyngeal Carcinoma (NPC) GTV segmentation from Head and Neck CT images. 
+2, [Head-Neck-GTV][hn_gtv] (NeuroComputing 2020) Nasopharyngeal Carcinoma (NPC) GTV segmentation from Head and Neck CT images. 
+
+3, [UGIR][ugir] (MICCAI 2020) Uncertainty-guided interactive refinement for medical image segmentation. 
 
 [coplenet]:https://github.com/HiLab-git/COPLE-Net
 [hn_gtv]: https://github.com/HiLab-git/Head-Neck-GTV
+[ugir]: https://github.com/HiLab-git/UGIR
+
