@@ -22,6 +22,7 @@ class RandomRotate(AbstractTransform):
         angle_range_h (tuple/list/None) : rorate angle range along height axis (degree)
         angle_range_w (tuple/list/None) : rorate angle range along width axis (degree)
         """
+        super(RandomRotate, self).__init__(params)
         self.angle_range_d  = params['RandomRotate_angle_range_d'.lower()]
         self.angle_range_h  = params['RandomRotate_angle_range_h'.lower()]
         self.angle_range_w  = params['RandomRotate_angle_range_w'.lower()]
@@ -60,11 +61,11 @@ class RandomRotate(AbstractTransform):
         sample['RandomRotate_Param'] = json.dumps(transform_param_list)
         image_t = self.__apply_transformation(image, transform_param_list, 1)
         sample['image'] = image_t
-        if('label' in sample and sample['label'].shape[1:] == image.shape[1:]):
+        if('label' in sample and self.task == 'segmentation'):
             sample['label'] = self.__apply_transformation(sample['label'] , 
                                 transform_param_list, 0)
-        if('weight' in sample and sample['weight'].shape[1:] == image.shape[1:]):
-            sample['weight'] = self.__apply_transformation(sample['weight'] , 
+        if('pixel_weight' in sample and self.task == 'segmentation'):
+            sample['pixel_weight'] = self.__apply_transformation(sample['pixel_weight'] , 
                                 transform_param_list, 1)
         return sample
 

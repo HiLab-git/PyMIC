@@ -66,20 +66,20 @@ class NetRunAgent(object):
 
         if(stage == "train" or stage == "valid"):
             transform_names = self.config['dataset']['train_transform']
-            with_weight = self.config['dataset'].get('load_pixelwise_weight', False)
         elif(stage == "test"):
             transform_names = self.config['dataset']['test_transform']
-            with_weight = False 
         else:
             raise ValueError("Incorrect value for stage: {0:}".format(stage))
         self.transform_list  = []
         if(transform_names is None or len(transform_names) == 0):
             data_transform = None 
         else:
+            transform_param = self.config['dataset']
+            transform_param['task'] = 'segmentation' 
             for name in transform_names:
                 if(name not in self.transform_dict):
                     raise(ValueError("Undefined transform {0:}".format(name))) 
-                one_transform = self.transform_dict[name](self.config['dataset'])
+                one_transform = self.transform_dict[name](transform_param)
                 self.transform_list.append(one_transform)
             data_transform = transforms.Compose(self.transform_list)
 
@@ -88,7 +88,6 @@ class NetRunAgent(object):
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
                                 with_label= not (stage == 'test'),
-                                with_weight = with_weight,
                                 transform = data_transform )
         return dataset
 
@@ -152,14 +151,16 @@ class NetRunAgent(object):
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training']['iter_save']
-        pixelweight_key = self.config['training']['loss_type'] + "_enable_pixel_weight"
-        pixelweight_enabled = self.config['training'][pixelweight_key.lower()]
-        class_weight = self.config['training'].get('class_weight', None)
-        if(class_weight is not None):
+        imageweight_enb = self.config['training'].get('loss_with_image_weight', False)
+        pixelweight_enb = self.config['training'].get('loss_with_pixel_weight', False)
+        class_weight    = self.config['training'].get('loss_class_weight', None)
+        if(class_weight is None):
+            class_weight = torch.ones(class_num)
+        else:
             assert(len(class_weight) == class_num)
             class_weight = torch.from_numpy(np.asarray(class_weight))
-            class_weight = self.convert_tensor_type(class_weight)
-            class_weight = class_weight.to(device)
+        class_weight = self.convert_tensor_type(class_weight)
+        class_weight = class_weight.to(device)
 
         if(iter_start > 0):
             checkpoint_file = "{0:}_{1:}.pt".format(chpt_prefx, iter_start)
@@ -189,10 +190,24 @@ class NetRunAgent(object):
             # get the inputs
             inputs      = self.convert_tensor_type(data['image'])
             labels_prob = self.convert_tensor_type(data['label_prob'])
-            if(pixelweight_enabled):
-                pix_w = self.convert_tensor_type(data['weight'])
+            img_w, pix_w = None, None
+            if(imageweight_enb):
+                if('image_weight' not in data):
+                    raise ValueError("image weight is enabled not not provided")
+                img_w = self.convert_tensor_type(data['image_weight'])
             else:
-                pix_w = None  
+                batch_size = data['image'].shape[0]
+                img_w = self.convert_tensor_type(torch.ones(batch_size))
+            if(pixelweight_enb):
+                if('pixel_weight' not in data):
+                    raise ValueError("pixel weight is enabled not not provided")
+                pix_w = self.convert_tensor_type(data['pixel_weight'])
+            else:
+                pix_w_shape = list(data['label_prob'].shape)
+                pix_w_shape[1] = 1
+                pix_w = torch.ones(pix_w_shape)
+                pix_w = self.convert_tensor_type(pix_w)
+                 
             
             # for debug
             # for i in range(inputs.shape[0]):
@@ -207,8 +222,7 @@ class NetRunAgent(object):
             #     save_nd_array_as_image(pixw_i, weight_name, reference_name = None)
             # continue
             inputs, labels_prob = inputs.to(device), labels_prob.to(device)
-            if(pix_w is not None):
-                pix_w = pix_w.to(device)
+            img_w, pix_w = img_w.to(device), pix_w.to(device)
             
             # zero the parameter gradients
             self.optimizer.zero_grad()
@@ -216,7 +230,8 @@ class NetRunAgent(object):
             # forward + backward + optimize
             outputs = self.net(inputs)
             loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob,
-                'pixel_weight': pix_w, 'class_weight': class_weight, 'softmax': True}
+                'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': class_weight, 
+                'softmax': True}
 
             loss   = self.loss_calculater(loss_input_dict)
             # if (self.config['training']['use'])
@@ -249,15 +264,24 @@ class NetRunAgent(object):
                         inputs      = self.convert_tensor_type(data['image'])
                         labels_prob = self.convert_tensor_type(data['label_prob'])
                         inputs, labels_prob = inputs.to(device), labels_prob.to(device)
-                        if(pixelweight_enabled):
-                            pix_w = self.convert_tensor_type(data['weight'])
-                            pix_w = pix_w.to(device)
+                        if(imageweight_enb and 'image_weight' in data):
+                            img_w = self.convert_tensor_type(data['image_weight'])
                         else:
-                            pix_w = None
-                    
+                            batch_size = data['image'].shape[0]
+                            img_w = self.convert_tensor_type(torch.ones(batch_size))
+                        if(pixelweight_enb and 'pixel_weight' in data):
+                            pix_w = self.convert_tensor_type(data['pixel_weight'])
+                        else:
+                            pix_w_shape = list(data['label_prob'].shape)
+                            pix_w_shape[1] = 1
+                            pix_w = torch.ones(pix_w_shape)
+                            pix_w = self.convert_tensor_type(pix_w)
+                        img_w, pix_w = img_w.to(device), pix_w.to(device)
+
                         outputs = self.net(inputs)
                         loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob,
-                            'pixel_weight': pix_w, 'class_weight': class_weight, 'softmax': True}
+                            'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': class_weight, 
+                            'softmax': True}
                         loss   = self.loss_calculater(loss_input_dict)
                         valid_loss = valid_loss + loss.item()
 

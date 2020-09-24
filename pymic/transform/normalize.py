@@ -19,6 +19,7 @@ class ChannelWiseNormalize(AbstractTransform):
         zero_to_random (bool, or tuple/list or bool): indicate whether zero values
              in each channel is replaced  with random values.
         """
+        super(ChannelWiseNormalize, self).__init__(params)
         self.mean = params['ChannelWiseNormalize_mean'.lower()]
         self.std  = params['ChannelWiseNormalize_std'.lower()]
         self.chns = params['ChannelWiseNormalize_channels'.lower()]

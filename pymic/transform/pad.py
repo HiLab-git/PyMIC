@@ -21,6 +21,7 @@ class Pad(AbstractTransform):
         output_size (tuple/list): the size along each spatial axis. 
         ceil_mode (bool): if true, the real output size is integer multiples of output_size.
         """
+        super(Pad, self).__init__(params)
         self.output_size = params['Pad_output_size'.lower()]
         self.ceil_mode   = params['Pad_ceil_mode'.lower()]
         self.inverse = params['Pad_inverse'.lower()]
@@ -50,14 +51,14 @@ class Pad(AbstractTransform):
 
         sample['image'] = image_t
         
-        if('label' in sample and sample['label'].shape[1:] == image.shape[1:]):
+        if('label' in sample and self.task == 'segmentation'):
             label = sample['label']
             label = np.pad(label, pad, 'reflect') if(max(margin) > 0) else label
             sample['label'] = label
-        if('weight' in sample and sample['weight'].shape[1:] == image.shape[1:]):
-            weight = sample['weight']
+        if('pixel_weight' in sample and self.task == 'segmentation'):
+            weight = sample['pixel_weight']
             weight = np.pad(weight, pad, 'reflect') if(max(margin) > 0) else weight
-            sample['weight'] = weight
+            sample['pixel_weight'] = weight
         return sample
     
     def inverse_transform_for_prediction(self, sample):

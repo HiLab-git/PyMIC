@@ -22,6 +22,7 @@ class Rescale(AbstractTransform):
             If int, the smallest axis is matched to output_size keeping 
             aspect ratio the same.
         """
+        super(Rescale, self).__init__(params)
         self.output_size = params["Rescale_output_size".lower()]
         self.inverse     = params["Rescale_inverse".lower()]
         assert isinstance(self.output_size, (int, list, tuple))
@@ -46,14 +47,14 @@ class Rescale(AbstractTransform):
 
         sample['image'] = image_t
         sample['Rescale_origin_shape'] = json.dumps(input_shape)
-        if('label' in sample and sample['label'].shape[1:] == image.shape[1:]):
+        if('label' in sample and self.task == 'segmentation'):
             label = sample['label']
             label = ndimage.interpolation.zoom(label, scale, order = 0)
             sample['label'] = label
-        if('weight' in sample and sample['weight'].shape[1:] == image.shape[1:]):
-            weight = sample['weight']
+        if('pixel_weight' in sample and self.task == 'segmentation'):
+            weight = sample['pixel_weight']
             weight = ndimage.interpolation.zoom(weight, scale, order = 1)
-            sample['weight'] = weight
+            sample['pixel_weight'] = weight
         
         return sample
 

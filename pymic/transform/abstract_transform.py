@@ -3,7 +3,7 @@ from __future__ import print_function, division
 
 class AbstractTransform(object):
     def __init__(self, params):
-        pass
+        self.task = params['Task'.lower()]
 
     def __call__(self, sample):
         return sample

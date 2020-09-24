@@ -19,6 +19,7 @@ class ChannelWiseGammaCorrection(AbstractTransform):
         """
         (gamma_min, gamma_max) specify the range of gamma
         """
+        super(ChannelWiseGammaCorrection, self).__init__(params)
         self.gamma_min = params['ChannelWiseGammaCorrection_gamma_min'.lower()]
         self.gamma_max = params['ChannelWiseGammaCorrection_gamma_max'.lower()]
         self.inverse = params['ChannelWiseGammaCorrection_inverse'.lower()]

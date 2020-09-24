@@ -19,6 +19,7 @@ class RandomFlip(AbstractTransform):
             flip_height (bool): random flip along height axis or not
             flip_width (bool) : random flip along width axis or not
         """
+        super(RandomFlip, self).__init__(params)
         self.flip_depth  = params['RandomFlip_flip_depth'.lower()]
         self.flip_height = params['RandomFlip_flip_height'.lower()]
         self.flip_width  = params['RandomFlip_flip_width'.lower()]
@@ -45,10 +46,10 @@ class RandomFlip(AbstractTransform):
             # current pytorch does not support negative strides
             image_t = np.flip(image, flip_axis).copy()
             sample['image'] = image_t
-            if('label' in sample and sample['label'].shape[1:] == image.shape[1:]):
+            if('label' in sample and self.task == 'segmentation'):
                 sample['label'] = np.flip(sample['label'] , flip_axis).copy()
-            if('weight' in sample and sample['weight'].shape[1:] == image.shape[1:]):
-                sample['weight'] = np.flip(sample['weight'] , flip_axis).copy()
+            if('pixel_weight' in sample and self.task == 'segmentation'):
+                sample['pixel_weight'] = np.flip(sample['pixel_weight'] , flip_axis).copy()
             
         return sample
 

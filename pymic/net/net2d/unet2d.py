@@ -46,9 +46,14 @@ class DownBlock(nn.Module):
         return self.maxpool_conv(x)
 
 class UpBlock(nn.Module):
-    """Upssampling followed by ConvBlock"""
+    """Upsampling followed by ConvBlock"""
     def __init__(self, in_channels1, in_channels2, out_channels, dropout_p,
                  bilinear=True):
+        """
+        in_channels1: channel of high-level features
+        in_channels2: channel of low-level features
+
+        """
         super(UpBlock, self).__init__()
         self.bilinear = bilinear
         if bilinear:

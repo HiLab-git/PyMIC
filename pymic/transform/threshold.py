@@ -18,6 +18,7 @@ class ChannelWiseThreshold(AbstractTransform):
         """
         threshold (tuple/list): The threshold value along each channel.
         """
+        super(ChannelWiseThreshold, self).__init__(params)
         self.threshold = params['ChannelWiseThreshold_threshold'.lower()]
         self.inverse = params['ChannelWiseThreshold_inverse'.lower()]
 
@@ -42,6 +43,7 @@ class ChannelWiseThresholdWithNormalize(AbstractTransform):
             and pixels values outside the threshold value are replaced random number.
             If false, use the min and max values for normalization.
         """
+        super(ChannelWiseThresholdWithNormalize, self).__init__(params)
         self.threshold_lower = params['ChannelWiseThresholdWithNormalize_threshold_lower'.lower()]
         self.threshold_upper = params['ChannelWiseThresholdWithNormalize_threshold_upper'.lower()]
         self.mean_std_mode   = params['ChannelWiseThresholdWithNormalize_mean_std_mode'.lower()]
