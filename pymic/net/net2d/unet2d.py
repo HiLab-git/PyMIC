@@ -52,7 +52,8 @@ class UpBlock(nn.Module):
         """
         in_channels1: channel of high-level features
         in_channels2: channel of low-level features
-
+        out_channels: output channel number
+        dropout_p: probability of dropout
         """
         super(UpBlock, self).__init__()
         self.bilinear = bilinear

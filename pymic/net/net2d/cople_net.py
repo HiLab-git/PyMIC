@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-# Author: Guotai Wang
-# Date:   12 June, 2020
-# Implementation of of COPLENet for COVID-19 pneumonia lesion segmentation from CT images.
-# Reference: 
-#     G. Wang et al. A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions 
-#     from CT Images. IEEE Transactions on Medical Imaging, 2020. DOI:10.1109/TMI.2020.3000314.
+"""
+Author: Guotai Wang
+Date:   12 June, 2020
+Implementation of of COPLENet for COVID-19 pneumonia lesion segmentation from CT images.
+Reference: 
+    G. Wang et al. A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions 
+    from CT Images. IEEE Transactions on Medical Imaging, 39(8),2020:2653-2663. DOI:10.1109/TMI.2020.3000314.
+"""
 
 from __future__ import print_function, division
 import torch
