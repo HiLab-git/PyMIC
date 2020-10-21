@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 
+import copy
 import sys
 import time
 import scipy
@@ -177,9 +178,14 @@ class NetRunAgent(object):
         self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
         
         trainIter  = iter(self.train_loader)
+        validIter  = iter(self.valid_loader)
+        valid_it   = self.config['training'].get('valid_it', len(validIter))
         train_loss = 0
         train_dice_list = []
         print("{0:} training start".format(str(datetime.now())[:-7]))
+        max_val_dice = 0.0
+        max_val_it   = 0
+        best_model_wts = None 
         for it in range(iter_start, iter_max):
             try:
                 data = next(trainIter)
@@ -260,7 +266,12 @@ class NetRunAgent(object):
                 valid_loss = 0.0
                 valid_dice_list = []
                 with torch.no_grad():
-                    for data in self.valid_loader:
+                    for itv in range(valid_it):
+                        try:
+                            data = next(validIter)
+                        except StopIteration:
+                            validIter = iter(self.valid_loader)
+                            data = next(validIter)
                         inputs      = self.convert_tensor_type(data['image'])
                         labels_prob = self.convert_tensor_type(data['label_prob'])
                         inputs, labels_prob = inputs.to(device), labels_prob.to(device)
@@ -293,7 +304,7 @@ class NetRunAgent(object):
                         dice_list = get_classwise_dice(soft_out, labels_prob)
                         valid_dice_list.append(dice_list.cpu().numpy())
 
-                valid_avg_loss = valid_loss / len(self.valid_loader)
+                valid_avg_loss = valid_loss / valid_it
                 valid_cls_dice = np.asarray(valid_dice_list).mean(axis = 0)
                 valid_avg_dice = valid_cls_dice.mean()
                 loss_scalers = {'train': train_avg_loss, 'valid': valid_avg_loss}
@@ -308,12 +319,23 @@ class NetRunAgent(object):
                 
                 print("{0:} it {1:}, loss {2:.4f}, {3:.4f}".format(
                     str(datetime.now())[:-7], it + 1, train_avg_loss, valid_avg_loss))
+                if(valid_avg_dice > max_val_dice):
+                        max_val_dice = valid_avg_dice
+                        max_val_it = it 
+                        best_model_wts = copy.deepcopy(self.net.state_dict())
             if (it % iter_save ==  iter_save - 1):
                 save_dict = {'iteration': it + 1,
                              'model_state_dict': self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
                 save_name = "{0:}_{1:}.pt".format(chpt_prefx, it + 1)
-                torch.save(save_dict, save_name)    
+                torch.save(save_dict, save_name) 
+        # save the best performing checkpoint
+        save_dict = {'iteration': max_val_it + 1,
+                    'model_state_dict': best_model_wts,
+                    'optimizer_state_dict': self.optimizer.state_dict()}
+        save_name = "{0:}_{1:}.pt".format(chpt_prefx, max_val_it + 1)
+        torch.save(save_dict, save_name) 
+        print('The best perfroming iter is {0:}, valid dice {1:}'.format(max_val_it + 1, max_val_dice))
         summ_writer.close()
     
     def infer(self):
