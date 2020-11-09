@@ -7,6 +7,7 @@ from pymic.net.net2d.unet2d_nest import NestedUNet2D
 from pymic.net.net2d.unet2d_scse import UNet2D_ScSE
 from pymic.net.net3d.unet2d5 import UNet2D5
 from pymic.net.net3d.unet3d import UNet3D
+from pymic.net.net3d.unet3d_scse import UNet3D_ScSE
 
 NetDict = {
 	'UNet2D': UNet2D,
@@ -15,5 +16,6 @@ NetDict = {
 	'NestedUNet2D': NestedUNet2D,
 	'UNet2D_ScSE': UNet2D_ScSE,
 	'UNet2D5': UNet2D5,
-	'UNet3D': UNet3D
+	'UNet3D': UNet3D,
+	'UNet3D_ScSE': UNet3D_ScSE
 	}

@@ -165,7 +165,7 @@ class NetRunAgent(object):
 
         if(iter_start > 0):
             checkpoint_file = "{0:}_{1:}.pt".format(chpt_prefx, iter_start)
-            self.checkpoint = torch.load(checkpoint_file)
+            self.checkpoint = torch.load(checkpoint_file, map_location = device)
             assert(self.checkpoint['iteration'] == iter_start)
             self.net.load_state_dict(self.checkpoint['model_state_dict'])
         else:
