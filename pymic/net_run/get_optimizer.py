@@ -12,7 +12,7 @@ def get_optimiser(name, net_params, optim_params):
         return optim.SGD(net_params, lr, 
             momentum = momentum, weight_decay = weight_decay)
     elif(name == "Adam"):
-        return optim.Adam(net_params, lr, weight_decay = 1e-5)
+        return optim.Adam(net_params, lr, weight_decay = weight_decay)
     elif(name == "SparseAdam"):
         return optim.SparseAdam(net_params, lr)
     elif(name == "Adadelta"):

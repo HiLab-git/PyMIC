@@ -29,11 +29,12 @@ class CrossEntropyLoss(nn.Module):
                 raise ValueError("Class weight is enabled but not defined")
             ce = torch.sum(ce * cls_w, dim = 1)
         else:
-            ce = torch.sum(ce, dim = 1)
+            ce = torch.sum(ce, dim = 1) # shape is [N]
         if(self.enable_pix_weight):
             if(pix_w is None):
                 raise ValueError("Pixel weight is enabled but not defined")
-            pix_w = reshape_tensor_to_2D(pix_w)
+            pix_w = reshape_tensor_to_2D(pix_w) # shape is [N, 1]
+            pix_w = torch.squeeze(pix_w)        # squeeze to [N]
             ce    = torch.sum(ce * pix_w) / torch.sum(pix_w)
         else:
             ce = torch.mean(ce)  

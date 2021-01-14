@@ -65,12 +65,11 @@ class NetRunAgent(object):
         root_dir  = self.config['dataset']['root_dir']
         modal_num = self.config['dataset']['modal_num']
 
-        if(stage == "train" or stage == "valid"):
-            transform_names = self.config['dataset']['train_transform']
-        elif(stage == "test"):
-            transform_names = self.config['dataset']['test_transform']
-        else:
-            raise ValueError("Incorrect value for stage: {0:}".format(stage))
+        transform_key = stage +  '_transform'
+        if(stage == "valid" and transform_key not in self.config['dataset']):
+            transform_key = "train_transform"
+        transform_names = self.config['dataset'][transform_key]
+        
         self.transform_list  = []
         if(transform_names is None or len(transform_names) == 0):
             data_transform = None 
@@ -215,11 +214,12 @@ class NetRunAgent(object):
                 pix_w = self.convert_tensor_type(pix_w)
                  
             
-            # for debug
+            # # for debug
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
             #     label_i = labels_prob[i][1]
             #     pixw_i  = pix_w[i][0]
+            #     print(image_i.shape, label_i.shape, pixw_i.shape)
             #     image_name = "temp/image_{0:}_{1:}.nii.gz".format(it, i)
             #     label_name = "temp/label_{0:}_{1:}.nii.gz".format(it, i)
             #     weight_name= "temp/weight_{0:}_{1:}.nii.gz".format(it, i)

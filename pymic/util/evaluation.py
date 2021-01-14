@@ -267,6 +267,8 @@ def evaluation(config_file):
     organ_name = config['organ_name']
     gt_root    = config['ground_truth_folder_root']
     seg_root   = config['segmentation_folder_root']
+    if(not(isinstance(seg_root, tuple) or isinstance(seg_root, list))):
+        seg_root = [seg_root]
     image_pair_csv = config['evaluation_image_pair']
     ground_truth_label_convert_source = config.get('ground_truth_label_convert_source', None)
     ground_truth_label_convert_target = config.get('ground_truth_label_convert_target', None)
@@ -275,49 +277,51 @@ def evaluation(config_file):
 
     image_items = pd.read_csv(image_pair_csv)
     item_num = len(image_items)
-    score_all_data = []
-    for i in range(item_num):
-        gt_name  = image_items.iloc[i, 0]
-        seg_name = image_items.iloc[i, 1]
-        gt_full_name  = gt_root  + '/' + gt_name
-        seg_full_name = seg_root + '/' + seg_name
-        
-        s_dict = load_image_as_nd_array(seg_full_name)
-        g_dict = load_image_as_nd_array(gt_full_name)
-        s_volume = s_dict["data_array"]; s_spacing = s_dict["spacing"]
-        g_volume = g_dict["data_array"]; g_spacing = g_dict["spacing"]
-        # for dim in range(len(s_spacing)):
-        #     assert(s_spacing[dim] == g_spacing[dim])
-        if((ground_truth_label_convert_source is not None) and \
-            ground_truth_label_convert_target is not None):
-            g_volume = convert_label(g_volume, ground_truth_label_convert_source, \
-                ground_truth_label_convert_target)
+    for seg_root_n in seg_root:
+        score_all_data = []
+        for i in range(item_num):
+            gt_name  = image_items.iloc[i, 0]
+            seg_name = image_items.iloc[i, 1]
+            gt_full_name  = gt_root  + '/' + gt_name
+            seg_full_name = seg_root_n + '/' + seg_name
+            
+            s_dict = load_image_as_nd_array(seg_full_name)
+            g_dict = load_image_as_nd_array(gt_full_name)
+            s_volume = s_dict["data_array"]; s_spacing = s_dict["spacing"]
+            g_volume = g_dict["data_array"]; g_spacing = g_dict["spacing"]
+            # for dim in range(len(s_spacing)):
+            #     assert(s_spacing[dim] == g_spacing[dim])
+            if((ground_truth_label_convert_source is not None) and \
+                ground_truth_label_convert_target is not None):
+                g_volume = convert_label(g_volume, ground_truth_label_convert_source, \
+                    ground_truth_label_convert_target)
 
-        if((segmentation_label_convert_source is not None) and \
-            segmentation_label_convert_target is not None):
-            s_volume = convert_label(s_volume, segmentation_label_convert_source, \
-                segmentation_label_convert_target)
+            if((segmentation_label_convert_source is not None) and \
+                segmentation_label_convert_target is not None):
+                s_volume = convert_label(s_volume, segmentation_label_convert_source, \
+                    segmentation_label_convert_target)
 
-        # fuse multiple labels
-        s_volume_sub = np.zeros_like(s_volume)
-        g_volume_sub = np.zeros_like(g_volume)
-        for lab in labels:
-            s_volume_sub = s_volume_sub + np.asarray(s_volume == lab, np.uint8)
-            g_volume_sub = g_volume_sub + np.asarray(g_volume == lab, np.uint8)
-        
-        # get evaluation score
-        temp_score = get_evaluation_score(s_volume_sub > 0, g_volume_sub > 0,
-                    s_spacing, metric)
-        score_all_data.append(temp_score)
-        print(seg_name, temp_score)
-    score_all_data = np.asarray(score_all_data)
-    score_mean = [score_all_data.mean(axis = 0)]
-    score_std  = [score_all_data.std(axis = 0)]
-    np.savetxt("{0:}/{1:}_{2:}_all.txt".format(seg_root, organ_name, metric), score_all_data)
-    np.savetxt("{0:}/{1:}_{2:}_mean.txt".format(seg_root, organ_name, metric), score_mean)
-    np.savetxt("{0:}/{1:}_{2:}_std.txt".format(seg_root, organ_name, metric), score_std)
-    print("{0:} mean ".format(metric), score_mean)
-    print("{0:} std  ".format(metric), score_std) 
+            # fuse multiple labels
+            s_volume_sub = np.zeros_like(s_volume)
+            g_volume_sub = np.zeros_like(g_volume)
+            for lab in labels:
+                s_volume_sub = s_volume_sub + np.asarray(s_volume == lab, np.uint8)
+                g_volume_sub = g_volume_sub + np.asarray(g_volume == lab, np.uint8)
+            
+            # get evaluation score
+            temp_score = get_evaluation_score(s_volume_sub > 0, g_volume_sub > 0,
+                        s_spacing, metric)
+            score_all_data.append(temp_score)
+            print(seg_name, temp_score)
+        score_all_data = np.asarray(score_all_data)
+        score_mean = [score_all_data.mean(axis = 0)]
+        score_std  = [score_all_data.std(axis = 0)]
+        np.savetxt("{0:}/{1:}_{2:}_all.txt".format(seg_root_n, organ_name, metric), score_all_data)
+        np.savetxt("{0:}/{1:}_{2:}_mean.txt".format(seg_root_n, organ_name, metric), score_mean)
+        np.savetxt("{0:}/{1:}_{2:}_std.txt".format(seg_root_n, organ_name, metric), score_std)
+        print(seg_root_n)
+        print("{0:} mean ".format(metric), score_mean)
+        print("{0:} std  ".format(metric), score_std) 
 
 def main():
     if(len(sys.argv) < 2):

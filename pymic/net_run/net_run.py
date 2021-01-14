@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
-
-# -*- coding: utf-8 -*-
-from __future__ import print_function, division
 import sys
 from pymic.util.parse_config import parse_config
 from pymic.net_run.net_run_agent import NetRunAgent
