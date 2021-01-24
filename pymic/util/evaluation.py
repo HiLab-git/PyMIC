@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function
-
+import csv
 import os
 import sys
 import math
@@ -181,85 +181,6 @@ def get_evaluation_score(s_volume, g_volume, spacing, metric):
 
     return score
 
-def evaluation_backup(config_file):
-    config = parse_config(config_file)['evaluation']
-    metric = config['metric']
-    labels = config['label_list']
-    organ_name = config['organ_name']
-    ground_truth_label_convert_source = config.get('ground_truth_label_convert_source', None)
-    ground_truth_label_convert_target = config.get('ground_truth_label_convert_target', None)
-    segmentation_label_convert_source = config.get('segmentation_label_convert_source', None)
-    segmentation_label_convert_target = config.get('segmentation_label_convert_target', None)
-    s_folder_list = config['segmentation_folder_list']
-    g_folder_list = config['ground_truth_folder_list']
-    s_format  = config['segmentation_format']
-    g_format  = config['ground_truth_format']
-    s_postfix = config.get('segmentation_postfix',None)
-    g_postfix = config.get('ground_truth_postfix',None)
-
-    s_postfix_long = '.' + s_format
-    if(s_postfix is not None):
-        s_postfix_long = '_' + s_postfix + s_postfix_long
-    g_postfix_long = '.' + g_format
-    if(g_postfix is not None):
-        g_postfix_long = '_' + g_postfix + g_postfix_long
-
-    patient_names_file = config['patient_file_names']
-    with open(patient_names_file) as f:
-            content = f.readlines()
-            patient_names = [x.strip() for x in content] 
-
-    for s_folder in s_folder_list:
-        score_all_data = []
-        for i in range(len(patient_names)):
-            # load segmentation and ground truth
-            s_name = os.path.join(s_folder, patient_names[i] + s_postfix_long)
-            if(not os.path.isfile(s_name)):
-                break
-
-            for g_folder in g_folder_list:
-                g_name = os.path.join(g_folder, patient_names[i] + g_postfix_long)
-                if(not os.path.isfile(g_name)):
-                    g_name = g_name.replace(patient_names[i], patient_names[i] + '/' + patient_names[i])
-                if(not os.path.isfile(g_name)):  
-                    break
-            s_dict = load_image_as_nd_array(s_name)
-            g_dict = load_image_as_nd_array(g_name)
-            s_volume = s_dict["data_array"]; s_spacing = s_dict["spacing"]
-            g_volume = g_dict["data_array"]; g_spacing = g_dict["spacing"]
-            # for dim in range(len(s_spacing)):
-            #     assert(s_spacing[dim] == g_spacing[dim])
-            if((ground_truth_label_convert_source is not None) and \
-                ground_truth_label_convert_target is not None):
-                g_volume = convert_label(g_volume, ground_truth_label_convert_source, \
-                    ground_truth_label_convert_target)
-
-            if((segmentation_label_convert_source is not None) and \
-                segmentation_label_convert_target is not None):
-                s_volume = convert_label(s_volume, segmentation_label_convert_source, \
-                    segmentation_label_convert_target)
-
-            # fuse multiple labels
-            s_volume_sub = np.zeros_like(s_volume)
-            g_volume_sub = np.zeros_like(g_volume)
-            for lab in labels:
-                s_volume_sub = s_volume_sub + np.asarray(s_volume == lab, np.uint8)
-                g_volume_sub = g_volume_sub + np.asarray(g_volume == lab, np.uint8)
-            
-            # get evaluation score
-            temp_score = get_evaluation_score(s_volume_sub > 0, g_volume_sub > 0,
-                        s_spacing, metric)
-            score_all_data.append(temp_score)
-            print(patient_names[i], temp_score)
-        score_all_data = np.asarray(score_all_data)
-        score_mean = [score_all_data.mean(axis = 0)]
-        score_std  = [score_all_data.std(axis = 0)]
-        np.savetxt("{0:}/{1:}_{2:}_all.txt".format(s_folder, organ_name, metric), score_all_data)
-        np.savetxt("{0:}/{1:}_{2:}_mean.txt".format(s_folder, organ_name, metric), score_mean)
-        np.savetxt("{0:}/{1:}_{2:}_std.txt".format(s_folder, organ_name, metric), score_std)
-        print("{0:} mean ".format(metric), score_mean)
-        print("{0:} std  ".format(metric), score_std) 
-
 def evaluation(config_file):
     config = parse_config(config_file)['evaluation']
     metric = config['metric']
@@ -279,6 +200,7 @@ def evaluation(config_file):
     item_num = len(image_items)
     for seg_root_n in seg_root:
         score_all_data = []
+        name_score_list= []
         for i in range(item_num):
             gt_name  = image_items.iloc[i, 0]
             seg_name = image_items.iloc[i, 1]
@@ -312,13 +234,22 @@ def evaluation(config_file):
             temp_score = get_evaluation_score(s_volume_sub > 0, g_volume_sub > 0,
                         s_spacing, metric)
             score_all_data.append(temp_score)
+            name_score_list.append([seg_name, temp_score])
             print(seg_name, temp_score)
         score_all_data = np.asarray(score_all_data)
         score_mean = [score_all_data.mean(axis = 0)]
         score_std  = [score_all_data.std(axis = 0)]
-        np.savetxt("{0:}/{1:}_{2:}_all.txt".format(seg_root_n, organ_name, metric), score_all_data)
+    
+        # save the result as csv and txt
         np.savetxt("{0:}/{1:}_{2:}_mean.txt".format(seg_root_n, organ_name, metric), score_mean)
         np.savetxt("{0:}/{1:}_{2:}_std.txt".format(seg_root_n, organ_name, metric), score_std)
+        score_csv = "{0:}/{1:}_{2:}_all.csv".format(seg_root_n, organ_name, metric)
+        with open(score_csv, mode='w') as csv_file:
+            csv_writer = csv.writer(csv_file, delimiter=',', 
+                            quotechar='"',quoting=csv.QUOTE_MINIMAL)
+            csv_writer.writerow(['image', metric])
+            for item in name_score_list:
+                csv_writer.writerow(item)
         print(seg_root_n)
         print("{0:} mean ".format(metric), score_mean)
         print("{0:} std  ".format(metric), score_std) 
