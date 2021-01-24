@@ -2,8 +2,10 @@
 from __future__ import print_function, division
 
 import copy
+import os
 import sys
 import time
+import random
 import scipy
 import torch
 import torchvision
@@ -12,6 +14,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import torch.backends.cudnn as cudnn
 
 from scipy import special
 from datetime import datetime
@@ -29,6 +32,16 @@ from pymic.loss.util import get_classwise_dice
 from pymic.util.image_process import convert_label
 from pymic.util.parse_config import parse_config
 
+def seed_torch(seed=1):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed) # if you are using multi-GPU.
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+
 class NetRunAgent(object):
     def __init__(self, config, stage = 'train'):
         assert(stage in ['train', 'inference', 'test'])
@@ -44,7 +57,11 @@ class NetRunAgent(object):
         self.transform_dict  = TransformDict
         self.loss_dict       = LossDict
         self.net_dict        = NetDict
-        self.tensor_type = config['dataset']['tensor_type']
+        self.tensor_type   = config['dataset']['tensor_type']
+        self.deterministic = config['training'].get('deterministic', True)
+        self.random_seed   = config['training'].get('random_seed', 1)
+        if(self.deterministic):
+            seed_torch(self.random_seed)
         
     def set_datasets(self, train_set, valid_set, test_set):
         self.train_set = train_set
@@ -97,12 +114,20 @@ class NetRunAgent(object):
                 self.train_set = self.get_stage_dataset_from_config('train')
             if(self.valid_set is None):
                 self.valid_set = self.get_stage_dataset_from_config('valid')
+            if(self.deterministic):
+                def worker_init_fn(worker_id):
+                    random.seed(self.random_seed+worker_id)
+                worker_init = worker_init_fn
+            else:
+                worker_init = None
 
             batch_size = self.config['training']['batch_size']
             self.train_loader = torch.utils.data.DataLoader(self.train_set, 
-                batch_size = batch_size, shuffle=True, num_workers=batch_size * 4)
+                batch_size = batch_size, shuffle=True, num_workers=batch_size * 4,
+                worker_init_fn=worker_init)
             self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
-                batch_size = batch_size, shuffle=False, num_workers=batch_size * 4)
+                batch_size = batch_size, shuffle=False, num_workers=batch_size * 4,
+                worker_init_fn=worker_init)
         else:
             if(self.test_set  is None):
                 self.test_set  = self.get_stage_dataset_from_config('test')
