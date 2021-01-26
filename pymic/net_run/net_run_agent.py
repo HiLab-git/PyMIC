@@ -166,6 +166,17 @@ class NetRunAgent(object):
         else:
             return input_tensor.double()
 
+    def get_class_level_weight(self):
+        class_num   = self.config['network']['class_num']
+        class_weight= self.config['training'].get('loss_class_weight', None)
+        if(class_weight is None):
+            class_weight = torch.ones(class_num)
+        else:
+            assert(len(class_weight) == class_num)
+            class_weight = torch.from_numpy(np.asarray(class_weight))
+        class_weight = self.convert_tensor_type(class_weight)
+        return class_weight
+
     def get_image_level_weight(self, data):
         imageweight_enb = self.config['training'].get('loss_with_image_weight', False)
         img_w = None 
@@ -193,65 +204,26 @@ class NetRunAgent(object):
         return pix_w
         
     def get_loss_input_dict(self, data, inputs, outputs, labels_prob, class_weight):
-        device = torch.device(self.config['training']['device_name'])
         img_w = self.get_image_level_weight(data)
         pix_w = self.get_pixel_level_weight(data)
-        img_w, pix_w = img_w.to(device), pix_w.to(device)
+        img_w, pix_w = img_w.to(self.device), pix_w.to(self.device)
         loss_input_dict = {'image':inputs, 'prediction':outputs, 'ground_truth':labels_prob,
                 'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': class_weight, 
                 'softmax': True}
         return loss_input_dict
-
-    def train(self):
-        device = torch.device(self.config['training']['device_name'])
-        self.net.to(device)
+    
+    def training(self):
         class_num   = self.config['network']['class_num']
-        summ_writer = SummaryWriter(self.config['training']['summary_dir'])
-        chpt_prefx  = self.config['training']['checkpoint_prefix']
-        iter_start  = self.config['training']['iter_start']
-        iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
-        iter_save   = self.config['training']['iter_save']
-
-        class_weight    = self.config['training'].get('loss_class_weight', None)
-        if(class_weight is None):
-            class_weight = torch.ones(class_num)
-        else:
-            assert(len(class_weight) == class_num)
-            class_weight = torch.from_numpy(np.asarray(class_weight))
-        class_weight = self.convert_tensor_type(class_weight)
-        class_weight = class_weight.to(device)
-
-        if(iter_start > 0):
-            checkpoint_file = "{0:}_{1:}.pt".format(chpt_prefx, iter_start)
-            self.checkpoint = torch.load(checkpoint_file, map_location = device)
-            assert(self.checkpoint['iteration'] == iter_start)
-            self.net.load_state_dict(self.checkpoint['model_state_dict'])
-        else:
-            self.checkpoint = None
-        self.create_optimizer()
-
-        loss_name = self.config['training']['loss_type']
-        if(loss_name not in self.loss_dict):
-            raise ValueError("Undefined loss function {0:}".format(loss_name))
-        self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
-        
-        trainIter  = iter(self.train_loader)
-        validIter  = iter(self.valid_loader)
-        valid_it   = self.config['training'].get('valid_it', len(validIter))
         train_loss = 0
         train_dice_list = []
-        print("{0:} training start".format(str(datetime.now())[:-7]))
-        max_val_dice = 0.0
-        max_val_it   = 0
-        best_model_wts = None 
-        for it in range(iter_start, iter_max):
+        self.net.train()
+        for it in range(iter_valid):
             try:
-                data = next(trainIter)
+                data = next(self.trainIter)
             except StopIteration:
-                trainIter = iter(self.train_loader)
-                data = next(trainIter)
-
+                self.trainIter = iter(self.train_loader)
+                data = next(self.trainIter)
             # get the inputs
             inputs      = self.convert_tensor_type(data['image'])
             labels_prob = self.convert_tensor_type(data['label_prob'])                 
@@ -270,14 +242,15 @@ class NetRunAgent(object):
             #     save_nd_array_as_image(pixw_i, weight_name, reference_name = None)
             # continue
 
-            inputs, labels_prob = inputs.to(device), labels_prob.to(device)
+            inputs, labels_prob = inputs.to(self.device), labels_prob.to(self.device)
             
             # zero the parameter gradients
             self.optimizer.zero_grad()
                 
             # forward + backward + optimize
             outputs = self.net(inputs)
-            loss_input_dict = self.get_loss_input_dict(data, inputs, outputs, labels_prob, class_weight)
+            loss_input_dict = self.get_loss_input_dict(data, inputs, outputs, \
+                labels_prob, self.class_weight)
 
             loss   = self.loss_calculater(loss_input_dict)
             # if (self.config['training']['use'])
@@ -285,6 +258,7 @@ class NetRunAgent(object):
             self.optimizer.step()
             self.schedule.step()
 
+            train_loss = train_loss + loss.item()
             # get dice evaluation for each class
             if(isinstance(outputs, tuple) or isinstance(outputs, list)):
                 outputs = outputs[0] 
@@ -293,75 +267,131 @@ class NetRunAgent(object):
             soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
             dice_list = get_classwise_dice(soft_out, labels_prob)
             train_dice_list.append(dice_list.cpu().numpy())
+        train_avg_loss = train_loss / iter_valid
+        train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
+        train_avg_dice = train_cls_dice.mean()
 
-            # evaluate performance on validation set
-            train_loss = train_loss + loss.item()
-            if (it % iter_valid == iter_valid - 1):
-                train_avg_loss = train_loss / iter_valid
-                train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-                train_avg_dice = train_cls_dice.mean()
-                train_loss = 0.0
-                train_dice_list = []
+        train_scalers = {'loss': train_avg_loss, 'avg_dice':train_avg_dice,\
+            'class_dice': train_cls_dice}
+        return train_scalers
+        
+    def validation(self):
+        class_num   = self.config['network']['class_num']
+        valid_loss = 0.0
+        valid_dice_list = []
+        validIter  = iter(self.valid_loader)
+        with torch.no_grad():
+            self.net.eval()
+            for data in validIter:
+                inputs      = self.convert_tensor_type(data['image'])
+                labels_prob = self.convert_tensor_type(data['label_prob'])
+                inputs, labels_prob = inputs.to(self.device), labels_prob.to(self.device)
 
-                valid_loss = 0.0
-                valid_dice_list = []
-                with torch.no_grad():
-                    for itv in range(valid_it):
-                        try:
-                            data = next(validIter)
-                        except StopIteration:
-                            validIter = iter(self.valid_loader)
-                            data = next(validIter)
-                        inputs      = self.convert_tensor_type(data['image'])
-                        labels_prob = self.convert_tensor_type(data['label_prob'])
-                        inputs, labels_prob = inputs.to(device), labels_prob.to(device)
+                outputs = self.net(inputs)
+                loss_input_dict = self.get_loss_input_dict(data, inputs, outputs, \
+                    labels_prob, self.class_weight)
+                loss   = self.loss_calculater(loss_input_dict)
+                valid_loss = valid_loss + loss.item()
 
-                        outputs = self.net(inputs)
-                        loss_input_dict = self.get_loss_input_dict(data, inputs, outputs, labels_prob, class_weight)
-                        loss   = self.loss_calculater(loss_input_dict)
-                        valid_loss = valid_loss + loss.item()
+                if(isinstance(outputs, tuple) or isinstance(outputs, list)):
+                    outputs = outputs[0] 
+                outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
+                soft_out  = get_soft_label(outputs_argmax, class_num, self.tensor_type)
+                soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
+                dice_list = get_classwise_dice(soft_out, labels_prob)
+                valid_dice_list.append(dice_list.cpu().numpy())
 
-                        if(isinstance(outputs, tuple) or isinstance(outputs, list)):
-                            outputs = outputs[0] 
-                        outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
-                        soft_out  = get_soft_label(outputs_argmax, class_num, self.tensor_type)
-                        soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
-                        dice_list = get_classwise_dice(soft_out, labels_prob)
-                        valid_dice_list.append(dice_list.cpu().numpy())
+        valid_avg_loss = valid_loss / len(validIter)
+        valid_cls_dice = np.asarray(valid_dice_list).mean(axis = 0)
+        valid_avg_dice = valid_cls_dice.mean()
+        
+        valid_scalers = {'loss': valid_avg_loss, 'avg_dice': valid_avg_dice,\
+            'class_dice': valid_cls_dice}
+        return valid_scalers
 
-                valid_avg_loss = valid_loss / valid_it
-                valid_cls_dice = np.asarray(valid_dice_list).mean(axis = 0)
-                valid_avg_dice = valid_cls_dice.mean()
-                loss_scalers = {'train': train_avg_loss, 'valid': valid_avg_loss}
-                summ_writer.add_scalars('loss', loss_scalers, it + 1)
-                dice_scalers = {'train': train_avg_dice, 'valid': valid_avg_dice}
-                summ_writer.add_scalars('class_avg_dice', dice_scalers, it + 1)
-                print('train cls dice', train_cls_dice.shape, train_cls_dice)
-                print('valid cls dice', valid_cls_dice.shape, valid_cls_dice)
-                for c in range(class_num):
-                    dice_scalars = {'train':train_cls_dice[c], 'valid':valid_cls_dice[c]}
-                    summ_writer.add_scalars('class_{0:}_dice'.format(c), dice_scalars, it + 1)
-                
-                print("{0:} it {1:}, loss {2:.4f}, {3:.4f}".format(
-                    str(datetime.now())[:-7], it + 1, train_avg_loss, valid_avg_loss))
-                if(valid_avg_dice > max_val_dice):
-                        max_val_dice = valid_avg_dice
-                        max_val_it = it 
-                        best_model_wts = copy.deepcopy(self.net.state_dict())
-            if (it % iter_save ==  iter_save - 1):
-                save_dict = {'iteration': it + 1,
+    def write_scalars(self, train_scalars, valid_scalars, glob_it):
+        loss_scalar ={'train':train_scalars['loss'], 'valid':valid_scalars['loss']}
+        dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
+        self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
+        self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
+        class_num = self.config['network']['class_num']
+        for c in range(class_num):
+            cls_dice_scalar = {'train':train_scalars['class_dice'][c], \
+                'valid':valid_scalars['class_dice'][c]}
+            self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
+       
+        print("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
+        print('train loss {0:.4f}, avg dice {1:.4f}'.format(
+            train_scalars['loss'], train_scalars['avg_dice']), train_scalars['class_dice'])        
+        print('valid loss {0:.4f}, avg dice {1:.4f}'.format(
+            valid_scalars['loss'], valid_scalars['avg_dice']), valid_scalars['class_dice'])  
+
+    def train_valid(self):
+        self.device = torch.device(self.config['training']['device_name'])
+        self.net.to(self.device)
+        class_num   = self.config['network']['class_num']
+        chpt_prefx  = self.config['training']['checkpoint_prefix']
+        iter_start  = self.config['training']['iter_start']
+        iter_max    = self.config['training']['iter_max']
+        iter_valid  = self.config['training']['iter_valid']
+        iter_save   = self.config['training']['iter_save']
+
+        class_weight = self.get_class_level_weight()
+        self.class_weight = class_weight.to(self.device)
+
+        self.max_val_dice = 0.0
+        self.max_val_it   = 0
+        self.best_model_wts = None 
+        self.checkpoint = None
+        if(iter_start > 0):
+            checkpoint_file = "{0:}_{1:}.pt".format(chpt_prefx, iter_start)
+            self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
+            assert(self.checkpoint['iteration'] == iter_start)
+            self.net.load_state_dict(self.checkpoint['model_state_dict'])
+            self.max_val_dice = self.checkpoint['valid_pred']
+            self.max_val_it   = self.checkpoint['iteration']
+            self.best_model_wts = self.checkpoint['model_state_dict']
+            
+        self.create_optimizer()
+
+        loss_name = self.config['training']['loss_type']
+        if(loss_name not in self.loss_dict):
+            raise ValueError("Undefined loss function {0:}".format(loss_name))
+        self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
+        
+        self.trainIter  = iter(self.train_loader)
+        
+        print("{0:} training start".format(str(datetime.now())[:-7]))
+        self.summ_writer = SummaryWriter(self.config['training']['summary_dir'])
+        for it in range(iter_start, iter_max, iter_valid):
+            train_scalars = self.training()
+            valid_scalars = self.validation()
+            glob_it = it + iter_valid
+            self.write_scalars(train_scalars, valid_scalars, glob_it)
+
+            if(valid_scalars['avg_dice'] > self.max_val_dice):
+                self.max_val_dice = valid_scalars['avg_dice']
+                self.max_val_it   = glob_it
+                self.best_model_wts = copy.deepcopy(self.net.state_dict())
+
+            if (glob_it % iter_save ==  0):
+                save_dict = {'iteration': glob_it,
+                             'valid_pred': valid_scalars['avg_dice'],
                              'model_state_dict': self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
-                save_name = "{0:}_{1:}.pt".format(chpt_prefx, it + 1)
+                save_name = "{0:}_{1:}.pt".format(chpt_prefx, glob_it)
                 torch.save(save_dict, save_name) 
         # save the best performing checkpoint
-        save_dict = {'iteration': max_val_it + 1,
-                    'model_state_dict': best_model_wts,
+        save_dict = {'iteration': self.max_val_it,
+                    'valid_pred': self.max_val_dice,
+                    'model_state_dict': self.best_model_wts,
                     'optimizer_state_dict': self.optimizer.state_dict()}
-        save_name = "{0:}_{1:}.pt".format(chpt_prefx, max_val_it + 1)
+        save_name = "{0:}_{1:}.pt".format(chpt_prefx, self.max_val_it)
         torch.save(save_dict, save_name) 
-        print('The best perfroming iter is {0:}, valid dice {1:}'.format(max_val_it + 1, max_val_dice))
-        summ_writer.close()
+        print('The best perfroming iter is {0:}, valid dice {1:}'.format(\
+            self.max_val_it, self.max_val_dice))
+        self.summ_writer.close()
+    
     
     def infer(self):
         device = torch.device(self.config['testing']['device_name'])
@@ -495,7 +525,7 @@ class NetRunAgent(object):
         self.create_dataset()
         self.create_network()
         if(self.stage == 'train'):
-            self.train()
+            self.train_valid()
         else:
             self.infer()
 
