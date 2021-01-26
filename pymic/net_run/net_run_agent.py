@@ -166,6 +166,42 @@ class NetRunAgent(object):
         else:
             return input_tensor.double()
 
+    def get_image_level_weight(self, data):
+        imageweight_enb = self.config['training'].get('loss_with_image_weight', False)
+        img_w = None 
+        if(imageweight_enb):
+            if('image_weight' not in data):
+                raise ValueError("image weight is enabled not not provided")
+            img_w = self.convert_tensor_type(data['image_weight'])
+        else:
+            batch_size = data['image'].shape[0]
+            img_w = self.convert_tensor_type(torch.ones(batch_size))
+        return img_w 
+
+    def get_pixel_level_weight(self, data):
+        pixelweight_enb = self.config['training'].get('loss_with_pixel_weight', False)
+        pix_w = None
+        if(pixelweight_enb):
+            if('pixel_weight' not in data):
+                raise ValueError("pixel weight is enabled not not provided")
+            pix_w = self.convert_tensor_type(data['pixel_weight'])
+        else:
+            pix_w_shape = list(data['label_prob'].shape)
+            pix_w_shape[1] = 1
+            pix_w = torch.ones(pix_w_shape)
+            pix_w = self.convert_tensor_type(pix_w)
+        return pix_w
+        
+    def get_loss_input_dict(self, data, inputs, outputs, labels_prob, class_weight):
+        device = torch.device(self.config['training']['device_name'])
+        img_w = self.get_image_level_weight(data)
+        pix_w = self.get_pixel_level_weight(data)
+        img_w, pix_w = img_w.to(device), pix_w.to(device)
+        loss_input_dict = {'image':inputs, 'prediction':outputs, 'ground_truth':labels_prob,
+                'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': class_weight, 
+                'softmax': True}
+        return loss_input_dict
+
     def train(self):
         device = torch.device(self.config['training']['device_name'])
         self.net.to(device)
@@ -176,8 +212,7 @@ class NetRunAgent(object):
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training']['iter_save']
-        imageweight_enb = self.config['training'].get('loss_with_image_weight', False)
-        pixelweight_enb = self.config['training'].get('loss_with_pixel_weight', False)
+
         class_weight    = self.config['training'].get('loss_class_weight', None)
         if(class_weight is None):
             class_weight = torch.ones(class_num)
@@ -219,25 +254,7 @@ class NetRunAgent(object):
 
             # get the inputs
             inputs      = self.convert_tensor_type(data['image'])
-            labels_prob = self.convert_tensor_type(data['label_prob'])
-            img_w, pix_w = None, None
-            if(imageweight_enb):
-                if('image_weight' not in data):
-                    raise ValueError("image weight is enabled not not provided")
-                img_w = self.convert_tensor_type(data['image_weight'])
-            else:
-                batch_size = data['image'].shape[0]
-                img_w = self.convert_tensor_type(torch.ones(batch_size))
-            if(pixelweight_enb):
-                if('pixel_weight' not in data):
-                    raise ValueError("pixel weight is enabled not not provided")
-                pix_w = self.convert_tensor_type(data['pixel_weight'])
-            else:
-                pix_w_shape = list(data['label_prob'].shape)
-                pix_w_shape[1] = 1
-                pix_w = torch.ones(pix_w_shape)
-                pix_w = self.convert_tensor_type(pix_w)
-                 
+            labels_prob = self.convert_tensor_type(data['label_prob'])                 
             
             # # for debug
             # for i in range(inputs.shape[0]):
@@ -252,17 +269,15 @@ class NetRunAgent(object):
             #     save_nd_array_as_image(label_i, label_name, reference_name = None)
             #     save_nd_array_as_image(pixw_i, weight_name, reference_name = None)
             # continue
+
             inputs, labels_prob = inputs.to(device), labels_prob.to(device)
-            img_w, pix_w = img_w.to(device), pix_w.to(device)
             
             # zero the parameter gradients
             self.optimizer.zero_grad()
                 
             # forward + backward + optimize
             outputs = self.net(inputs)
-            loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob,
-                'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': class_weight, 
-                'softmax': True}
+            loss_input_dict = self.get_loss_input_dict(data, inputs, outputs, labels_prob, class_weight)
 
             loss   = self.loss_calculater(loss_input_dict)
             # if (self.config['training']['use'])
@@ -300,24 +315,9 @@ class NetRunAgent(object):
                         inputs      = self.convert_tensor_type(data['image'])
                         labels_prob = self.convert_tensor_type(data['label_prob'])
                         inputs, labels_prob = inputs.to(device), labels_prob.to(device)
-                        if(imageweight_enb and 'image_weight' in data):
-                            img_w = self.convert_tensor_type(data['image_weight'])
-                        else:
-                            batch_size = data['image'].shape[0]
-                            img_w = self.convert_tensor_type(torch.ones(batch_size))
-                        if(pixelweight_enb and 'pixel_weight' in data):
-                            pix_w = self.convert_tensor_type(data['pixel_weight'])
-                        else:
-                            pix_w_shape = list(data['label_prob'].shape)
-                            pix_w_shape[1] = 1
-                            pix_w = torch.ones(pix_w_shape)
-                            pix_w = self.convert_tensor_type(pix_w)
-                        img_w, pix_w = img_w.to(device), pix_w.to(device)
 
                         outputs = self.net(inputs)
-                        loss_input_dict = {'prediction':outputs, 'ground_truth':labels_prob,
-                            'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': class_weight, 
-                            'softmax': True}
+                        loss_input_dict = self.get_loss_input_dict(data, inputs, outputs, labels_prob, class_weight)
                         loss   = self.loss_calculater(loss_input_dict)
                         valid_loss = valid_loss + loss.item()
 
