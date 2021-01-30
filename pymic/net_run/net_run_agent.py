@@ -126,14 +126,13 @@ class NetRunAgent(object):
                 batch_size = batch_size, shuffle=True, num_workers=batch_size * 4,
                 worker_init_fn=worker_init)
             self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
-                batch_size = batch_size, shuffle=False, num_workers=batch_size * 4,
+                batch_size = 1, shuffle=False, num_workers= 4,
                 worker_init_fn=worker_init)
         else:
             if(self.test_set  is None):
                 self.test_set  = self.get_stage_dataset_from_config('test')
-            batch_size = 1
             self.test_loder = torch.utils.data.DataLoader(self.test_set, 
-                batch_size=batch_size, shuffle=False, num_workers=batch_size)
+                batch_size = 1, shuffle=False, num_workers= 4)
 
     def create_network(self):
         net_name = self.config['network']['net_type']
@@ -207,11 +206,14 @@ class NetRunAgent(object):
         return pix_w
         
     def get_loss_input_dict(self, data, inputs, outputs, labels_prob):
+        cls_w = self.get_class_level_weight()
         img_w = self.get_image_level_weight(data)
         pix_w = self.get_pixel_level_weight(data)
-        img_w, pix_w = img_w.to(self.device), pix_w.to(self.device)
+        if(self.net.training):
+            img_w, pix_w = img_w.to(self.device), pix_w.to(self.device)
+            cls_w = cls_w.to(self.device)
         loss_input_dict = {'image':inputs, 'prediction':outputs, 'ground_truth':labels_prob,
-                'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': self.class_weight, 
+                'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': cls_w, 
                 'softmax': True}
         return loss_input_dict
     
@@ -280,6 +282,11 @@ class NetRunAgent(object):
         
     def validation(self):
         class_num   = self.config['network']['class_num']
+        mini_batch_size    = self.config['testing']['mini_batch_size']
+        mini_patch_inshape = self.config['testing']['mini_patch_input_shape']
+        mini_patch_outshape= self.config['testing']['mini_patch_output_shape']
+        mini_patch_stride  = self.config['testing']['mini_patch_stride']
+        output_num         = self.config['testing'].get('output_num', 1)
         valid_loss = 0.0
         valid_dice_list = []
         validIter  = iter(self.valid_loader)
@@ -288,9 +295,11 @@ class NetRunAgent(object):
             for data in validIter:
                 inputs      = self.convert_tensor_type(data['image'])
                 labels_prob = self.convert_tensor_type(data['label_prob'])
-                inputs, labels_prob = inputs.to(self.device), labels_prob.to(self.device)
 
-                outputs = self.net(inputs)
+                outputs = volume_infer(inputs, self.net, self.device, class_num, 
+                    mini_batch_size, mini_patch_inshape, mini_patch_outshape, mini_patch_stride, output_num)
+                outputs = self.convert_tensor_type(torch.from_numpy(outputs))
+                # The tensors are on CPU when calculating loss for validation data
                 loss_input_dict = self.get_loss_input_dict(data, inputs, outputs, \
                     labels_prob)
                 loss   = self.loss_calculater(loss_input_dict)
@@ -338,9 +347,6 @@ class NetRunAgent(object):
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training']['iter_save']
-
-        class_weight = self.get_class_level_weight()
-        self.class_weight = class_weight.to(self.device)
 
         self.max_val_dice = 0.0
         self.max_val_it   = 0
@@ -468,9 +474,6 @@ class NetRunAgent(object):
                 predict_list = [data['predict']]
                 if(isinstance(data['predict'], tuple) or isinstance(data['predict'], list)):
                     predict_list = data['predict']
-
-                # for item in predict_list:
-                #     print("predict shape", item.shape, item[0][0].mean(), item[0][1].mean())
 
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
