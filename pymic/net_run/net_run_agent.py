@@ -193,22 +193,25 @@ class NetRunAgent(object):
         pixelweight_enb = self.config['training'].get('loss_with_pixel_weight', False)
         pix_w = None
         if(pixelweight_enb):
-            if('pixel_weight' not in data):
-                raise ValueError("pixel weight is enabled not not provided")
-            pix_w = self.convert_tensor_type(data['pixel_weight'])
-        else:
+            if(self.net.training):
+                if('pixel_weight' not in data):
+                    raise ValueError("pixel weight is enabled but not provided")
+                pix_w = data['pixel_weight']
+            else:
+                pix_w = data.get('pixel_weight', None)
+        if(pix_w is None):
             pix_w_shape = list(data['label_prob'].shape)
             pix_w_shape[1] = 1
             pix_w = torch.ones(pix_w_shape)
-            pix_w = self.convert_tensor_type(pix_w)
+        pix_w = self.convert_tensor_type(pix_w)
         return pix_w
         
-    def get_loss_input_dict(self, data, inputs, outputs, labels_prob, class_weight):
+    def get_loss_input_dict(self, data, inputs, outputs, labels_prob):
         img_w = self.get_image_level_weight(data)
         pix_w = self.get_pixel_level_weight(data)
         img_w, pix_w = img_w.to(self.device), pix_w.to(self.device)
         loss_input_dict = {'image':inputs, 'prediction':outputs, 'ground_truth':labels_prob,
-                'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': class_weight, 
+                'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': self.class_weight, 
                 'softmax': True}
         return loss_input_dict
     
@@ -250,7 +253,7 @@ class NetRunAgent(object):
             # forward + backward + optimize
             outputs = self.net(inputs)
             loss_input_dict = self.get_loss_input_dict(data, inputs, outputs, \
-                labels_prob, self.class_weight)
+                labels_prob)
 
             loss   = self.loss_calculater(loss_input_dict)
             # if (self.config['training']['use'])
@@ -289,7 +292,7 @@ class NetRunAgent(object):
 
                 outputs = self.net(inputs)
                 loss_input_dict = self.get_loss_input_dict(data, inputs, outputs, \
-                    labels_prob, self.class_weight)
+                    labels_prob)
                 loss   = self.loss_calculater(loss_input_dict)
                 valid_loss = valid_loss + loss.item()
 
@@ -348,7 +351,7 @@ class NetRunAgent(object):
             self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
             assert(self.checkpoint['iteration'] == iter_start)
             self.net.load_state_dict(self.checkpoint['model_state_dict'])
-            self.max_val_dice = self.checkpoint['valid_pred']
+            self.max_val_dice = self.checkpoint.get('valid_pred', 0)
             self.max_val_it   = self.checkpoint['iteration']
             self.best_model_wts = self.checkpoint['model_state_dict']
             
