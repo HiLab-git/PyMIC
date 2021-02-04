@@ -15,6 +15,13 @@ def volume_infer(image, net, device, class_num,
     Obtain net(image)
     sampling the image with patch_shape and use the patch as input of network
     if patch_size is None, use the whole image as input of the network 
+    image : the input tensor on cuda
+    device: device name
+    net   : the network on cuda
+    class_num : number of class for segmentation
+    output_num: number of outputs, when >1, the network obtains a list of output array
+
+    return outputs: a numpy array after inference
     """
     image = image.to(device)
     if(mini_patch_inshape is None):
@@ -27,6 +34,9 @@ def volume_infer(image, net, device, class_num,
     else:
         outputs = volume_infer_by_patch(image, net, device, class_num,
             mini_batch_size, mini_patch_inshape, mini_patch_outshape, stride, output_num)
+    if(isinstance(outputs, tuple) or isinstance(outputs, list)):
+        if(output_num == 1):
+            outputs = outputs[0]
     return outputs
 
 def volume_infer_by_patch(image, net, device, class_num,

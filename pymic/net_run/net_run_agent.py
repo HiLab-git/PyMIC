@@ -341,7 +341,6 @@ class NetRunAgent(object):
     def train_valid(self):
         self.device = torch.device(self.config['training']['device_name'])
         self.net.to(self.device)
-        class_num   = self.config['network']['class_num']
         chpt_prefx  = self.config['training']['checkpoint_prefix']
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
@@ -431,6 +430,8 @@ class NetRunAgent(object):
         label_target = self.config['testing'].get('label_target', None)
         filename_replace_source = self.config['testing'].get('filename_replace_source', None)
         filename_replace_target = self.config['testing'].get('filename_replace_target', None)
+        if(not os.path.exists(output_dir)):
+            os.mkdir(output_dir)
 
         # automatically infer outupt shape
         # if(mini_patch_inshape is not None):

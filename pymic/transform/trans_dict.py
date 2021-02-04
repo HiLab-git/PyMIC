@@ -12,7 +12,6 @@ from pymic.transform.label_convert import *
 
 TransformDict = {
     'ChannelWiseGammaCorrection': ChannelWiseGammaCorrection,
-    'ChannelWiseNormalize': ChannelWiseNormalize,
     'ChannelWiseThreshold': ChannelWiseThreshold,
     'ChannelWiseThresholdWithNormalize': ChannelWiseThresholdWithNormalize,
     'CropWithBoundingBox': CropWithBoundingBox,
@@ -20,6 +19,8 @@ TransformDict = {
     'LabelConvert': LabelConvert,
     'LabelConvertNonzero': LabelConvertNonzero,
     'LabelToProbability': LabelToProbability,
+    'NormalizeWithMeanStd': NormalizeWithMeanStd,
+    'NormalizeWithMinMax': NormalizeWithMinMax,
     'RandomCrop': RandomCrop,
     'RandomResizedCrop':RandomResizedCrop,
     'RandomFlip': RandomFlip,

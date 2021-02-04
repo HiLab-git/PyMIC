@@ -18,8 +18,8 @@ class Pad(AbstractTransform):
     """
     def __init__(self, params):
         """
-        output_size (tuple/list): the size along each spatial axis. 
-        ceil_mode (bool): if true, the real output size is integer multiples of output_size.
+        :param output_size: (tuple/list) the size along each spatial axis. 
+        :param ceil_mode: (bool) if true, the real output size is integer multiples of output_size.
         """
         super(Pad, self).__init__(params)
         self.output_size = params['Pad_output_size'.lower()]
