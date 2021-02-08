@@ -60,15 +60,12 @@ class NormalizeWithMinMax(AbstractTransform):
         :param chanels: (None or tuple/list) the indices of channels to be noramlized.
         :param threshold_lower: (tuple/list/None) The lower threshold value along each channel.
         :param threshold_upper: (typle/list/None) The upper threshold value along each channel.
-        :param enable_percentile: (bool) When a lower or a upper threshold value is not given,
-             enable_percentile = True makes the corresponding values be 5-th or 95-th percentiles.
         :param inverse: (bool) Whether inverse transform is needed or not.
         """
         super(NormalizeWithMinMax, self).__init__(params)
         self.chns = params['NormalizeWithMinMax_channels'.lower()]
         self.thred_lower = params['NormalizeWithMinMax_threshold_lower'.lower()]
         self.thred_upper = params['NormalizeWithMinMax_threshold_upper'.lower()]
-        self.percentile  = params['NormalizeWithMinMax_enable_percentile'.lower()]
         self.inverse = params['NormalizeWithMinMax_inverse'.lower()]
 
     def __call__(self, sample):
@@ -77,13 +74,40 @@ class NormalizeWithMinMax(AbstractTransform):
         for i in range(len(chns)):
             chn = chns[i]
             img_chn = image[chn]
-            v0 = None if self.thred_lower is None else self.thred_lower[i]
-            v1 = None if self.thred_upper is None else self.thred_upper[i]
-            
-            if(v0 is None):
-                v0 = np.percentile(img_chn, 1) if(self.percentile) else  img_chn.min()
-            if(v1 is None):
-                v1 = np.percentile(img_chn, 99) if(self.percentile) else  img_chn.max()
+            v0 = img_chn.min() if self.thred_lower is None else self.thred_lower[i]
+            v1 = img_chn.max() if self.thred_upper is None else self.thred_upper[i]
+
+            img_chn[img_chn < v0] = v0
+            img_chn[img_chn > v1] = v1
+            img_chn = (img_chn - v0) / (v1 - v0)
+            image[chn] = img_chn
+        sample['image'] = image
+        return sample
+
+class NormalizeWithPercentiles(AbstractTransform):
+    """Nomralize the image (shape [C, D, H, W] or [C, H, W]) with percentiles for given channels
+    """
+    def __init__(self, params):
+        """
+        :param chanels: (None or tuple/list) the indices of channels to be noramlized.
+        :param percentile_lower: (tuple/list/None) The lower percentile along each channel.
+        :param percentile_upper: (typle/list/None) The upper percentile along each channel.
+        :param inverse: (bool) Whether inverse transform is needed or not.
+        """
+        super(NormalizeWithPercentiles, self).__init__(params)
+        self.chns = params['NormalizeWithPercentiles_channels'.lower()]
+        self.percent_lower = params['NormalizeWithPercentiles_percentile_lower'.lower()]
+        self.percent_upper = params['NormalizeWithPercentiles_percentile_upper'.lower()]
+        self.inverse = params['NormalizeWithMinMax_inverse'.lower()]
+
+    def __call__(self, sample):
+        image= sample['image']
+        chns = self.chns if self.chns is not None else range(image.shape[0])
+        for i in range(len(chns)):
+            chn = chns[i]
+            img_chn = image[chn]
+            v0 = np.percentile(img_chn, self.percent_lower)
+            v1 = np.percentile(img_chn, self.percent_upper)
 
             img_chn[img_chn < v0] = v0
             img_chn[img_chn > v1] = v1

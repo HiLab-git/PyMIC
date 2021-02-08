@@ -21,6 +21,7 @@ TransformDict = {
     'LabelToProbability': LabelToProbability,
     'NormalizeWithMeanStd': NormalizeWithMeanStd,
     'NormalizeWithMinMax': NormalizeWithMinMax,
+    'NormalizeWithPercentiles': NormalizeWithPercentiles,
     'RandomCrop': RandomCrop,
     'RandomResizedCrop':RandomResizedCrop,
     'RandomFlip': RandomFlip,

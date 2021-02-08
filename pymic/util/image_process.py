@@ -104,6 +104,49 @@ def set_ND_volume_roi_with_bounding_box_range(volume, bb_min, bb_max, sub_volume
         raise ValueError("array dimension should be 2 to 5")
     return out
 
+def crop_and_pad_ND_array_to_desired_shape(image, out_shape, pad_mod):
+    in_shape   = image.shape 
+    dim        = len(in_shape)
+    crop_shape = [min(out_shape[i], in_shape[i])  for i in range(dim)]
+    mgnc = [max(0, in_shape[i] - crop_shape[i]) for i in range(dim)]
+    if(max(mgnc) == 0):
+        image_crp = image
+    else:
+        ml   = [int(mgnc[i]/2)  for i in range(dim)]
+        mr   = [mgnc[i] - ml[i] for i in range(dim)] 
+        if(dim == 2):
+            image_crp = image[np.ix_(range(ml[0], in_shape[0] - mr[0]),
+                                    range(ml[1], in_shape[1] - mr[1]))]
+        elif(dim == 3):
+            image_crp = image[np.ix_(range(ml[0], in_shape[0] - mr[0]),
+                                    range(ml[1], in_shape[1] - mr[1]),
+                                    range(ml[2], in_shape[2] - mr[2]))]
+        elif(dim == 4):
+            image_crp = image[np.ix_(range(ml[0], in_shape[0] - mr[0]),
+                                    range(ml[1], in_shape[1] - mr[1]),
+                                    range(ml[2], in_shape[2] - mr[2]),
+                                    range(ml[3], in_shape[3] - mr[3]))]
+        elif(dim == 5):
+            image_crp = image[np.ix_(range(ml[0], in_shape[0] - mr[0]),
+                                    range(ml[1], in_shape[1] - mr[1]),
+                                    range(ml[2], in_shape[2] - mr[2]),
+                                    range(ml[3], in_shape[3] - mr[3]),
+                                    range(ml[4], in_shape[4] - mr[4]))]
+        else:
+            raise ValueError("array dimension should be 2 to 5")
+
+    mgnp = [out_shape[i] - crop_shape[i] for i in range(dim)]
+    if(max(mgnp) == 0):
+        image_pad = image_crp
+    else:
+        ml   = [int(mgnp[i]/2)  for i in range(dim)]
+        mr   = [mgnp[i] - ml[i] for i in range(dim)] 
+        pad  = [(ml[i], mr[i])  for i in range(dim)]
+        pad  = tuple(pad)
+        image_pad = np.pad(image_crp, pad, pad_mod) 
+        
+    return image_pad
+
 def get_largest_component(image):
     """
     get the largest component from 2D or 3D binary image
