@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 from pymic.transform.gamma_correction import  ChannelWiseGammaCorrection
+from pymic.transform.gray2rgb import GrayscaleToRGB
 from pymic.transform.flip import RandomFlip
 from pymic.transform.pad import Pad
 from pymic.transform.rotate import RandomRotate
@@ -16,6 +17,7 @@ TransformDict = {
     'ChannelWiseThresholdWithNormalize': ChannelWiseThresholdWithNormalize,
     'CropWithBoundingBox': CropWithBoundingBox,
     'CenterCrop': CenterCrop,
+    'GrayscaleToRGB': GrayscaleToRGB,
     'LabelConvert': LabelConvert,
     'LabelConvertNonzero': LabelConvertNonzero,
     'LabelToProbability': LabelToProbability,

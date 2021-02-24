@@ -37,9 +37,9 @@ class ChannelWiseThresholdWithNormalize(AbstractTransform):
     """
     def __init__(self, params):
         """
-        threshold_lower (tuple/list/None): The lower threshold value along each channel.
-        threshold_upper (typle/list/None): The upper threshold value along each channel.
-        mean_std_mode (bool): If true, nomalize the image based on mean and std values,
+        :param threshold_lower: (tuple/list/None) The lower threshold value along each channel.
+        :param threshold_upper: (typle/list/None) The upper threshold value along each channel.
+        :param mean_std_mode: (bool) If true, nomalize the image based on mean and std values,
             and pixels values outside the threshold value are replaced random number.
             If false, use the min and max values for normalization.
         """

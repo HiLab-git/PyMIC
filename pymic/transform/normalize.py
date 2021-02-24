@@ -98,7 +98,7 @@ class NormalizeWithPercentiles(AbstractTransform):
         self.chns = params['NormalizeWithPercentiles_channels'.lower()]
         self.percent_lower = params['NormalizeWithPercentiles_percentile_lower'.lower()]
         self.percent_upper = params['NormalizeWithPercentiles_percentile_upper'.lower()]
-        self.inverse = params['NormalizeWithMinMax_inverse'.lower()]
+        self.inverse = params['NormalizeWithPercentiles_inverse'.lower()]
 
     def __call__(self, sample):
         image= sample['image']
