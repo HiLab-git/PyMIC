@@ -19,8 +19,8 @@ PyMIC provides some basic modules for medical image computing that can be share 
 * Implementation of loss functions, especially for image segmentation.
 * Implementation of evaluation metrics to get quantitative evaluation of your methods (for segmentation). 
 
-
-# Requirement
+# Usage
+## Requirement
 * [Pytorch][torch_link] version >=1.0.1
 * [TensorboardX][tbx_link] to visualize training performance
 * Some common python packages such as Numpy, Pandas, SimpleITK
@@ -28,14 +28,17 @@ PyMIC provides some basic modules for medical image computing that can be share 
 [torch_link]:https://pytorch.org/
 [tbx_link]:https://github.com/lanpa/tensorboardX 
 
-# Usage
-Run the following command to install PyMIC:
+## Installation
+Run the following command to install the current released version of PyMIC:
 
 ```bash
 pip install PYMIC
 ```
 
-[PyMIC_examples][examples] provides some examples for using PyMIC. For beginners, you only need to simply change the configuration files to select different datasets, networks and training methods for running the code. For advanced users, you can develop your own modules based on this package. You can find both types of examples 
+Alternatively, you can download the source code and add the path of pymic to the `PYTHONPATH` environment variable. 
+
+## Examples
+[PyMIC_examples][examples] provides some examples of starting to use PyMIC. For beginners, you only need to simply change the configuration files to select different datasets, networks and training methods for running the code. For advanced users, you can develop your own modules based on this package. You can find both types of examples 
 
 [examples]: https://github.com/HiLab-git/PyMIC_examples 
 
