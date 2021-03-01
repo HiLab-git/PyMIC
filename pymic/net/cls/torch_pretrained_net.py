@@ -29,7 +29,7 @@ class ResNet18(nn.Module):
         in_chns  = params['input_chns']
         self.pretrain = params['pretrain']
         self.update_layers = params.get('update_layers', 0)
-        self.net = models.resnet18(pretrained = pretrain)
+        self.net = models.resnet18(pretrained = self.pretrain)
         
         # replace the last layer 
         num_ftrs = self.net.fc.in_features
