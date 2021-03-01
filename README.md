@@ -1,13 +1,26 @@
 # PyMIC: A Pytorch-Based Toolkit for Medical Image Computing
 
-This repository proivdes a library and some examples of using pytorch for medical image computing. The toolkit is under development. Currently it supports 2D and 3D image segmentation. It was originally developped for COVID-19 pneumonia lesion segmentation from CT images. If you use this toolkit, please cite the following paper:
+PyMIC is a pytorch-based toolkit for medical image computing with deep learning. Despite that pytorch is a fantastic platform for deep learning, using it for medical image computing is not straightforward as medical images are often with higher dimension, multiple modalities and low contrast. The toolkit is developed to facilitate medical image computing researchers so that training and testing deep learning models become easier. It is very friendly to researchers who are new to this area. Even without writing any code, you can use PyMIC commands to train and test a model by simply editing configure files.  
+
+Currently PyMIC supports 2D/3D medical image classification and segmentation, and it is still under development. It was originally developed for COVID-19 pneumonia lesion segmentation from CT images. If you use this toolkit, please cite the following paper:
+
 
 *  G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. 
 [A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images.][tmi2020] IEEE Transactions on Medical Imaging. 39(8):2653-2663, 2020. DOI: [10.1109/TMI.2020.3000314][tmi2020]
 
 [tmi2020]:https://ieeexplore.ieee.org/document/9109297
 
-# Requirement
+
+# Advantages
+PyMIC provides some basic modules for medical image computing that can be share by different applications. We currently provide the following functions:
+* Easy-to-use I/O interface to read and write different 2D and 3D images.
+* Re-useable training and testing pipeline that can be transferred to different tasks.
+* Various data pre-processing methods before sending a tensor into a network.
+* Implementation of loss functions, especially for image segmentation.
+* Implementation of evaluation metrics to get quantitative evaluation of your methods (for segmentation). 
+
+# Usage
+## Requirement
 * [Pytorch][torch_link] version >=1.0.1
 * [TensorboardX][tbx_link] to visualize training performance
 * Some common python packages such as Numpy, Pandas, SimpleITK
@@ -15,37 +28,30 @@ This repository proivdes a library and some examples of using pytorch for medica
 [torch_link]:https://pytorch.org/
 [tbx_link]:https://github.com/lanpa/tensorboardX 
 
-# Advantages
-This package provides some basic modules for medical image computing that can be share by different applications. We currently provide the following functions:
-* Easy-to-use I/O interface to read and write different 2D and 3D images.
-* Re-userable training and testing pipeline that can be transfered to different tasks.
-* Various data pre-processing methods before sending a tensor into a network.
-* Implementation of loss functions (for image segmentation).
-* Implementation of evaluation metrics to get quantitative evaluation of your methods (for segmentation). 
-
-# Usage
-Run the following command to install PyMIC:
+## Installation
+Run the following command to install the current released version of PyMIC:
 
 ```bash
 pip install PYMIC
 ```
 
-Go to `examples` to see some examples for using PyMIC. For beginners, you only need to simply change the configuration files to select different datasets, networks and training methods for running the code (example 1 - 3). For advanced users, you can develop your own modules based on this package (example 4). You can find the following examples:
+Alternatively, you can download the source code and add the path of pymic to the `PYTHONPATH` environment variable. 
 
-1, `examples\JSRT`: use a predefined 2D U-Net for heart segmentation from X-ray images.
+## Examples
+[PyMIC_examples][examples] provides some examples of starting to use PyMIC. For beginners, you only need to simply change the configuration files to select different datasets, networks and training methods for running the code. For advanced users, you can develop your own modules based on this package. You can find both types of examples 
 
-2, `examples\fetal_hc`: use a predefined 2D U-Net for fetal brain segmentation from ultrasound images.
-
-3, `examples\prostate`: use a predefined 3D U-Net for prostate segmentation from 3D MRI.
-
-4, `examples\JSRT2`: define your custermized network and loss function for heart segmentation from X-ray images.
+[examples]: https://github.com/HiLab-git/PyMIC_examples 
 
 # Projects based on PyMIC
 Using PyMIC, it becomes easy to develop deep learning models for different projects, such as the following:
 
-1, [COPLE-Net][coplenet] COVID-19 Pneumonia Segmentation from CT images. 
+1, [COPLE-Net][coplenet] (TMI 2020), COVID-19 Pneumonia Segmentation from CT images. 
 
-2, [Head-Neck-GTV][hn_gtv] Nasopharyngeal Carcinoma (NPC) GTV segmentation from Head and Neck CT images. 
+2, [Head-Neck-GTV][hn_gtv] (NeuroComputing 2020) Nasopharyngeal Carcinoma (NPC) GTV segmentation from Head and Neck CT images. 
+
+3, [UGIR][ugir] (MICCAI 2020) Uncertainty-guided interactive refinement for medical image segmentation. 
 
 [coplenet]:https://github.com/HiLab-git/COPLE-Net
 [hn_gtv]: https://github.com/HiLab-git/Head-Neck-GTV
+[ugir]: https://github.com/HiLab-git/UGIR
+

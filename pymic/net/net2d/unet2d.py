@@ -46,9 +46,15 @@ class DownBlock(nn.Module):
         return self.maxpool_conv(x)
 
 class UpBlock(nn.Module):
-    """Upssampling followed by ConvBlock"""
+    """Upsampling followed by ConvBlock"""
     def __init__(self, in_channels1, in_channels2, out_channels, dropout_p,
                  bilinear=True):
+        """
+        in_channels1: channel of high-level features
+        in_channels2: channel of low-level features
+        out_channels: output channel number
+        dropout_p: probability of dropout
+        """
         super(UpBlock, self).__init__()
         self.bilinear = bilinear
         if bilinear:
@@ -81,10 +87,10 @@ class UNet2D(nn.Module):
         self.down2  = DownBlock(self.ft_chns[1], self.ft_chns[2], self.dropout[2])
         self.down3  = DownBlock(self.ft_chns[2], self.ft_chns[3], self.dropout[3])
         self.down4  = DownBlock(self.ft_chns[3], self.ft_chns[4], self.dropout[4])
-        self.up1 = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], dropout_p = 0.0) 
-        self.up2 = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], dropout_p = 0.0) 
-        self.up3 = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], dropout_p = 0.0) 
-        self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], dropout_p = 0.0) 
+        self.up1 = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], 0.0, self.bilinear) 
+        self.up2 = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], 0.0, self.bilinear) 
+        self.up3 = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], 0.0, self.bilinear) 
+        self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], 0.0, self.bilinear) 
     
         self.out_conv = nn.Conv2d(self.ft_chns[0], self.n_class,  
             kernel_size = 3, padding = 1)
