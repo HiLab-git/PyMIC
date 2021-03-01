@@ -1,11 +1,24 @@
 # PyMIC: A Pytorch-Based Toolkit for Medical Image Computing
 
-This repository proivdes a library and some examples of using pytorch for medical image computing. The toolkit is under development. Currently it supports 2D and 3D image segmentation. It was originally developped for COVID-19 pneumonia lesion segmentation from CT images. If you use this toolkit, please cite the following paper:
+PyMIC is a pytorch-based toolkit for medical image computing with deep learning. Despite that pytorch is a fantastic platform for deep learning, using it for medical image computing is not straightforward as medical images are often with higher dimension, multiple modalities and low contrast. The toolkit is developed to facilitate medical image computing researchers so that training and testing deep learning models become easier. It is very friendly to researchers who are new to this area. Even without writing any code, you can use PyMIC commands to train and test a model by simply editing configure files.  
+
+Currently PyMIC supports 2D/3D medical image classification and segmentation, and it is still under development. It was originally developed for COVID-19 pneumonia lesion segmentation from CT images. If you use this toolkit, please cite the following paper:
+
 
 *  G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. 
 [A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images.][tmi2020] IEEE Transactions on Medical Imaging. 39(8):2653-2663, 2020. DOI: [10.1109/TMI.2020.3000314][tmi2020]
 
 [tmi2020]:https://ieeexplore.ieee.org/document/9109297
+
+
+# Advantages
+PyMIC provides some basic modules for medical image computing that can be share by different applications. We currently provide the following functions:
+* Easy-to-use I/O interface to read and write different 2D and 3D images.
+* Re-useable training and testing pipeline that can be transferred to different tasks.
+* Various data pre-processing methods before sending a tensor into a network.
+* Implementation of loss functions, especially for image segmentation.
+* Implementation of evaluation metrics to get quantitative evaluation of your methods (for segmentation). 
+
 
 # Requirement
 * [Pytorch][torch_link] version >=1.0.1
@@ -14,14 +27,6 @@ This repository proivdes a library and some examples of using pytorch for medica
 
 [torch_link]:https://pytorch.org/
 [tbx_link]:https://github.com/lanpa/tensorboardX 
-
-# Advantages
-This package provides some basic modules for medical image computing that can be share by different applications. We currently provide the following functions:
-* Easy-to-use I/O interface to read and write different 2D and 3D images.
-* Re-userable training and testing pipeline that can be transfered to different tasks.
-* Various data pre-processing methods before sending a tensor into a network.
-* Implementation of loss functions (for image segmentation).
-* Implementation of evaluation metrics to get quantitative evaluation of your methods (for segmentation). 
 
 # Usage
 Run the following command to install PyMIC:
