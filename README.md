@@ -30,15 +30,9 @@ Run the following command to install PyMIC:
 pip install PYMIC
 ```
 
-Go to `examples` to see some examples for using PyMIC. For beginners, you only need to simply change the configuration files to select different datasets, networks and training methods for running the code (example 1 - 3). For advanced users, you can develop your own modules based on this package (example 4). You can find the following examples:
+[PyMIC_examples][examples] provides some examples for using PyMIC. For beginners, you only need to simply change the configuration files to select different datasets, networks and training methods for running the code. For advanced users, you can develop your own modules based on this package. You can find both types of examples 
 
-1, `examples\JSRT`: use a predefined 2D U-Net for heart segmentation from X-ray images.
-
-2, `examples\fetal_hc`: use a predefined 2D U-Net for fetal brain segmentation from ultrasound images.
-
-3, `examples\prostate`: use a predefined 3D U-Net for prostate segmentation from 3D MRI.
-
-4, `examples\JSRT2`: define your custermized network and loss function for heart segmentation from X-ray images.
+[examples]: https://github.com/HiLab-git/PyMIC_examples 
 
 # Projects based on PyMIC
 Using PyMIC, it becomes easy to develop deep learning models for different projects, such as the following:
