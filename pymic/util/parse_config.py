@@ -81,12 +81,29 @@ def parse_value_from_string(val_str):
         val = val_str
     return val
 
+class AttrDict(dict):
+    """ Dictionary subclass whose entries can be accessed like attributes
+        (as well as normally).
+    """
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+    @staticmethod
+    def from_nested_dicts(data):
+        """ Construct nested AttrDicts from nested dictionaries. """
+        if not isinstance(data, dict):
+            return data
+        else:
+            return AttrDict({key: AttrDict.from_nested_dict(data[key])
+                                for key in data})
+
 def parse_config(filename):
     config = configparser.ConfigParser()
     config.read(filename)
-    output = {}
+    output = AttrDict()
     for section in config.sections():
-        output[section] = {}
+        output[section] = AttrDict()
         for key in config[section]:
             val_str = str(config[section][key])
             if(len(val_str)>0):
