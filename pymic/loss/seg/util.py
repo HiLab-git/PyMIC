@@ -7,15 +7,14 @@ import numpy as np
 
 def get_soft_label(input_tensor, num_class, data_type = 'float'):
     """
-        convert a label tensor to soft label 
+        convert a label tensor to onehot label 
         input_tensor: tensor with shae [B, 1, D, H, W]
         output_tensor: shape [B, num_class, D, H, W]
     """
-    tensor_list = []
-    for i in range(num_class):
-        temp_prob = input_tensor == i*torch.ones_like(input_tensor)
-        tensor_list.append(temp_prob)
-    output_tensor = torch.cat(tensor_list, dim = 1)
+    shape = input_tensor.shape
+    output_tensor = torch.zeros((shape[0], num_class, *shape[2:]), dtype = input_tensor.dtype, device= input_tensor.device)
+    output_tensor.scatter_(1, input_tensor, 1)
+    
     if(data_type == 'float'):
         output_tensor = output_tensor.float()
     elif(data_type == 'double'):
