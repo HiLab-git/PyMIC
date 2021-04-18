@@ -49,7 +49,7 @@ def binary_iou(s,g):
     assert(len(s.shape)== len(g.shape))
     intersecion = np.multiply(s, g)
     union = np.asarray(s + g >0, np.float32)
-    iou = intersecion.sum()/(union.sum() + 1e-10)
+    iou = (intersecion.sum() + 1e-5)/(union.sum() + 1e-5)
     return iou
 
 def iou_of_images(s_name, g_name):
@@ -146,7 +146,7 @@ def binary_relative_volume_error(s_volume, g_volume):
     rve = abs(s_v - g_v)/g_v
     return rve
 
-def get_evaluation_score(s_volume, g_volume, spacing, metric):
+def get_binary_evaluation_score(s_volume, g_volume, spacing, metric):
     if(len(s_volume.shape) == 4):
         assert(s_volume.shape[0] == 1 and g_volume.shape[0] == 1)
         s_volume = np.reshape(s_volume, s_volume.shape[1:])
@@ -181,10 +181,28 @@ def get_evaluation_score(s_volume, g_volume, spacing, metric):
 
     return score
 
+def get_multi_class_evaluation_score(s_volume, g_volume, label_list, fuse_label, spacing, metric):
+    if(fuse_label):
+        s_volume_sub = np.zeros_like(s_volume)
+        g_volume_sub = np.zeros_like(g_volume)
+        for lab in label_list:
+            s_volume_sub = s_volume_sub + np.asarray(s_volume == lab, np.uint8)
+            g_volume_sub = g_volume_sub + np.asarray(g_volume == lab, np.uint8)
+        label_list = [1]
+        s_volume = np.asarray(s_volume_sub > 0, np.uint8)
+        g_volume = np.asarray(g_volume_sub > 0, np.uint8)
+    score_list = []
+    for label in label_list:
+        temp_score = get_binary_evaluation_score(s_volume == label, g_volume == label,
+                    spacing, metric)
+        score_list.append(temp_score)
+    return score_list
+
 def evaluation(config_file):
     config = parse_config(config_file)['evaluation']
     metric = config['metric']
-    labels = config['label_list']
+    label_list = config['label_list']
+    label_fuse = config['label_fuse']
     organ_name = config['organ_name']
     gt_root    = config['ground_truth_folder_root']
     seg_root   = config['segmentation_folder_root']
@@ -223,34 +241,31 @@ def evaluation(config_file):
                 s_volume = convert_label(s_volume, segmentation_label_convert_source, \
                     segmentation_label_convert_target)
 
-            # fuse multiple labels
-            s_volume_sub = np.zeros_like(s_volume)
-            g_volume_sub = np.zeros_like(g_volume)
-            for lab in labels:
-                s_volume_sub = s_volume_sub + np.asarray(s_volume == lab, np.uint8)
-                g_volume_sub = g_volume_sub + np.asarray(g_volume == lab, np.uint8)
-            
-            # get evaluation score
-            temp_score = get_evaluation_score(s_volume_sub > 0, g_volume_sub > 0,
-                        s_spacing, metric)
-            score_all_data.append(temp_score)
-            name_score_list.append([seg_name, temp_score])
-            print(seg_name, temp_score)
+            score_vector = get_multi_class_evaluation_score(s_volume, g_volume, label_list, 
+                label_fuse, s_spacing, metric )
+            if(len(label_list) > 1):
+                score_vector.append(np.asarray(score_vector).mean())
+            score_all_data.append(score_vector)
+            name_score_list.append([seg_name] + score_vector)
+            print(seg_name, score_vector)
         score_all_data = np.asarray(score_all_data)
-        score_mean = [score_all_data.mean(axis = 0)]
-        score_std  = [score_all_data.std(axis = 0)]
+        score_mean = score_all_data.mean(axis = 0)
+        score_std  = score_all_data.std(axis = 0)
+        name_score_list.append(['mean'] + list(score_mean))
+        name_score_list.append(['std'] + list(score_std))
     
-        # save the result as csv and txt
-        np.savetxt("{0:}/{1:}_{2:}_mean.txt".format(seg_root_n, organ_name, metric), score_mean)
-        np.savetxt("{0:}/{1:}_{2:}_std.txt".format(seg_root_n, organ_name, metric), score_std)
+        # save the result as csv 
         score_csv = "{0:}/{1:}_{2:}_all.csv".format(seg_root_n, organ_name, metric)
         with open(score_csv, mode='w') as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=',', 
                             quotechar='"',quoting=csv.QUOTE_MINIMAL)
-            csv_writer.writerow(['image', metric])
+            head = ['image'] + ["class_{0:}".format(i) for i in label_list]
+            if(len(label_list) > 1):
+                head = head + ["average"]
+            csv_writer.writerow(head)
             for item in name_score_list:
                 csv_writer.writerow(item)
-        print(seg_root_n)
+
         print("{0:} mean ".format(metric), score_mean)
         print("{0:} std  ".format(metric), score_std) 
 

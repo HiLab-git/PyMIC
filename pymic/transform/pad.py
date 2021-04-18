@@ -63,9 +63,6 @@ class Pad(AbstractTransform):
     
     def inverse_transform_for_prediction(self, sample):
         ''' crop sample['predict'] (5D or 4D) to the original spatial shape.
-         assume batch size is 1, otherwise scale may be different for 
-         different elemenets in the batch.
-
         origin_shape is a 4D or 3D vector as saved in __call__().'''
         # raise ValueError("not implemented")
         if(isinstance(sample['Pad_Param'], list) or isinstance(sample['Pad_Param'], tuple)):
