@@ -9,7 +9,7 @@ import numpy as np
 from pymic.util.image_process import *
 
 
-def volume_infer(image, net, device, class_num, sliding_window = False,
+def volume_infer(image, net, class_num, sliding_window = False,
         window_size = None, window_stride  = None, output_num = 1):
     """
     Obtain net(image)
@@ -22,22 +22,18 @@ def volume_infer(image, net, device, class_num, sliding_window = False,
     mini_patch_shape: the shape of an inference patch
     output_num: number of outputs, when >1, the network obtains a list of output array
 
-    return outputs: a numpy array after inference
+    return outputs: a pytorch tensor or a list of tensors after inference
     """
-    image = image.to(device)
     if(sliding_window is False):
         outputs = net(image)
     else:
-        outputs = volume_infer_by_patch(image, net, device, class_num,
+        outputs = volume_infer_by_patch(image, net, class_num, 
             window_size, window_stride, output_num)
     if(isinstance(outputs, tuple) or isinstance(outputs, list)):
-        outputs = [item.cpu().numpy() for item in outputs]
         outputs = outputs[:output_num] if output_num > 1 else outputs[0]
-    else:
-        outputs = outputs.cpu().numpy()
     return outputs
 
-def volume_infer_by_patch(image, net, device, class_num,
+def volume_infer_by_patch(image, net, class_num,
         window_size, window_stride, output_num):
     '''
         Test one image with sliding windows
@@ -60,20 +56,17 @@ def volume_infer_by_patch(image, net, device, class_num,
         for h in range(0, img_shape[-2], window_stride[-2]):
             h_min = min(h, img_shape[-2] - window_size[-2])
             if(img_dim == 2):
-                crop_start = [h_min, w_min]
-                crop_start_list.append(crop_start)
+                crop_start_list.append([h_min, w_min])
             else:
                 for d in range(0, img_shape[0], window_stride[0]):
                     d_min = min(d, img_shape[0] - window_size[0])
-                    crop_start = [d_min, h_min, w_min]
-                    crop_start_list.append(crop_start)
+                    crop_start_list.append([d_min, h_min, w_min])
     
     output_shape = [img_full_shape[0], class_num] + img_shape
     output_list  = [torch.zeros(output_shape).cuda() for i in range(output_num)]
     pred_num_arr = torch.zeros(output_shape).cuda()
     mask_shape = [img_full_shape[0], class_num] + window_size
     temp_mask    = torch.ones(mask_shape).cuda()
-    
     
     for c0 in crop_start_list:
         c1 = [c0[i] + window_size[i] for i in range(img_dim)]

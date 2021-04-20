@@ -125,12 +125,15 @@ class SegmentationAgent(NetRunAgent):
         return pix_w
         
     def get_loss_value(self, data, inputs, outputs, labels_prob):
+        """
+        Assume inputs, outputs and label_prob has been sent to self.device
+        """
         cls_w = self.get_class_level_weight()
         img_w = self.get_image_level_weight(data)
         pix_w = self.get_pixel_level_weight(data)
-        if(self.net.training):
-            img_w, pix_w = img_w.to(self.device), pix_w.to(self.device)
-            cls_w = cls_w.to(self.device)
+
+        img_w, pix_w = img_w.to(self.device), pix_w.to(self.device)
+        cls_w = cls_w.to(self.device)
         loss_input_dict = {'image':inputs, 'prediction':outputs, 'ground_truth':labels_prob,
                 'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': cls_w, 
                 'softmax': True}
@@ -211,11 +214,12 @@ class SegmentationAgent(NetRunAgent):
             for data in validIter:
                 inputs      = self.convert_tensor_type(data['image'])
                 labels_prob = self.convert_tensor_type(data['label_prob'])
+                inputs, labels_prob  = inputs.to(self.device), labels_prob.to(self.device)
                 batch_n     = inputs.shape[0]
 
-                outputs = volume_infer(inputs, self.net, self.device, class_num, 
+                outputs = volume_infer(inputs, self.net, class_num, 
                     infer_sliding_window, window_size, window_stride, output_num)
-                outputs = self.convert_tensor_type(torch.from_numpy(outputs))
+
                 # The tensors are on CPU when calculating loss for validation data
                 loss = self.get_loss_value(data, inputs, outputs, labels_prob)
                 valid_loss_list.append(loss.item())
@@ -224,9 +228,10 @@ class SegmentationAgent(NetRunAgent):
                     outputs = outputs[0] 
                 outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
                 soft_out  = get_soft_label(outputs_argmax, class_num, self.tensor_type)
-                soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob)
                 for i in range(batch_n):
-                    temp_dice = get_classwise_dice(soft_out[i:i+1], labels_prob[i:i+1])
+                    soft_out_i, labels_prob_i = reshape_prediction_and_ground_truth(\
+                        soft_out[i:i+1], labels_prob[i:i+1])
+                    temp_dice = get_classwise_dice(soft_out_i, labels_prob_i)
                     valid_dice_list.append(temp_dice.cpu().numpy())
 
         valid_avg_loss = np.asarray(valid_loss_list).mean()
@@ -380,6 +385,7 @@ class SegmentationAgent(NetRunAgent):
         with torch.no_grad():
             for data in self.test_loder:
                 images = self.convert_tensor_type(data['image'])
+                images = images.to(device)
                 names  = data['names']
     
                 # for debug
@@ -393,25 +399,25 @@ class SegmentationAgent(NetRunAgent):
                 # continue
                 start_time = time.time()
                 
-                data['predict']  = volume_infer(images, self.net, device, class_num, 
+                pred = volume_infer(images, self.net, class_num, 
                     infer_sliding_window, window_size, window_stride)
-                
+                # convert tensor to numpy
+                if isinstance(pred, (tuple, list)):
+                    pred = pred[0]
+                data['predict'] = pred.cpu().numpy() 
+
+                # inverse transform
                 for i in reversed(range(len(self.transform_list))):
                     if (self.transform_list[i].inverse):
                         data = self.transform_list[i].inverse_transform_for_prediction(data) 
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
 
-                prob = scipy.special.softmax(data['predict'][0], axis = 0) 
-                # print("prob shape", prob.shape)
-                # output = predict_list[2][0]
-                output = np.asarray(np.argmax(prob,  axis = 0), np.uint8)
-                # plt.imshow(output)
-                # plt.show()
+                prob = scipy.special.softmax(data['predict'], axis = 1) 
+                output = np.asarray(np.argmax(prob,  axis = 1), np.uint8)
                 if((label_source is not None) and (label_target is not None)):
                     output = convert_label(output, label_source, label_target)
                 # save the output and (optionally) probability predictions
-
                 root_dir  = self.config['dataset']['root_dir']
                 for i in range(len(names)):
                     save_name = names[i].split('/')[-1] if filename_ignore_dir else \
@@ -420,7 +426,7 @@ class SegmentationAgent(NetRunAgent):
                     if((filename_replace_source is  not None) and (filename_replace_target is not None)):
                         save_name = save_name.replace(filename_replace_source, filename_replace_target)
                     save_name = "{0:}/{1:}".format(output_dir, save_name)
-                    save_nd_array_as_image(output, save_name, root_dir + '/' + names[i])
+                    save_nd_array_as_image(output[i], save_name, root_dir + '/' + names[i])
                     save_name_split = save_name.split('.')
                     if('.nii.gz' in save_name):
                         save_prefix = '.'.join(save_name_split[:-2])
@@ -429,9 +435,9 @@ class SegmentationAgent(NetRunAgent):
                         save_prefix = '.'.join(save_name_split[:-1])
                         save_format = save_name_split[-1]
                     if(save_probability):
-                        class_num = prob.shape[0]
+                        class_num = prob.shape[1]
                         for c in range(0, class_num):
-                            temp_prob = prob[c]
+                            temp_prob = prob[i][c]
                             prob_save_name = "{0:}_prob_{1:}.{2:}".format(save_prefix, c, save_format)
                             if(len(temp_prob.shape) == 2):
                                 temp_prob = np.asarray(temp_prob * 255, np.uint8)
