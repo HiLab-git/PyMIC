@@ -183,15 +183,16 @@ class SegmentationAgent(NetRunAgent):
             self.optimizer.step()
             self.scheduler.step()
 
-            train_loss = train_loss + loss.item()
+            train_loss += loss.item()
             # get dice evaluation for each class
-            if(isinstance(outputs, tuple) or isinstance(outputs, list)):
-                outputs = outputs[0] 
-            outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
-            soft_out       = get_soft_label(outputs_argmax, class_num, self.tensor_type)
-            soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
-            dice_list = get_classwise_dice(soft_out, labels_prob)
-            train_dice_list.append(dice_list.cpu().numpy())
+            with torch.no_grad():
+                if(isinstance(outputs, tuple) or isinstance(outputs, list)):
+                    outputs = outputs[0] 
+                outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
+                soft_out = get_soft_label(outputs_argmax, class_num, self.tensor_type)
+                soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
+                dice_list = get_classwise_dice(soft_out, labels_prob)
+                train_dice_list.append(dice_list.detach().cpu().numpy())
         train_avg_loss = train_loss / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
         train_avg_dice = train_cls_dice.mean()
