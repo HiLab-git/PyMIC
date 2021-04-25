@@ -24,7 +24,7 @@ from pymic.io.nifty_dataset import NiftyDataset
 from pymic.transform.trans_dict import TransformDict
 from pymic.net.net_dict_seg import SegNetDict
 from pymic.net_run.agent_abstract import NetRunAgent
-from pymic.net_run.infer_func import volume_infer
+from pymic.net_run.infer_func import Inferer
 from pymic.loss.loss_dict_seg import SegLossDict
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
@@ -183,16 +183,15 @@ class SegmentationAgent(NetRunAgent):
             self.optimizer.step()
             self.scheduler.step()
 
-            train_loss += loss.item()
+            train_loss = train_loss + loss.item()
             # get dice evaluation for each class
-            with torch.no_grad():
-                if(isinstance(outputs, tuple) or isinstance(outputs, list)):
-                    outputs = outputs[0] 
-                outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
-                soft_out = get_soft_label(outputs_argmax, class_num, self.tensor_type)
-                soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
-                dice_list = get_classwise_dice(soft_out, labels_prob)
-                train_dice_list.append(dice_list.detach().cpu().numpy())
+            if(isinstance(outputs, tuple) or isinstance(outputs, list)):
+                outputs = outputs[0] 
+            outputs_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
+            soft_out       = get_soft_label(outputs_argmax, class_num, self.tensor_type)
+            soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
+            dice_list = get_classwise_dice(soft_out, labels_prob)
+            train_dice_list.append(dice_list.cpu().numpy())
         train_avg_loss = train_loss / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
         train_avg_dice = train_cls_dice.mean()
@@ -202,24 +201,22 @@ class SegmentationAgent(NetRunAgent):
         return train_scalers
         
     def validation(self):
-        class_num   = self.config['network']['class_num']
-        infer_sliding_window = self.config['testing']['infer_sliding_window']
-        window_size    = self.config['testing']['sliding_window_size']
-        window_stride  = self.config['testing']['sliding_window_stride']
-        output_num     = self.config['testing'].get('output_num', 1)
+        class_num = self.config['network']['class_num']
+        infer_cfg = self.config['testing']
+        infer_cfg['class_num'] = class_num
+        
         valid_loss_list = []
         valid_dice_list = []
         validIter  = iter(self.valid_loader)
         with torch.no_grad():
             self.net.eval()
+            infer_obj = Inferer(self.net, infer_cfg)
             for data in validIter:
                 inputs      = self.convert_tensor_type(data['image'])
                 labels_prob = self.convert_tensor_type(data['label_prob'])
                 inputs, labels_prob  = inputs.to(self.device), labels_prob.to(self.device)
-                batch_n     = inputs.shape[0]
-
-                outputs = volume_infer(inputs, self.net, class_num, 
-                    infer_sliding_window, window_size, window_stride, output_num)
+                batch_n = inputs.shape[0]
+                outputs = infer_obj.run(inputs)
 
                 # The tensors are on CPU when calculating loss for validation data
                 loss = self.get_loss_value(data, inputs, outputs, labels_prob)
@@ -352,42 +349,15 @@ class SegmentationAgent(NetRunAgent):
                         print('dropout layer')
                         m.train()
                 self.net.apply(test_time_dropout)
-        output_dir   = self.config['testing']['output_dir']
-        class_num    = self.config['network']['class_num']
-        infer_sliding_window = self.config['testing']['infer_sliding_window']
-        window_size    = self.config['testing']['sliding_window_size']
-        window_stride  = self.config['testing']['sliding_window_stride']
-        label_source = self.config['testing'].get('label_source', None)
-        label_target = self.config['testing'].get('label_target', None)
-        filename_ignore_dir     = self.config['testing'].get('filename_ignore_dir', True)
-        filename_replace_source = self.config['testing'].get('filename_replace_source', None)
-        filename_replace_target = self.config['testing'].get('filename_replace_target', None)
-        save_probability = self.config['testing'].get('save_probability', False)
-        if(not os.path.exists(output_dir)):
-            os.mkdir(output_dir)
 
-        # automatically infer outupt shape
-        # if(mini_patch_inshape is not None):
-        #     patch_inshape = [1, self.config['dataset']['modal_num']] + mini_patch_inshape
-        #     testx = np.random.random(patch_inshape)
-        #     testx = torch.from_numpy(testx)
-        #     testx = torch.tensor(testx)
-        #     testx = self.convert_tensor_type(testx)
-        #     testx = testx.to(device)
-        #     testy = self.net(testx)
-        #     if(isinstance(testy, tuple) or isinstance(testy, list)):
-        #         testy = testy[0] 
-        #     testy = testy.detach().cpu().numpy()
-        #     mini_patch_outshape = testy.shape[2:]
-        #     print('mini patch in shape', mini_patch_inshape)
-        #     print('mini patch out shape', mini_patch_outshape)
-        
+        infer_cfg = self.config['testing']
+        infer_cfg['class_num'] = self.config['network']['class_num']
+        infer_obj = Inferer(self.net, infer_cfg)
         infer_time_list = []
         with torch.no_grad():
             for data in self.test_loder:
                 images = self.convert_tensor_type(data['image'])
                 images = images.to(device)
-                names  = data['names']
     
                 # for debug
                 # for i in range(images.shape[0]):
@@ -400,51 +370,56 @@ class SegmentationAgent(NetRunAgent):
                 # continue
                 start_time = time.time()
                 
-                pred = volume_infer(images, self.net, class_num, 
-                    infer_sliding_window, window_size, window_stride)
+                pred = infer_obj.run(images)
                 # convert tensor to numpy
                 if isinstance(pred, (tuple, list)):
                     pred = pred[0]
                 data['predict'] = pred.cpu().numpy() 
-
                 # inverse transform
                 for i in reversed(range(len(self.transform_list))):
                     if (self.transform_list[i].inverse):
                         data = self.transform_list[i].inverse_transform_for_prediction(data) 
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
-
-                prob = scipy.special.softmax(data['predict'], axis = 1) 
-                output = np.asarray(np.argmax(prob,  axis = 1), np.uint8)
-                if((label_source is not None) and (label_target is not None)):
-                    output = convert_label(output, label_source, label_target)
-                # save the output and (optionally) probability predictions
-                root_dir  = self.config['dataset']['root_dir']
-                for i in range(len(names)):
-                    save_name = names[i].split('/')[-1] if filename_ignore_dir else \
-                        names[i].replace('/', '_')
-                    print(save_name)
-                    if((filename_replace_source is  not None) and (filename_replace_target is not None)):
-                        save_name = save_name.replace(filename_replace_source, filename_replace_target)
-                    save_name = "{0:}/{1:}".format(output_dir, save_name)
-                    save_nd_array_as_image(output[i], save_name, root_dir + '/' + names[i])
-                    save_name_split = save_name.split('.')
-                    if('.nii.gz' in save_name):
-                        save_prefix = '.'.join(save_name_split[:-2])
-                        save_format = 'nii.gz'
-                    else:
-                        save_prefix = '.'.join(save_name_split[:-1])
-                        save_format = save_name_split[-1]
-                    if(save_probability):
-                        class_num = prob.shape[1]
-                        for c in range(0, class_num):
-                            temp_prob = prob[i][c]
-                            prob_save_name = "{0:}_prob_{1:}.{2:}".format(save_prefix, c, save_format)
-                            if(len(temp_prob.shape) == 2):
-                                temp_prob = np.asarray(temp_prob * 255, np.uint8)
-                            save_nd_array_as_image(temp_prob, prob_save_name, root_dir + '/' + names[i])
-
+                self.save_ouputs(data)
         infer_time_list = np.asarray(infer_time_list)
-        time_avg = infer_time_list.mean()
-        time_std = infer_time_list.std()
+        time_avg, time_std = infer_time_list.mean(), infer_time_list.std()
         print("testing time {0:} +/- {1:}".format(time_avg, time_std))
+
+    def save_ouputs(self, data):
+        output_dir = self.config['testing']['output_dir']
+        ignore_dir = self.config['testing'].get('filename_ignore_dir', True)
+        save_prob  = self.config['testing'].get('save_probability', False)
+        if(not os.path.exists(output_dir)):
+            os.mkdir(output_dir)
+
+        names, pred = data['names'], data['predict']
+        prob   = scipy.special.softmax(pred, axis = 1) 
+        output = np.asarray(np.argmax(prob,  axis = 1), np.uint8)
+
+        # save the output and (optionally) probability predictions
+        root_dir  = self.config['dataset']['root_dir']
+        for i in range(len(names)):
+            save_name = names[i].split('/')[-1] if ignore_dir else \
+                names[i].replace('/', '_')
+            print(save_name)
+            save_name = "{0:}/{1:}".format(output_dir, save_name)
+            save_nd_array_as_image(output[i], save_name, root_dir + '/' + names[i])
+            save_name_split = save_name.split('.')
+
+            if(not save_prob):
+                continue
+            if('.nii.gz' in save_name):
+                save_prefix = '.'.join(save_name_split[:-2])
+                save_format = 'nii.gz'
+            else:
+                save_prefix = '.'.join(save_name_split[:-1])
+                save_format = save_name_split[-1]
+            
+            class_num = prob.shape[1]
+            for c in range(0, class_num):
+                temp_prob = prob[i][c]
+                prob_save_name = "{0:}_prob_{1:}.{2:}".format(save_prefix, c, save_format)
+                if(len(temp_prob.shape) == 2):
+                    temp_prob = np.asarray(temp_prob * 255, np.uint8)
+                save_nd_array_as_image(temp_prob, prob_save_name, root_dir + '/' + names[i])
