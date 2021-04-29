@@ -67,7 +67,7 @@ class LabelToProbability(AbstractTransform):
     
     def __call__(self, sample):
         if(self.task == 'segmentation'):
-            label = sample['label'][0]
+            label = sample['label'][0] # sample['label'] is (1, h, w)
             label_prob = np.rollaxis(np.eye(self.class_num, dtype = np.float32)[label], -1)
             sample['label_prob'] = label_prob
         elif(self.task == 'classification'):
