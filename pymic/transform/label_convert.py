@@ -68,12 +68,7 @@ class LabelToProbability(AbstractTransform):
     def __call__(self, sample):
         if(self.task == 'segmentation'):
             label = sample['label'][0]
-            label_prob = []
-            for i in range(self.class_num):
-                temp_prob = label == i*np.ones_like(label)
-                label_prob.append(temp_prob)
-            label_prob = np.asarray(label_prob, np.float32)
-    
+            label_prob = np.rollaxis(np.eye(self.class_num, dtype = np.float32)[label], -1)
             sample['label_prob'] = label_prob
         elif(self.task == 'classification'):
             label_idx = sample['label']
