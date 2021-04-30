@@ -75,7 +75,7 @@ def binary_evaluation(config_file):
 def main():
     if(len(sys.argv) < 2):
         print('Number of arguments should be 2. e.g.')
-        print('    python pyMIC.util/evaluation.py config.cfg')
+        print('    pymic_evaluate_cls config.cfg')
         exit()
     config_file = str(sys.argv[1])
     assert(os.path.isfile(config_file))

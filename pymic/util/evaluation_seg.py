@@ -202,7 +202,7 @@ def evaluation(config_file):
     config = parse_config(config_file)['evaluation']
     metric = config['metric']
     label_list = config['label_list']
-    label_fuse = config['label_fuse']
+    label_fuse = config.get('label_fuse', False)
     organ_name = config['organ_name']
     gt_root    = config['ground_truth_folder_root']
     seg_root   = config['segmentation_folder_root']
@@ -272,7 +272,7 @@ def evaluation(config_file):
 def main():
     if(len(sys.argv) < 2):
         print('Number of arguments should be 2. e.g.')
-        print('    python pyMIC.util/evaluation.py config.cfg')
+        print('    pymic_evaluate_seg config.cfg')
         exit()
     config_file = str(sys.argv[1])
     assert(os.path.isfile(config_file))

@@ -7,7 +7,7 @@ from pymic.net_run.agent_cls import ClassificationAgent
 def main():
     if(len(sys.argv) < 3):
         print('Number of arguments should be 3. e.g.')
-        print('    python train_infer.py train config.cfg')
+        print('   pymic_net_run_cls train config.cfg')
         exit()
     stage    = str(sys.argv[1])
     cfg_file = str(sys.argv[2])

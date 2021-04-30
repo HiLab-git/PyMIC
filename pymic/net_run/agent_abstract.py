@@ -68,6 +68,20 @@ class NetRunAgent(object):
     def set_scheduler(self, scheduler):
         self.scheduler = scheduler
 
+    def get_checkpoint_name(self):
+        ckpt_mode = self.config['testing']['ckpt_mode']
+        if(ckpt_mode == 0 or ckpt_mode == 1):
+            ckpt_dir    = self.config['training']['ckpt_save_dir']
+            ckpt_prefix = self.config['training']['ckpt_save_prefix']
+            txt_name = ckpt_dir + '/' + ckpt_prefix
+            txt_name += "_latest.txt" if ckpt_mode == 0 else "_best.txt"
+            with open(txt_name, 'r') as txt_file:
+                it_num = txt_file.read().replace('\n', '') 
+                ckpt_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, it_num)
+        else:
+            ckpt_name =  self.config['testing']['ckpt_name']
+        return ckpt_name
+
     @abstractmethod    
     def get_stage_dataset_from_config(self, stage):
         raise(ValueError("not implemented"))

@@ -265,7 +265,8 @@ class SegmentationAgent(NetRunAgent):
         else:
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
-        chpt_prefx  = self.config['training']['checkpoint_prefix']
+        ckpt_dir    = self.config['training']['ckpt_save_dir']
+        ckpt_prefx  = self.config['training']['ckpt_save_prefix']
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
@@ -276,7 +277,7 @@ class SegmentationAgent(NetRunAgent):
         self.best_model_wts = None 
         self.checkpoint = None
         if(iter_start > 0):
-            checkpoint_file = "{0:}_{1:}.pt".format(chpt_prefx, iter_start)
+            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, iter_start)
             self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
             assert(self.checkpoint['iteration'] == iter_start)
             if(len(device_ids) > 0):
@@ -299,7 +300,7 @@ class SegmentationAgent(NetRunAgent):
         self.trainIter  = iter(self.train_loader)
         
         print("{0:} training start".format(str(datetime.now())[:-7]))
-        self.summ_writer = SummaryWriter(self.config['training']['summary_dir'])
+        self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
         for it in range(iter_start, iter_max, iter_valid):
             train_scalars = self.training()
             valid_scalars = self.validation()
@@ -320,15 +321,21 @@ class SegmentationAgent(NetRunAgent):
                              'model_state_dict': self.net.module.state_dict() \
                                  if len(device_ids) > 1 else self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
-                save_name = "{0:}_{1:}.pt".format(chpt_prefx, glob_it)
+                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, glob_it)
                 torch.save(save_dict, save_name) 
+                txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefx), 'wt')
+                txt_file.write(str(glob_it))
+                txt_file.close()
         # save the best performing checkpoint
         save_dict = {'iteration': self.max_val_it,
                     'valid_pred': self.max_val_dice,
                     'model_state_dict': self.best_model_wts,
                     'optimizer_state_dict': self.optimizer.state_dict()}
-        save_name = "{0:}_{1:}.pt".format(chpt_prefx, self.max_val_it)
+        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, self.max_val_it)
         torch.save(save_dict, save_name) 
+        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefx), 'wt')
+        txt_file.write(str(self.max_val_it))
+        txt_file.close()
         print('The best perfroming iter is {0:}, valid dice {1:}'.format(\
             self.max_val_it, self.max_val_dice))
         self.summ_writer.close()
@@ -337,9 +344,10 @@ class SegmentationAgent(NetRunAgent):
         device_ids = self.config['testing']['gpus']
         device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(device)
-        # laod network parameters and set the network as evaluation mode
-        self.checkpoint = torch.load(self.config['testing']['checkpoint_name'], map_location = device)
-        self.net.load_state_dict(self.checkpoint['model_state_dict'])
+        # load network parameters and set the network as evaluation mode
+        checkpoint_name = self.get_checkpoint_name()
+        checkpoint = torch.load(checkpoint_name, map_location = device)
+        self.net.load_state_dict(checkpoint['model_state_dict'])
         
         if(self.config['testing']['evaluation_mode'] == True):
             self.net.eval()
@@ -390,18 +398,25 @@ class SegmentationAgent(NetRunAgent):
         output_dir = self.config['testing']['output_dir']
         ignore_dir = self.config['testing'].get('filename_ignore_dir', True)
         save_prob  = self.config['testing'].get('save_probability', False)
+        label_source = self.config['testing'].get('label_source', None)
+        label_target = self.config['testing'].get('label_target', None)
+        filename_replace_source = self.config['testing'].get('filename_replace_source', None)
+        filename_replace_target = self.config['testing'].get('filename_replace_target', None)
         if(not os.path.exists(output_dir)):
             os.mkdir(output_dir)
 
         names, pred = data['names'], data['predict']
         prob   = scipy.special.softmax(pred, axis = 1) 
         output = np.asarray(np.argmax(prob,  axis = 1), np.uint8)
-
+        if((label_source is not None) and (label_target is not None)):
+            output = convert_label(output, label_source, label_target)
         # save the output and (optionally) probability predictions
         root_dir  = self.config['dataset']['root_dir']
         for i in range(len(names)):
             save_name = names[i].split('/')[-1] if ignore_dir else \
                 names[i].replace('/', '_')
+            if((filename_replace_source is  not None) and (filename_replace_target is not None)):
+                save_name = save_name.replace(filename_replace_source, filename_replace_target)
             print(save_name)
             save_name = "{0:}/{1:}".format(output_dir, save_name)
             save_nd_array_as_image(output[i], save_name, root_dir + '/' + names[i])

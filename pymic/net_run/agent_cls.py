@@ -173,9 +173,16 @@ class ClassificationAgent(NetRunAgent):
             valid_scalars['loss'], valid_scalars['acc'])) 
 
     def train_valid(self):
-        self.device = torch.device(self.config['training']['device_name'])
+        device_ids = self.config['training']['gpus']
+        if(len(device_ids) > 1):
+            self.device = torch.device("cuda:0")
+            self.net = nn.DataParallel(self.net, device_ids = device_ids)
+        else:
+            self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
-        chpt_prefx  = self.config['training']['checkpoint_prefix']
+
+        ckpt_dir    = self.config['training']['ckpt_save_dir']
+        ckpt_prefx  = self.config['training']['ckpt_save_prefix']
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
@@ -186,7 +193,7 @@ class ClassificationAgent(NetRunAgent):
         self.best_model_wts = None 
         self.checkpoint = None
         if(iter_start > 0):
-            checkpoint_file = "{0:}_{1:}.pt".format(chpt_prefx, iter_start)
+            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, iter_start)
             self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
             assert(self.checkpoint['iteration'] == iter_start)
             self.net.load_state_dict(self.checkpoint['model_state_dict'])
@@ -206,7 +213,7 @@ class ClassificationAgent(NetRunAgent):
         self.trainIter  = iter(self.train_loader)
 
         print("{0:} training start".format(str(datetime.now())[:-7]))
-        self.summ_writer = SummaryWriter(self.config['training']['summary_dir'])
+        self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
         for it in range(iter_start, iter_max, iter_valid):
             train_scalars = self.training()
             valid_scalars = self.validation()
@@ -223,27 +230,35 @@ class ClassificationAgent(NetRunAgent):
                              'valid_pred': valid_scalars['acc'],
                              'model_state_dict': self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
-                save_name = "{0:}_{1:}.pt".format(chpt_prefx, glob_it)
-                torch.save(save_dict, save_name)
+                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, glob_it)
+                torch.save(save_dict, save_name) 
+                txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefx), 'wt')
+                txt_file.write(str(glob_it))
+                txt_file.close()
 
         # save the best performing checkpoint
         save_dict = {'iteration': self.max_val_it,
                     'valid_pred': self.max_val_acc,
                     'model_state_dict': self.best_model_wts,
                     'optimizer_state_dict': self.optimizer.state_dict()}
-        save_name = "{0:}_{1:}.pt".format(chpt_prefx, self.max_val_it)
+        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, self.max_val_it)
         torch.save(save_dict, save_name) 
+        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefx), 'wt')
+        txt_file.write(str(self.max_val_it))
+        txt_file.close()
         print('The best perfroming iter is {0:}, valid acc {1:}'.format(\
             self.max_val_it, self.max_val_acc))
         self.summ_writer.close()
 
 
     def infer(self):
-        device = torch.device(self.config['testing']['device_name'])
+        device_ids = self.config['testing']['gpus']
+        device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(device)
-        # laod network parameters and set the network as evaluation mode
-        self.checkpoint = torch.load(self.config['testing']['checkpoint_name'], map_location = device)
-        self.net.load_state_dict(self.checkpoint['model_state_dict'])
+        # load network parameters and set the network as evaluation mode
+        checkpoint_name = self.get_checkpoint_name()
+        checkpoint = torch.load(checkpoint_name, map_location = device)
+        self.net.load_state_dict(checkpoint['model_state_dict'])
         
         if(self.config['testing']['evaluation_mode'] == True):
             self.net.eval()
@@ -260,16 +275,17 @@ class ClassificationAgent(NetRunAgent):
                 names  = data['names']
                 inputs = self.convert_tensor_type(data['image'])
                 inputs = inputs.to(device) 
-                print(names[0])
+                
                 start_time = time.time()
                 out_digit = self.net(inputs)
                 out_prob  = nn.Softmax(dim = 1)(out_digit)
-                out_prob  = out_prob.detach().cpu().numpy()[0]
-                out_lab   = np.argmax(out_prob)
+                out_prob  = out_prob.detach().cpu().numpy()
+                out_lab   = np.argmax(out_prob, axis=1)
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
-                out_lab_list.append([names[0], out_lab])
-                out_prob_list.append([names[0]] + out_prob.tolist())
+                for i in range(len(names)):
+                    out_lab_list.append([names[i], out_lab[i]])
+                    out_prob_list.append([names[i]] + out_prob[i].tolist())
         
         with open(output_csv, mode='w') as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=',', 
