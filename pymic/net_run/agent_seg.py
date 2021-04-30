@@ -387,9 +387,9 @@ class SegmentationAgent(NetRunAgent):
                 data['predict']  = volume_infer(images, self.net, device, class_num, 
                     mini_batch_size, mini_patch_inshape, mini_patch_outshape, mini_patch_stride, output_num)
                 
-                for i in reversed(range(len(self.transform_list))):
-                    if (self.transform_list[i].inverse):
-                        data = self.transform_list[i].inverse_transform_for_prediction(data) 
+                for transform in transform_list[::-1]:
+                    if (transform.inverse):
+                        data = transform.inverse_transform_for_prediction(data)
                 predict_list = [data['predict']]
                 if(isinstance(data['predict'], tuple) or isinstance(data['predict'], list)):
                     predict_list = data['predict']
