@@ -98,11 +98,25 @@ class ClassificationAgent(NetRunAgent):
         loss_value = self.loss_calculater(loss_input_dict)
         return loss_value
         
+    def get_evaluation_score(self, outputs, labels):
+        metrics = self.config['training'].get("evaluation_metric", "accuracy")
+        if(metrics != "accuracy"): # default classification accuracy
+            raise ValueError("Not implemeted for metric {0:}".format(metrics))
+        if(self.task_type == "cls"):
+            _, preds = torch.max(outputs, 1)
+            consis= self.convert_tensor_type(preds ==  labels.data)
+            score = torch.mean(consis)
+        elif(self.task_type == "cls_mtbc"): #multi-task binary classification
+            preds = self.convert_tensor_type(outputs > 0.5)
+            consis= self.convert_tensor_type(preds ==  labels.data)
+            score = torch.mean(consis) 
+        return score
+
     def training(self):
-        iter_valid  = self.config['training']['iter_valid']
+        iter_valid   = self.config['training']['iter_valid']
         sample_num   = 0
         running_loss = 0
-        running_corrects = 0
+        running_score= 0
         self.net.train()
         for it in range(iter_valid):
             try:
@@ -111,66 +125,67 @@ class ClassificationAgent(NetRunAgent):
                 self.trainIter = iter(self.train_loader)
                 data = next(self.trainIter)
             inputs = self.convert_tensor_type(data['image'])
-            labels = data['label'].long()          
+            labels = data['label'].long()         
             inputs, labels = inputs.to(self.device), labels.to(self.device)
             # zero the parameter gradients
             self.optimizer.zero_grad()
             # forward + backward + optimize
             outputs = self.net(inputs)
-            _, preds = torch.max(outputs, 1)
             loss = self.get_loss_value(data, inputs, outputs, labels)
             loss.backward()
             self.optimizer.step()
             self.scheduler.step()
             
             # statistics
-            sample_num   += inputs.size(0)
-            running_loss += loss.item() * inputs.size(0)
-            running_corrects += torch.sum(preds == labels.data)
+            sample_num   += labels.size(0)
+            running_loss += loss.item() * labels.size(0)
+            running_score+= self.get_evaluation_score(outputs, labels) * labels.size(0)
 
-        train_avg_loss = running_loss / sample_num
-        train_avg_acc  = running_corrects.double() / sample_num
-        train_scalers = {'loss': train_avg_loss, 'acc': train_avg_acc}
+        avg_loss = running_loss / sample_num
+        avg_score= running_score.double() / sample_num
+        metrics =self.config['training'].get("evaluation_metric", "accuracy")
+        train_scalers = {'loss': avg_loss, metrics: avg_score}
         return train_scalers
 
     def validation(self):
         validIter  = iter(self.valid_loader)
         sample_num   = 0
         running_loss = 0
-        running_corrects = 0
+        running_score= 0
         with torch.no_grad():
             self.net.eval()
             for data in validIter:
                 inputs = self.convert_tensor_type(data['image'])
-                labels = data['label'].long()          
+                labels = data['label'].long()             
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 self.optimizer.zero_grad()
                 # forward + backward + optimize
                 outputs = self.net(inputs)
-                _, preds = torch.max(outputs, 1)
                 loss = self.get_loss_value(data, inputs, outputs, labels)
                                 
                 # statistics
-                sample_num   += inputs.size(0)
-                running_loss += loss.item() * inputs.size(0)
-                running_corrects += torch.sum(preds == labels.data)
+                sample_num   += labels.size(0)
+                running_loss += loss.item() * labels.size(0)
+                running_score+= self.get_evaluation_score(outputs, labels) * labels.size(0)
 
         avg_loss = running_loss / sample_num
-        avg_acc  = running_corrects.double() / sample_num
-        scalers = {'loss': avg_loss, 'acc': avg_acc}
-        return scalers
+        avg_score= running_score.double() / sample_num
+        metrics =self.config['training'].get("evaluation_metric", "accuracy")
+        valid_scalers = {'loss': avg_loss, metrics: avg_score}
+        return valid_scalers
 
     def write_scalars(self, train_scalars, valid_scalars, glob_it):
+        metrics =self.config['training'].get("evaluation_metric", "accuracy")
         loss_scalar ={'train':train_scalars['loss'], 'valid':valid_scalars['loss']}
-        acc_scalar  ={'train':train_scalars['acc'], 'valid':valid_scalars['acc']}
+        acc_scalar  ={'train':train_scalars[metrics],'valid':valid_scalars[metrics]}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
-        self.summ_writer.add_scalars('acc', acc_scalar, glob_it)
+        self.summ_writer.add_scalars(metrics, acc_scalar, glob_it)
         
         print("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
-        print('train loss {0:.4f}, avg acc {1:.4f}'.format(
-            train_scalars['loss'], train_scalars['acc']))
-        print('valid loss {0:.4f}, avg acc {1:.4f}'.format(
-            valid_scalars['loss'], valid_scalars['acc'])) 
+        print('train loss {0:.4f}, avg {1:} {2:.4f}'.format(
+            train_scalars['loss'], metrics, train_scalars[metrics]))
+        print('valid loss {0:.4f}, avg {1:} {2:.4f}'.format(
+            valid_scalars['loss'], metrics, valid_scalars[metrics])) 
 
     def train_valid(self):
         device_ids = self.config['training']['gpus']
@@ -187,9 +202,9 @@ class ClassificationAgent(NetRunAgent):
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training']['iter_save']
-
-        self.max_val_acc  = 0.0
-        self.max_val_it   = 0
+        metrics     = self.config['training'].get("evaluation_metric", "accuracy")
+        self.max_val_score  = 0.0
+        self.max_val_it     = 0
         self.best_model_wts = None 
         self.checkpoint = None
         if(iter_start > 0):
@@ -197,8 +212,8 @@ class ClassificationAgent(NetRunAgent):
             self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
             assert(self.checkpoint['iteration'] == iter_start)
             self.net.load_state_dict(self.checkpoint['model_state_dict'])
-            self.max_val_acc  = self.checkpoint.get('valid_pred', 0)
-            self.max_val_it   = self.checkpoint['iteration']
+            self.max_val_score  = self.checkpoint.get('valid_pred', 0)
+            self.max_val_it     = self.checkpoint['iteration']
             self.best_model_wts = self.checkpoint['model_state_dict']
         
         params = self.get_parameters_to_update()
@@ -220,14 +235,14 @@ class ClassificationAgent(NetRunAgent):
             glob_it = it + iter_valid
             self.write_scalars(train_scalars, valid_scalars, glob_it)
 
-            if(valid_scalars['acc'] > self.max_val_acc):
-                self.max_val_acc = valid_scalars['acc']
-                self.max_val_it  = glob_it
+            if(valid_scalars[metrics] > self.max_val_score):
+                self.max_val_score = valid_scalars[metrics]
+                self.max_val_it    = glob_it
                 self.best_model_wts = copy.deepcopy(self.net.state_dict())
             
             if (glob_it % iter_save ==  0):
                 save_dict = {'iteration': glob_it,
-                             'valid_pred': valid_scalars['acc'],
+                             'valid_pred': valid_scalars[metrics],
                              'model_state_dict': self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
                 save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, glob_it)
@@ -238,7 +253,7 @@ class ClassificationAgent(NetRunAgent):
 
         # save the best performing checkpoint
         save_dict = {'iteration': self.max_val_it,
-                    'valid_pred': self.max_val_acc,
+                    'valid_pred': self.max_val_score,
                     'model_state_dict': self.best_model_wts,
                     'optimizer_state_dict': self.optimizer.state_dict()}
         save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, self.max_val_it)
@@ -246,8 +261,8 @@ class ClassificationAgent(NetRunAgent):
         txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefx), 'wt')
         txt_file.write(str(self.max_val_it))
         txt_file.close()
-        print('The best perfroming iter is {0:}, valid acc {1:}'.format(\
-            self.max_val_it, self.max_val_acc))
+        print('The best perfroming iter is {0:}, valid {1:} {2:}'.format(\
+            self.max_val_it, metrics, self.max_val_score))
         self.summ_writer.close()
 
 
@@ -278,19 +293,27 @@ class ClassificationAgent(NetRunAgent):
                 
                 start_time = time.time()
                 out_digit = self.net(inputs)
-                out_prob  = nn.Softmax(dim = 1)(out_digit)
-                out_prob  = out_prob.detach().cpu().numpy()
-                out_lab   = np.argmax(out_prob, axis=1)
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
+
+                if (self.task_type == "cls"):
+                    out_prob  = nn.Softmax(dim = 1)(out_digit).detach().cpu().numpy()
+                    out_lab   = np.argmax(out_prob, axis=1)
+                else: #self.task_type == "cls_mtbc"
+                    out_prob  = nn.Sigmoid()(out_digit).detach().cpu().numpy() 
+                    out_lab   = np.asarray(out_prob > 0.5, np.uint8)              
                 for i in range(len(names)):
-                    out_lab_list.append([names[i], out_lab[i]])
+                    print(names[i], out_lab[i], len(out_lab[i]))
+                    out_lab_list.append([names[i]] + out_lab[i].tolist())
                     out_prob_list.append([names[i]] + out_prob[i].tolist())
         
         with open(output_csv, mode='w') as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=',', 
                                 quotechar='"',quoting=csv.QUOTE_MINIMAL)
-            csv_writer.writerow(['image', 'label'])
+            head = ['image', 'label']
+            if(len(out_lab_list[0]) > 1):
+                head = ['image'] + ['label{0:}'.format(i) for i in range(class_num)]
+            csv_writer.writerow(head)
             for item in out_lab_list:
                 csv_writer.writerow(item)
         if(save_probability):

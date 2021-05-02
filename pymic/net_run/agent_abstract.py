@@ -43,6 +43,7 @@ class NetRunAgent(object):
         self.loss_calculater = None 
         self.transform_dict  = None
         self.tensor_type   = config['dataset']['tensor_type']
+        self.task_type     = config['dataset']['task_type'] #cls, cls_mtbc, seg
         self.deterministic = config['training'].get('deterministic', True)
         self.random_seed   = config['training'].get('random_seed', 1)
         if(self.deterministic):
