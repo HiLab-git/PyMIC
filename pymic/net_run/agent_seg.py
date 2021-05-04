@@ -384,9 +384,10 @@ class SegmentationAgent(NetRunAgent):
                     pred = pred[0]
                 data['predict'] = pred.cpu().numpy() 
                 # inverse transform
-                for i in reversed(range(len(self.transform_list))):
-                    if (self.transform_list[i].inverse):
-                        data = self.transform_list[i].inverse_transform_for_prediction(data) 
+                for transform in self.transform_list[::-1]:
+                    if (transform.inverse):
+                        data = transform.inverse_transform_for_prediction(data) 
+
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
                 self.save_ouputs(data)
