@@ -304,8 +304,11 @@ class ClassificationAgent(NetRunAgent):
                     out_prob  = nn.Sigmoid()(out_digit).detach().cpu().numpy() 
                     out_lab   = np.asarray(out_prob > 0.5, np.uint8)              
                 for i in range(len(names)):
-                    print(names[i], out_lab[i], len(out_lab[i]))
-                    out_lab_list.append([names[i]] + out_lab[i].tolist())
+                    print(names[i], out_lab[i])
+                    if(self.task_type == "cls"):
+                        out_lab_list.append([names[i]] + [out_lab[i]])
+                    else:
+                        out_lab_list.append([names[i]] + out_lab[i].tolist())
                     out_prob_list.append([names[i]] + out_prob[i].tolist())
         
         with open(output_csv, mode='w') as csv_file:
