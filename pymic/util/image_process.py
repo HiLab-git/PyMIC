@@ -33,23 +33,13 @@ def crop_ND_volume_with_bounding_box(volume, min_idx, max_idx):
     assert(dim >= 2 and dim <= 5)
     assert(max_idx[0] - min_idx[0] <= volume.shape[0])
     if(dim == 2):
-        output = volume[np.ix_(range(min_idx[0], max_idx[0]),
-                               range(min_idx[1], max_idx[1]))]
+        output = volume[min_idx[0]:max_idx[0], min_idx[1]:max_idx[1]]
     elif(dim == 3):
-        output = volume[np.ix_(range(min_idx[0], max_idx[0]),
-                               range(min_idx[1], max_idx[1]),
-                               range(min_idx[2], max_idx[2]))]
+        output = volume[min_idx[0]:max_idx[0], min_idx[1]:max_idx[1], min_idx[2]:max_idx[2]]
     elif(dim == 4):
-        output = volume[np.ix_(range(min_idx[0], max_idx[0]),
-                               range(min_idx[1], max_idx[1]),
-                               range(min_idx[2], max_idx[2]),
-                               range(min_idx[3], max_idx[3]))]
+        output = volume[min_idx[0]:max_idx[0], min_idx[1]:max_idx[1], min_idx[2]:max_idx[2], min_idx[3]:max_idx[3]]
     elif(dim == 5):
-        output = volume[np.ix_(range(min_idx[0], max_idx[0]),
-                               range(min_idx[1], max_idx[1]),
-                               range(min_idx[2], max_idx[2]),
-                               range(min_idx[3], max_idx[3]),
-                               range(min_idx[4], max_idx[4]))]
+        output = volume[min_idx[0]:max_idx[0], min_idx[1]:max_idx[1], min_idx[2]:max_idx[2], min_idx[3]:max_idx[3], min_idx[4]:max_idx[4]]
     else:
         raise ValueError("the dimension number shoud be 2 to 5")
     return output
@@ -62,44 +52,24 @@ def set_ND_volume_roi_with_bounding_box_range(volume, bb_min, bb_max, sub_volume
     out = volume
     if(dim == 2):
         if(addition):
-            out[np.ix_(range(bb_min[0], bb_max[0]),
-                    range(bb_min[1], bb_max[1]))]  += sub_volume
+            out[bb_min[0]:bb_max[0], bb_min[1]:bb_max[1]] += sub_volume
         else:
-            out[np.ix_(range(bb_min[0], bb_max[0]),
-                    range(bb_min[1], bb_max[1]))]   = sub_volume
+            out[bb_min[0]:bb_max[0], bb_min[1]:bb_max[1]] = sub_volume
     elif(dim == 3):
         if(addition):
-            out[np.ix_(range(bb_min[0], bb_max[0]),
-                    range(bb_min[1], bb_max[1]),
-                    range(bb_min[2], bb_max[2]))]  += sub_volume
+            out[bb_min[0]:bb_max[0], bb_min[1]:bb_max[1], bb_min[2]:bb_max[2]] += sub_volume
         else:
-            out[np.ix_(range(bb_min[0], bb_max[0]),
-                    range(bb_min[1], bb_max[1]),
-                    range(bb_min[2], bb_max[2]))]   = sub_volume
+            out[bb_min[0]:bb_max[0], bb_min[1]:bb_max[1], bb_min[2]:bb_max[2]] = sub_volume
     elif(dim == 4):
         if(addition):
-            out[np.ix_(range(bb_min[0], bb_max[0]),
-                    range(bb_min[1], bb_max[1]),
-                    range(bb_min[2], bb_max[2]),
-                    range(bb_min[3], bb_max[3]))]  += sub_volume
+            out[bb_min[0]:bb_max[0], bb_min[1]:bb_max[1], bb_min[2]:bb_max[2], bb_min[3]:bb_max[3]]  += sub_volume
         else:
-            out[np.ix_(range(bb_min[0], bb_max[0]),
-                    range(bb_min[1], bb_max[1]),
-                    range(bb_min[2], bb_max[2]),
-                    range(bb_min[3], bb_max[3]))]   = sub_volume
+            out[bb_min[0]:bb_max[0], bb_min[1]:bb_max[1], bb_min[2]:bb_max[2], bb_min[3]:bb_max[3]] = sub_volume
     elif(dim == 5):
         if(addition):
-            out[np.ix_(range(bb_min[0], bb_max[0]),
-                    range(bb_min[1], bb_max[1]),
-                    range(bb_min[2], bb_max[2]),
-                    range(bb_min[3], bb_max[3]),
-                    range(bb_min[4], bb_max[4]))]  += sub_volume
+            out[bb_min[0]:bb_max[0], bb_min[1]:bb_max[1], bb_min[2]:bb_max[2], bb_min[3]:bb_max[3], bb_min[4]:bb_max[4]] += sub_volume
         else:
-            out[np.ix_(range(bb_min[0], bb_max[0]),
-                    range(bb_min[1], bb_max[1]),
-                    range(bb_min[2], bb_max[2]),
-                    range(bb_min[3], bb_max[3]),
-                    range(bb_min[4], bb_max[4]))]   = sub_volume
+            out[bb_min[0]:bb_max[0], bb_min[1]:bb_max[1], bb_min[2]:bb_max[2], bb_min[3]:bb_max[3], bb_min[4]:bb_max[4]] = sub_volume
     else:
         raise ValueError("array dimension should be 2 to 5")
     return out
@@ -115,23 +85,13 @@ def crop_and_pad_ND_array_to_desired_shape(image, out_shape, pad_mod):
         ml   = [int(mgnc[i]/2)  for i in range(dim)]
         mr   = [mgnc[i] - ml[i] for i in range(dim)] 
         if(dim == 2):
-            image_crp = image[np.ix_(range(ml[0], in_shape[0] - mr[0]),
-                                    range(ml[1], in_shape[1] - mr[1]))]
+            image_crp = image[ml[0]:(in_shape[0] - mr[0]), ml[1]:(in_shape[1] - mr[1])]
         elif(dim == 3):
-            image_crp = image[np.ix_(range(ml[0], in_shape[0] - mr[0]),
-                                    range(ml[1], in_shape[1] - mr[1]),
-                                    range(ml[2], in_shape[2] - mr[2]))]
+            image_crp = image[ml[0]:(in_shape[0] - mr[0]), ml[1]:(in_shape[1] - mr[1]), ml[2]:(in_shape[2] - mr[2])]
         elif(dim == 4):
-            image_crp = image[np.ix_(range(ml[0], in_shape[0] - mr[0]),
-                                    range(ml[1], in_shape[1] - mr[1]),
-                                    range(ml[2], in_shape[2] - mr[2]),
-                                    range(ml[3], in_shape[3] - mr[3]))]
+            image_crp = image[ml[0]:(in_shape[0] - mr[0]), ml[1]:(in_shape[1] - mr[1]), ml[2]:(in_shape[2] - mr[2]), ml[3]:(in_shape[3] - mr[3])]
         elif(dim == 5):
-            image_crp = image[np.ix_(range(ml[0], in_shape[0] - mr[0]),
-                                    range(ml[1], in_shape[1] - mr[1]),
-                                    range(ml[2], in_shape[2] - mr[2]),
-                                    range(ml[3], in_shape[3] - mr[3]),
-                                    range(ml[4], in_shape[4] - mr[4]))]
+            image_crp = image[ml[0]:(in_shape[0] - mr[0]), ml[1]:(in_shape[1] - mr[1]), ml[2]:(in_shape[2] - mr[2]), ml[3]:(in_shape[3] - mr[3]), ml[4]:(in_shape[4] - mr[4])]
         else:
             raise ValueError("array dimension should be 2 to 5")
 
