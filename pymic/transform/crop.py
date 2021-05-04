@@ -66,9 +66,6 @@ class CenterCrop(AbstractTransform):
 
     def inverse_transform_for_prediction(self, sample):
         ''' rescale sample['predict'] (5D or 4D) to the original spatial shape.
-         assume batch size is 1, otherwise scale may be different for 
-         different elemenets in the batch.
-
         origin_shape is a 4D or 3D vector as saved in __call__().'''
         params = self.get_param_for_inverse_transform(sample)
         origin_shape = params[0]

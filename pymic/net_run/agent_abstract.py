@@ -43,6 +43,7 @@ class NetRunAgent(object):
         self.loss_calculater = None 
         self.transform_dict  = None
         self.tensor_type   = config['dataset']['tensor_type']
+        self.task_type     = config['dataset']['task_type'] #cls, cls_mtbc, seg
         self.deterministic = config['training'].get('deterministic', True)
         self.random_seed   = config['training'].get('random_seed', 1)
         if(self.deterministic):
@@ -67,6 +68,20 @@ class NetRunAgent(object):
     
     def set_scheduler(self, scheduler):
         self.scheduler = scheduler
+
+    def get_checkpoint_name(self):
+        ckpt_mode = self.config['testing']['ckpt_mode']
+        if(ckpt_mode == 0 or ckpt_mode == 1):
+            ckpt_dir    = self.config['training']['ckpt_save_dir']
+            ckpt_prefix = self.config['training']['ckpt_save_prefix']
+            txt_name = ckpt_dir + '/' + ckpt_prefix
+            txt_name += "_latest.txt" if ckpt_mode == 0 else "_best.txt"
+            with open(txt_name, 'r') as txt_file:
+                it_num = txt_file.read().replace('\n', '') 
+                ckpt_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, it_num)
+        else:
+            ckpt_name =  self.config['testing']['ckpt_name']
+        return ckpt_name
 
     @abstractmethod    
     def get_stage_dataset_from_config(self, stage):
@@ -110,17 +125,19 @@ class NetRunAgent(object):
                 worker_init = None
 
             batch_size = self.config['training']['batch_size']
+            num_worker = self.config['training'].get('num_workder', 16)
             self.train_loader = torch.utils.data.DataLoader(self.train_set, 
-                batch_size = batch_size, shuffle=True, num_workers=batch_size * 4,
+                batch_size = batch_size, shuffle=True, num_workers= num_worker,
                 worker_init_fn=worker_init)
             self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
-                batch_size = 1, shuffle=False, num_workers= 4,
+                batch_size = batch_size, shuffle=False, num_workers= num_worker,
                 worker_init_fn=worker_init)
         else:
+            batch_size = self.config['testing']['batch_size']
             if(self.test_set  is None):
                 self.test_set  = self.get_stage_dataset_from_config('test')
             self.test_loder = torch.utils.data.DataLoader(self.test_set, 
-                batch_size = 1, shuffle=False, num_workers= 4)
+                batch_size = batch_size, shuffle=False, num_workers= batch_size)
        
     def create_optimizer(self, params):
         if(self.optimizer is None):

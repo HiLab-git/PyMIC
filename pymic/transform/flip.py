@@ -55,9 +55,6 @@ class RandomFlip(AbstractTransform):
 
     def  inverse_transform_for_prediction(self, sample):
         ''' flip sample['predict'] (5D or 4D) to the original direction.
-         assume batch size is 1, otherwise flip parameter may be different for 
-         different elemenets in the batch.
-
         flip_axis is a list as saved in __call__().'''
         if(isinstance(sample['RandomFlip_Param'], list) or \
             isinstance(sample['RandomFlip_Param'], tuple)):

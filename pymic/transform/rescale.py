@@ -60,15 +60,76 @@ class Rescale(AbstractTransform):
 
     def inverse_transform_for_prediction(self, sample):
         ''' rescale sample['predict'] (5D or 4D) to the original spatial shape.
-         assume batch size is 1, otherwise scale may be different for 
-         different elemenets in the batch.
-
         origin_shape is a 4D or 3D vector as saved in __call__().'''
         if(isinstance(sample['Rescale_origin_shape'], list) or \
             isinstance(sample['Rescale_origin_shape'], tuple)):
             origin_shape = json.loads(sample['Rescale_origin_shape'][0])
         else:
             origin_shape = json.loads(sample['Rescale_origin_shape'])
+        origin_dim   = len(origin_shape) - 1
+        predict = sample['predict']
+        input_shape = predict.shape
+        scale = [(origin_shape[1:][i] + 0.0)/input_shape[2:][i] for \
+                i in range(origin_dim)]
+        scale = [1.0, 1.0] + scale
+
+        output_predict = ndimage.interpolation.zoom(predict, scale, order = 1)
+        sample['predict'] = output_predict
+        return sample
+
+class RandomRescale(AbstractTransform):
+    """Rescale the image in a sample to a given size."""
+    def __init__(self, params):
+        """
+        ratio0 (tuple/list or int): Desired minimal rescale ratio. 
+            If tuple/list, the length should be 3 or 2.
+        ratio1 (tuple/list or int): Desired maximal rescale ratio. 
+            If tuple/list, the length should be 3 or 2.
+        """
+        super(RandomRescale, self).__init__(params)
+        self.ratio0 = params["RandomRescale_lower_bound".lower()]
+        self.ratio1 = params["RandomRescale_upper_bound".lower()]
+        self.inverse     = params["RandomRescale_inverse".lower()]
+        assert isinstance(self.ratio0, (float, list, tuple))
+        assert isinstance(self.ratio1, (float, list, tuple))
+
+    def __call__(self, sample):
+        image = sample['image']
+        input_shape = image.shape
+        input_dim   = len(input_shape) - 1
+
+        if isinstance(self.ratio0, (list, tuple)):
+            for i in range(len(self.ratio0)):
+                assert(self.ratio0[i] <= self.ratio1[i])
+            scale = [self.ratio0[i] + random.random()*(self.ratio1[i] - self.ratio0[i]) \
+                for i in range(len(self.ratio0))]
+        else:
+            scale = [self.ratio0 + random.random()*(self.ratio1 - self.ratio0) \
+                for i in range(input_dim)]
+        scale = [1.0] + scale
+        image_t = ndimage.interpolation.zoom(image, scale, order = 1)
+
+        sample['image'] = image_t
+        sample['RandomRescale_origin_shape'] = json.dumps(input_shape)
+        if('label' in sample and self.task == 'segmentation'):
+            label = sample['label']
+            label = ndimage.interpolation.zoom(label, scale, order = 0)
+            sample['label'] = label
+        if('pixel_weight' in sample and self.task == 'segmentation'):
+            weight = sample['pixel_weight']
+            weight = ndimage.interpolation.zoom(weight, scale, order = 1)
+            sample['pixel_weight'] = weight
+        
+        return sample
+
+    def inverse_transform_for_prediction(self, sample):
+        ''' rescale sample['predict'] (5D or 4D) to the original spatial shape.
+        origin_shape is a 4D or 3D vector as saved in __call__().'''
+        if(isinstance(sample['RandomRescale_origin_shape'], list) or \
+            isinstance(sample['RandomRescale_origin_shape'], tuple)):
+            origin_shape = json.loads(sample['RandomRescale_origin_shape'][0])
+        else:
+            origin_shape = json.loads(sample['RandomRescale_origin_shape'])
         origin_dim   = len(origin_shape) - 1
         predict = sample['predict']
         input_shape = predict.shape

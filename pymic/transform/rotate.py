@@ -71,9 +71,6 @@ class RandomRotate(AbstractTransform):
 
     def  inverse_transform_for_prediction(self, sample):
         ''' rorate sample['predict'] (5D or 4D) to the original direction.
-        assume batch size is 1, otherwise rotate parameter may be different for 
-        different elemenets in the batch.
-
         transform_param_list is a list as saved in __call__().'''
         # get the paramters for invers transformation
         if(isinstance(sample['RandomRotate_Param'], list) or \
