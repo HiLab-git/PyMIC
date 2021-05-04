@@ -11,13 +11,13 @@ with open('README.md', encoding='utf-8') as f:
 
 setuptools.setup(
     name    = 'PYMIC',
-    version = "0.2.1",
+    version = "0.2.2",
     author  ='PyMIC Consortium',
     author_email = 'wguotai@gmail.com',
     description  = description,
     long_description = long_description,
     long_description_content_type = 'text/markdown',
-    url      = 'https://github.com/ihil/PyMIC',
+    url      = 'https://github.com/HiLab-git/PyMIC',
     license  = 'Apache 2.0',
     packages = setuptools.find_packages(),
     classifiers=[
@@ -29,8 +29,7 @@ setuptools.setup(
     python_requires = '>=3.6',
     entry_points = {
         'console_scripts': [
-            'pymic_net_run_cls  = pymic.net_run.net_run_cls:main',
-            'pymic_net_run_seg  = pymic.net_run.net_run_seg:main',
+            'pymic_net_run  = pymic.net_run.net_run:main',
             'pymic_evaluate_cls = pymic.util.evaluation_cls:main',
             'pymic_evaluate_seg = pymic.util.evaluation_seg:main'
         ],
