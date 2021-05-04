@@ -34,8 +34,6 @@ class NiftyDataset(Dataset):
         self.transform  = transform
        
         csv_keys = list(self.csv_items.keys())
-        if(self.with_label):
-            self.label_idx = csv_keys.index('label')
         self.image_weight_idx = None
         self.pixel_weight_idx = None
         if('image_weight' in csv_keys):
@@ -47,8 +45,10 @@ class NiftyDataset(Dataset):
         return len(self.csv_items)
 
     def __getlabel__(self, idx):
+        csv_keys = list(self.csv_items.keys())
+        label_idx = csv_keys.index('label')
         label_name = "{0:}/{1:}".format(self.root_dir, 
-            self.csv_items.iloc[idx, self.label_idx])
+            self.csv_items.iloc[idx, label_idx])
         label = load_image_as_nd_array(label_name)['data_array']
         label = np.asarray(label, np.int32)
         return label
@@ -98,7 +98,9 @@ class ClassificationDataset(NiftyDataset):
         print("class number for ClassificationDataset", self.class_num)
 
     def __getlabel__(self, idx):
-        label = self.csv_items.iloc[idx, self.label_idx]
+        csv_keys = list(self.csv_items.keys())
+        label_idx = csv_keys.index('label')
+        label = self.csv_items.iloc[idx, label_idx]
         return label
     
     def __get_pixel_weight__(self, idx):

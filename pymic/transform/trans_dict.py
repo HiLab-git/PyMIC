@@ -5,7 +5,7 @@ from pymic.transform.gray2rgb import GrayscaleToRGB
 from pymic.transform.flip import RandomFlip
 from pymic.transform.pad import Pad
 from pymic.transform.rotate import RandomRotate
-from pymic.transform.rescale import Rescale  
+from pymic.transform.rescale import Rescale, RandomRescale  
 from pymic.transform.threshold import * 
 from pymic.transform.normalize import *
 from pymic.transform.crop import *
@@ -25,7 +25,8 @@ TransformDict = {
     'NormalizeWithMinMax': NormalizeWithMinMax,
     'NormalizeWithPercentiles': NormalizeWithPercentiles,
     'RandomCrop': RandomCrop,
-    'RandomResizedCrop':RandomResizedCrop,
+    'RandomResizedCrop': RandomResizedCrop,
+    'RandomRescale': RandomRescale,
     'RandomFlip': RandomFlip,
     'RandomRotate': RandomRotate,
     'ReduceLabelDim': ReduceLabelDim,

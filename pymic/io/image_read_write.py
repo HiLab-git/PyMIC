@@ -7,6 +7,7 @@ import SimpleITK as sitk
 
 from PIL import Image
 
+
 def load_nifty_volume_as_4d_array(filename):
     """Read a nifty image and return a dictionay storing data array, spacing and direction
     output['data_array'] 4d array with shape [C, D, H, W]
