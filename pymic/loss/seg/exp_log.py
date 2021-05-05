@@ -22,6 +22,8 @@ class ExpLogLoss(nn.Module):
         soft_y  = loss_input_dict['ground_truth']
         softmax = loss_input_dict['softmax']
 
+        if(isinstance(predict, (list, tuple))):
+            predict = predict[0]
         if(softmax):
             predict = nn.Softmax(dim = 1)(predict)
         predict = reshape_tensor_to_2D(predict)

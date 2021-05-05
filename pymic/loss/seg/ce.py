@@ -18,6 +18,8 @@ class CrossEntropyLoss(nn.Module):
         cls_w   = loss_input_dict['class_weight']
         softmax = loss_input_dict['softmax']
 
+        if(isinstance(predict, (list, tuple))):
+            predict = predict[0]
         if(softmax):
             predict = nn.Softmax(dim = 1)(predict)
         predict = reshape_tensor_to_2D(predict)
@@ -59,6 +61,8 @@ class GeneralizedCrossEntropyLoss(nn.Module):
         cls_w   = loss_input_dict['class_weight']
         softmax = loss_input_dict['softmax']
 
+        if(isinstance(predict, (list, tuple))):
+            predict = predict[0]
         if(softmax):
             predict = nn.Softmax(dim = 1)(predict)
         predict = reshape_tensor_to_2D(predict)

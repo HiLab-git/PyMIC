@@ -18,6 +18,8 @@ class DiceLoss(nn.Module):
         cls_w   = loss_input_dict['class_weight']
         softmax = loss_input_dict['softmax']
 
+        if(isinstance(predict, (list, tuple))):
+            predict = predict[0]
         tensor_dim = len(predict.size())
         if(softmax):
             predict = nn.Softmax(dim = 1)(predict)
@@ -70,7 +72,7 @@ class MultiScaleDiceLoss(nn.Module):
         pix_w   = loss_input_dict['pixel_weight']
         cls_w   = loss_input_dict['class_weight']
         softmax = loss_input_dict['softmax']
-        if(isinstance(predict, tuple) or isinstance(predict, list)):
+        if(isinstance(predict, (list,tuple))):
             predict_num = len(predict)
             assert(predict_num == len(self.multi_scale_weight))
             loss   = 0.0
@@ -118,6 +120,8 @@ class NoiseRobustDiceLoss(nn.Module):
         cls_w   = loss_input_dict['class_weight']
         softmax = loss_input_dict['softmax']
 
+        if(isinstance(predict, (list, tuple))):
+            predict = predict[0]
         if(softmax):
             predict = nn.Softmax(dim = 1)(predict)
         predict = reshape_tensor_to_2D(predict)

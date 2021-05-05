@@ -103,7 +103,7 @@ class ClassificationDataset(NiftyDataset):
         label = self.csv_items.iloc[idx, label_idx]
         return label
     
-    def __get_pixel_weight__(self, idx):
+    def __getweight__(self, idx):
         weight = self.csv_items.iloc[idx, self.image_weight_idx]
         weight = weight + 0.0
         return weight   
