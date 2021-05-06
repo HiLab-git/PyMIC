@@ -124,20 +124,21 @@ class NetRunAgent(object):
             else:
                 worker_init = None
 
-            batch_size = self.config['training']['batch_size']
-            num_worker = self.config['training'].get('num_workder', 16)
+            bn_train = self.config['dataset']['train_batch_size']
+            bn_valid = self.config['dataset'].get('valid_batch_size', 1)
+            num_worker = self.config['dataset'].get('num_workder', 16)
             self.train_loader = torch.utils.data.DataLoader(self.train_set, 
-                batch_size = batch_size, shuffle=True, num_workers= num_worker,
+                batch_size = bn_train, shuffle=True, num_workers= num_worker,
                 worker_init_fn=worker_init)
             self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
-                batch_size = batch_size, shuffle=False, num_workers= num_worker,
+                batch_size = bn_valid, shuffle=False, num_workers= num_worker,
                 worker_init_fn=worker_init)
         else:
-            batch_size = self.config['testing']['batch_size']
+            bn_test = self.config['dataset'].get('test_batch_size', 1)
             if(self.test_set  is None):
                 self.test_set  = self.get_stage_dataset_from_config('test')
             self.test_loder = torch.utils.data.DataLoader(self.test_set, 
-                batch_size = batch_size, shuffle=False, num_workers= batch_size)
+                batch_size = bn_test, shuffle=False, num_workers= bn_test)
        
     def create_optimizer(self, params):
         if(self.optimizer is None):

@@ -6,6 +6,7 @@ import sys
 import math
 import torch
 import numpy as np
+from torch.nn.functional import interpolate
 
 class Inferer(object):
     def __init__(self, model, config):
@@ -20,22 +21,48 @@ class Inferer(object):
             outputs = self.__infer_with_sliding_window(image)
         return outputs
 
+    def __get_prediction_scales(self, tensor_shape, output_num):
+        """
+        If the network outputs multiple tensors with different sizes, return the
+        scale of each tensor compared with the first one
+        """
+        img_dim = len(tensor_shape) - 2
+        tempx  = torch.ones(tensor_shape).cuda()
+        output = self.model(tempx)
+        scales = [[1.0] * img_dim]
+        shape0 = list(output[0].shape[2:])
+        for  i in range(1, output_num):
+            shapei= list(output[i].shape[2:])
+            scale = [(shapei[d] + 0.0) / shape0[d] for d in range(img_dim)]
+            scales.append(scale)
+        return scales
+
     def __infer_with_sliding_window(self, image):
-        window_size   = self.config['sliding_window_size']
-        window_stride = self.config['sliding_window_stride']
+        """
+        Use sliding window to predict segmentation for large images.
+        Note that the network may output a list of tensors with difference sizes.
+        """
+        window_size   = [x for x in self.config['sliding_window_size']]
+        window_stride = [x for x in self.config['sliding_window_stride']]
         class_num     = self.config['class_num']
         out_num       = self.config.get('output_num', 1)
-        img_full_shape = image.shape
-        img_shape = list(img_full_shape[2:])
-        img_dim   = len(img_shape)
+        img_full_shape= list(image.shape)
+        batch_size = img_full_shape[0]
+        img_shape  = img_full_shape[2:]
+        img_dim    = len(img_shape)
         if(img_dim != 2 and img_dim !=3):
             raise ValueError("Inference using sliding window only supports 2D and 3D images")
 
-        for i in range(img_dim):
-            if window_size[i] is None:
-                window_size[i]  = img_shape[i]
-            if window_stride[i] is None:
-                window_stride[i] = window_size[i]
+        same_size = True
+        for d in range(img_dim):
+            if window_size[d] is None:
+                window_size[d]  = img_shape[d]
+            if window_stride[d] is None:
+                window_stride[d] = window_size[d]
+            if(window_size[d] != img_shape[d]):
+                same_size = False
+        if(same_size):
+            return self.model(image)
 
         crop_start_list  = []
         for w in range(0, img_shape[-1], window_stride[-1]):
@@ -48,32 +75,58 @@ class Inferer(object):
                     for d in range(0, img_shape[0], window_stride[0]):
                         d_min = min(d, img_shape[0] - window_size[0])
                         crop_start_list.append([d_min, h_min, w_min])
-        
-        output_shape = [img_full_shape[0], class_num] + img_shape
-        output_list  = [torch.zeros(output_shape).cuda() for i in range(out_num)]
-        pred_num_arr = torch.zeros(output_shape).cuda()
-        mask_shape = [img_full_shape[0], class_num] + window_size
+
+        output_shape = [batch_size, class_num] + img_shape
+        mask_shape   = [batch_size, class_num] + window_size
+        counter      = torch.zeros(output_shape).cuda()
         temp_mask    = torch.ones(mask_shape).cuda()
-        
-        for c0 in crop_start_list:
-            c1 = [c0[i] + window_size[i] for i in range(img_dim)]
-            if(img_dim == 2):
-                patch_in = image[:, :, c0[0]:c1[0], c0[1]:c1[1]]
-            else:
-                patch_in = image[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]]
-            patch_out = self.model(patch_in) 
-            if(not(isinstance(patch_out, (tuple, list)))):
-                patch_out = [patch_out]
-            for i in range(out_num):
+        if(out_num == 1): # for a single prediction
+            output = torch.zeros(output_shape).cuda()
+            for c0 in crop_start_list:
+                c1 = [c0[d] + window_size[d] for d in range(img_dim)]
                 if(img_dim == 2):
-                    output_list[i][:, :, c0[0]:c1[0], c0[1]:c1[1]] += patch_out[i]
-                    pred_num_arr[:, :, c0[0]:c1[0], c0[1]:c1[1]] += temp_mask
+                    patch_in = image[:, :, c0[0]:c1[0], c0[1]:c1[1]]
                 else:
-                    output_list[i][:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += patch_out[i]
-                    pred_num_arr[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += temp_mask
-        
-        output_list = [item / pred_num_arr for item in output_list]
-        return output_list
+                    patch_in = image[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]]
+                patch_out = self.model(patch_in) 
+                if(isinstance(patch_out, (tuple, list))):
+                    patch_out = patch_out[0]
+                if(img_dim == 2):
+                    output[:, :, c0[0]:c1[0], c0[1]:c1[1]] += patch_out
+                    counter[:, :, c0[0]:c1[0], c0[1]:c1[1]] += temp_mask
+                else:
+                    output[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += patch_out
+                    counter[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += temp_mask
+            return output/counter
+        else: # for multiple prediction
+            output_list= []
+            scale_list = self.__get_prediction_scales(img_full_shape[:2] + window_size, out_num)
+            for i in range(out_num):
+                output_shape_i = [batch_size, class_num] + \
+                    [int(img_shape[d] * scale_list[i][d]) for d in range(img_dim)]
+                output_list.append(torch.zeros(output_shape_i).cuda())
+
+            for c0 in crop_start_list:
+                c1 = [c0[d] + window_size[d] for d in range(img_dim)]
+                if(img_dim == 2):
+                    patch_in = image[:, :, c0[0]:c1[0], c0[1]:c1[1]]
+                else:
+                    patch_in = image[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]]
+                patch_out = self.model(patch_in) 
+
+                for i in range(out_num):
+                    c0_i = [int(c0[d] * scale_list[i][d]) for d in range(img_dim)]
+                    c1_i = [int(c1[d] * scale_list[i][d]) for d in range(img_dim)]
+                    if(img_dim == 2):
+                        output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1]] += patch_out[i]
+                        counter[:, :, c0[0]:c1[0], c0[1]:c1[1]] += temp_mask
+                    else:
+                        output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1], c0_i[2]:c1_i[2]] += patch_out[i]
+                        counter[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += temp_mask
+            for i in range(out_num):  
+                counter_i = interpolate(counter, scale_factor = scale_list[i])
+                output_list[i] = output_list[i] / counter_i
+            return output_list
 
     def run(self, image):
         tta_mode  = self.config.get('tta_mode', 0)
