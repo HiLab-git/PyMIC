@@ -280,7 +280,7 @@ class SegmentationAgent(NetRunAgent):
             checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, iter_start)
             self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
             assert(self.checkpoint['iteration'] == iter_start)
-            if(len(device_ids) > 0):
+            if(len(device_ids) > 1):
                 self.net.module.load_state_dict(self.checkpoint['model_state_dict'])
             else:
                 self.net.load_state_dict(self.checkpoint['model_state_dict'])
