@@ -291,7 +291,7 @@ class SegmentationAgent(NetRunAgent):
         params = self.get_parameters_to_update()
         self.create_optimizer(params)
         if self.loss_calculater is None:
-            if type(self.config['training']['loss_type']) == list:
+            if isinstance(self.config['training']['loss_type'], (list, tuple)):
                 loss_name_list = self.config['training']['loss_type']
                 self.loss_calculater_list = []
                 for loss_name in loss_name_list:
