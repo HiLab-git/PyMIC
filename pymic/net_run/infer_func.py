@@ -50,7 +50,7 @@ class Inferer(object):
         batch_size = img_full_shape[0]
         img_shape  = img_full_shape[2:]
         img_dim    = len(img_shape)
-        if(img_dim != 2 and img_dim !=3):
+        if(img_dim != 2 or img_dim !=3):
             raise ValueError("Inference using sliding window only supports 2D and 3D images")
 
         same_size = True
