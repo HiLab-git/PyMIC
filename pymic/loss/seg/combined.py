@@ -22,5 +22,5 @@ class CombinedLoss(nn.Module):
     def forward(self, loss_input_dict):
         loss_value = 0.0
         for i in range(len(self.loss_list)):
-            loss_value = self.loss_weight[i] + self.loss_list[i](loss_input_dict)
-        return loss_value 
+            loss_value += self.loss_weight[i]*self.loss_list[i](loss_input_dict)
+        return loss_value
