@@ -26,6 +26,7 @@ from pymic.net.net_dict_seg import SegNetDict
 from pymic.net_run.agent_abstract import NetRunAgent
 from pymic.net_run.infer_func import Inferer
 from pymic.loss.loss_dict_seg import SegLossDict
+from pymic.loss.seg.combined import CombinedLoss
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
@@ -295,23 +296,17 @@ class SegmentationAgent(NetRunAgent):
             
         params = self.get_parameters_to_update()
         self.create_optimizer(params)
-        if self.loss_calculater is None:
-            if isinstance(self.config['training']['loss_type'], (list, tuple)):
-                loss_name_list = self.config['training']['loss_type']
-                self.loss_calculater_list = []
-                for loss_name in loss_name_list:
-                    if(loss_name in SegLossDict):
-                        self.loss_calculater_list.append(SegLossDict[loss_name](self.config.train))
-                    else:
-                        raise ValueError("Undefined loss function {0:}".format(loss_name))
-                self.loss_weight = self.config['training']['loss_weight']
-                self.loss_calculater = lambda loss_input_dict: sum([loss_calculater(loss_input_dict)*self.loss_weight[i] for i, loss_calculater in enumerate(self.loss_calculater_list)])
+
+        if(self.loss_dict is None):
+            self.loss_dict = SegLossDict
+        loss_name = self.config['training']['loss_type']
+        if isinstance(loss_name, (list, tuple)):
+            self.loss_calculater = CombinedLoss(self.config['training'], self.loss_dict)
+        else:
+            if(loss_name in self.loss_dict):
+                self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
             else:
-                loss_name = self.config.train['loss_type']
-                if(loss_name in SegLossDict):
-                    self.loss_calculater = SegLossDict[loss_name](self.config.train)
-                else:
-                    raise ValueError("Undefined loss function {0:}".format(loss_name))
+                raise ValueError("Undefined loss function {0:}".format(loss_name))
                 
         self.trainIter  = iter(self.train_loader)
         

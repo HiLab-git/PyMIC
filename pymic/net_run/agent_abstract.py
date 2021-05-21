@@ -40,7 +40,7 @@ class NetRunAgent(object):
         self.net       = None
         self.optimizer = None
         self.scheduler = None 
-        self.loss_calculater = None 
+        self.loss_dict = None 
         self.transform_dict  = None
         self.tensor_type   = config['dataset']['tensor_type']
         self.task_type     = config['dataset']['task_type'] #cls, cls_mtbc, seg
@@ -60,8 +60,8 @@ class NetRunAgent(object):
     def set_network(self, net):
         self.net = net 
 
-    def set_loss(self, loss):
-        self.loss_calculater = loss 
+    def set_loss_dict(self, loss_dict):
+        self.loss_dict = loss_dict
 
     def set_optimizer(self, optimizer):
         self.optimizer = optimizer

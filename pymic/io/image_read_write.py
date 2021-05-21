@@ -123,9 +123,10 @@ def save_nd_array_as_image(data, image_name, reference_name = None):
 
 def rotate_nifty_volume_to_LPS(filename_or_image_dict, origin = None, direction = None):
     '''
-    filename_or_image_dict:
-        filename of the nifty file (str) or image dictionary returned by load_nifty_volume_as_4d_array. If supplied with the former, the flipped image data will be saved to override the original file. If supplied with the later, only flipped image data will be returned.
-
+    filename_or_image_dict: filename of the nifty file (str) or image dictionary 
+        returned by load_nifty_volume_as_4d_array. If supplied with the former, 
+        the flipped image data will be saved to override the original file. 
+        If supplied with the later, only flipped image data will be returned.
     '''
 
     if type(filename_or_image_dict) == str:
@@ -158,7 +159,11 @@ def rotate_nifty_volume_to_LPS(filename_or_image_dict, origin = None, direction 
             return
         else:
             print(f'rotate {filename_or_image_dict} to LPS')
-            save_array_as_nifty_volume(data_array[0], filename_or_image_dict, spacing = spacing, origin = origin, direction = [1., 0., 0., 0., 1., 0., 0., 0., 1.])
+            img = sitk.GetImageFromArray(data_array[0])
+            img.SetSpacing(spacing)
+            img.SetOrigin(origin)
+            img.SetDirection([1., 0., 0., 0., 1., 0., 0., 0., 1.])
+            sitk.WriteImage(img, filename_or_image_dict)
     else:
         image_data['data_array'] = data_array
         image_data['direction'] = [1., 0., 0., 0., 1., 0., 0., 0., 1.]
