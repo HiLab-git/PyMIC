@@ -99,12 +99,16 @@ class SegmentationAgent(NetRunAgent):
         imageweight_enb = self.config['training'].get('loss_with_image_weight', False)
         img_w = None 
         if(imageweight_enb):
-            if('image_weight' not in data):
-                raise ValueError("image weight is enabled not not provided")
-            img_w = self.convert_tensor_type(data['image_weight'])
-        else:
+            if(self.net.training):
+                if('image_weight' not in data):
+                    raise ValueError("image weight is enabled not not provided")
+                img_w = data['image_weight']
+            else:
+                img_w = data.get('image_weight', None)
+        if(img_w is None):        
             batch_size = data['image'].shape[0]
-            img_w = self.convert_tensor_type(torch.ones(batch_size))
+            img_w = torch.ones(batch_size)
+        img_w = self.convert_tensor_type(img_w)
         return img_w 
 
     def get_pixel_level_weight(self, data):
@@ -129,7 +133,7 @@ class SegmentationAgent(NetRunAgent):
         Assume inputs, outputs and label_prob has been sent to self.device
         """
         cls_w = self.get_class_level_weight()
-        img_w = self.get_image_level_weight(data)
+        img_w = self.get_image_level_weight(data) 
         pix_w = self.get_pixel_level_weight(data)
 
         img_w, pix_w = img_w.to(self.device), pix_w.to(self.device)
@@ -279,13 +283,14 @@ class SegmentationAgent(NetRunAgent):
         if(iter_start > 0):
             checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, iter_start)
             self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
-            assert(self.checkpoint['iteration'] == iter_start)
+            # assert(self.checkpoint['iteration'] == iter_start)
             if(len(device_ids) > 1):
                 self.net.module.load_state_dict(self.checkpoint['model_state_dict'])
             else:
                 self.net.load_state_dict(self.checkpoint['model_state_dict'])
             self.max_val_dice = self.checkpoint.get('valid_pred', 0)
-            self.max_val_it   = self.checkpoint['iteration']
+            # self.max_val_it   = self.checkpoint['iteration']
+            self.max_val_it   = iter_start
             self.best_model_wts = self.checkpoint['model_state_dict']
             
         params = self.get_parameters_to_update()
