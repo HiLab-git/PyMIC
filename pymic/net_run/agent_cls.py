@@ -219,12 +219,14 @@ class ClassificationAgent(NetRunAgent):
         
         params = self.get_parameters_to_update()
         self.create_optimizer(params)
-        if(self.loss_calculater is None):
-            loss_name = self.config['training']['loss_type']
-            if(loss_name in PyMICClsLossDict):
-                self.loss_calculater = PyMICClsLossDict[loss_name](self.config['training'])
-            else:
-                raise ValueError("Undefined loss function {0:}".format(loss_name))
+        
+        if(self.loss_dict is None):
+            self.loss_dict = PyMICClsLossDict
+        loss_name = self.config['training']['loss_type']
+        if(loss_name in self.loss_dict):
+                self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
+        else:
+            raise ValueError("Undefined loss function {0:}".format(loss_name))
 
         self.trainIter  = iter(self.train_loader)
 
