@@ -54,45 +54,34 @@ class Inferer(object):
             raise ValueError("Inference using sliding window only supports 2D and 3D images")
 
         for d in range(img_dim):
-            if window_size[d] is None:
+            if (window_size[d] is None) or window_size[d] > img_shape[d]:
                 window_size[d]  = img_shape[d]
-            if window_stride[d] is None:
+            if (window_stride[d] is None) or window_stride[d] > window_size[d]:
                 window_stride[d] = window_size[d]
                 
         if all([window_size[d] >= img_shape[d] for d in range(img_dim)]):
-            # if the window_size in all dim is larger than the image, then just run without window
             return self.model(image)
 
         crop_start_list  = []
-        real_window_size = window_size[:] # real window size might be smaller than the specified one in the case of small image in one dimension, then it needs special treatment
         for w in range(0, img_shape[-1], window_stride[-1]):
             w_min = min(w, img_shape[-1] - window_size[-1])
-            if w_min < 0:
-                w_min = 0
-                real_window_size[-1] = img_shape[-1]
             for h in range(0, img_shape[-2], window_stride[-2]):
                 h_min = min(h, img_shape[-2] - window_size[-2])
-                if h_min < 0:
-                    h_min = 0
-                    real_window_size[-2] = img_shape[-2]
                 if(img_dim == 2):
                     crop_start_list.append([h_min, w_min])
                 else:
                     for d in range(0, img_shape[0], window_stride[0]):
                         d_min = min(d, img_shape[0] - window_size[0])
-                        if d_min < 0:
-                            d_min = 0
-                            real_window_size[0] = img_shape[0]
                         crop_start_list.append([d_min, h_min, w_min])
 
         output_shape = [batch_size, class_num] + img_shape
-        mask_shape   = [batch_size, class_num] + real_window_size
+        mask_shape   = [batch_size, class_num] + window_size
         counter      = torch.zeros(output_shape).cuda()
         temp_mask    = torch.ones(mask_shape).cuda()
         if(out_num == 1): # for a single prediction
             output = torch.zeros(output_shape).cuda()
             for c0 in crop_start_list:
-                c1 = [c0[d] + real_window_size[d] for d in range(img_dim)]
+                c1 = [c0[d] + window_size[d] for d in range(img_dim)]
                 if(img_dim == 2):
                     patch_in = image[:, :, c0[0]:c1[0], c0[1]:c1[1]]
                 else:
@@ -109,14 +98,14 @@ class Inferer(object):
             return output/counter
         else: # for multiple prediction
             output_list= []
-            scale_list = self.__get_prediction_scales(img_full_shape[:2] + real_window_size, out_num)
+            scale_list = self.__get_prediction_scales(img_full_shape[:2] + window_size, out_num)
             for i in range(out_num):
                 output_shape_i = [batch_size, class_num] + \
                     [int(img_shape[d] * scale_list[i][d]) for d in range(img_dim)]
                 output_list.append(torch.zeros(output_shape_i).cuda())
 
             for c0 in crop_start_list:
-                c1 = [c0[d] + real_window_size[d] for d in range(img_dim)]
+                c1 = [c0[d] + window_size[d] for d in range(img_dim)]
                 if(img_dim == 2):
                     patch_in = image[:, :, c0[0]:c1[0], c0[1]:c1[1]]
                 else:
