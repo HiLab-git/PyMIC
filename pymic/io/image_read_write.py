@@ -120,3 +120,46 @@ def save_nd_array_as_image(data, image_name, reference_name = None):
     else:
         raise ValueError("unsupported image format {0:}".format(
             image_name.split('.')[-1]))
+
+def rotate_nifty_volume_to_LPS(filename_or_image_dict, origin = None, direction = None):
+    '''
+    filename_or_image_dict:
+        filename of the nifty file (str) or image dictionary returned by load_nifty_volume_as_4d_array. If supplied with the former, the flipped image data will be saved to override the original file. If supplied with the later, only flipped image data will be returned.
+
+    '''
+
+    if type(filename_or_image_dict) == str:
+        image_data = load_nifty_volume_as_4d_array(filename_or_image_dict)
+        save_nifty = True
+    elif type(filename_or_image_dict) == dict:
+        image_data = filename_or_image_dict
+        save_nifty = False
+
+    data_array = image_data['data_array']
+    if not origin:
+        origin = image_data['origin']
+    if not direction:
+        direction = image_data['direction']
+    spacing = image_data['spacing']
+
+    fliped = False
+    if direction[0] == -1.:
+        data_array = np.flip(data_array, axis = 3)
+        fliped = True
+    if direction[4] == -1.:
+        data_array = np.flip(data_array, axis = 2)
+        fliped = True
+    if direction[8] == -1.:
+        data_array = np.flip(data_array, axis = 1)
+        fliped = True
+
+    if save_nifty:
+        if not fliped:
+            return
+        else:
+            print(f'rotate {filename_or_image_dict} to LPS')
+            save_array_as_nifty_volume(data_array[0], filename_or_image_dict, spacing = spacing, origin = origin, direction = [1., 0., 0., 0., 1., 0., 0., 0., 1.])
+    else:
+        image_data['data_array'] = data_array
+        image_data['direction'] = [1., 0., 0., 0., 1., 0., 0., 0., 1.]
+        return image_data
