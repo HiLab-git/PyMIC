@@ -290,13 +290,24 @@ class SegmentationAgent(NetRunAgent):
             
         params = self.get_parameters_to_update()
         self.create_optimizer(params)
-        if(self.loss_calculater is None):
-            loss_name = self.config['training']['loss_type']
-            if(loss_name in SegLossDict):
-                self.loss_calculater = SegLossDict[loss_name](self.config['training'])
+        if self.loss_calculater is None:
+            if isinstance(self.config['training']['loss_type'], (list, tuple)):
+                loss_name_list = self.config['training']['loss_type']
+                self.loss_calculater_list = []
+                for loss_name in loss_name_list:
+                    if(loss_name in SegLossDict):
+                        self.loss_calculater_list.append(SegLossDict[loss_name](self.config.train))
+                    else:
+                        raise ValueError("Undefined loss function {0:}".format(loss_name))
+                self.loss_weight = self.config['training']['loss_weight']
+                self.loss_calculater = lambda loss_input_dict: sum([loss_calculater(loss_input_dict)*self.loss_weight[i] for i, loss_calculater in enumerate(self.loss_calculater_list)])
             else:
-                raise ValueError("Undefined loss function {0:}".format(loss_name))
-
+                loss_name = self.config.train['loss_type']
+                if(loss_name in SegLossDict):
+                    self.loss_calculater = SegLossDict[loss_name](self.config.train)
+                else:
+                    raise ValueError("Undefined loss function {0:}".format(loss_name))
+                
         self.trainIter  = iter(self.train_loader)
         
         print("{0:} training start".format(str(datetime.now())[:-7]))
