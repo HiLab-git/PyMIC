@@ -391,9 +391,11 @@ class SegmentationAgent(NetRunAgent):
                 
                 pred = infer_obj.run(images)
                 # convert tensor to numpy
-                if isinstance(pred, (tuple, list)):
-                    pred = pred[0]
-                data['predict'] = pred.cpu().numpy() 
+                if(isinstance(pred, (tuple, list))):
+                    pred = [item.cpu().numpy() for item in pred]
+                else:
+                    pred = pred.cpu().numpy()
+                data['predict'] = pred
                 # inverse transform
                 for transform in self.transform_list[::-1]:
                     if (transform.inverse):

@@ -104,7 +104,6 @@ class CropWithBoundingBox(CenterCrop):
         output_size (None or tuple/list): Desired spatial output size.
             if None, set it as the size of bounding box of non-zero region 
         """
-        super(CropWithBoundingBox, self).__init__(params)
         self.start       = params['CropWithBoundingBox_start'.lower()]
         self.output_size = params['CropWithBoundingBox_output_size'.lower()]
         self.inverse = params['CropWithBoundingBox_inverse'.lower()]

@@ -16,38 +16,41 @@ class NormalizeWithMeanStd(AbstractTransform):
         :param mean: (None or tuple/list): The mean values along each channel.
         :param  std : (None or tuple/list): The std values along each channel.
             When mean and std are not provided, calculate them from the entire image
-            region or the mask region.
-        :param mask:  (bool) Only used when mean and std are not given.
-        :param random_fill:  (bool) When mask is used, set non-mask region to random. 
+            region or the non-positive region.
+        :param ignore_non_positive: (bool) Only used when mean and std are not given. 
+            Use positive region to calculate mean and std, and set non-positive region to random.  
         :param inverse: (bool) Whether inverse transform is needed or not.
         """
         super(NormalizeWithMeanStd, self).__init__(params)
         self.chns = params['NormalizeWithMeanStd_channels'.lower()]
         self.mean = params['NormalizeWithMeanStd_mean'.lower()]
         self.std  = params['NormalizeWithMeanStd_std'.lower()]
-        self.mask_enable = params['NormalizeWithMeanStd_mask'.lower()]
-        self.random_fill = params['NormalizeWithMeanStd_random_fill'.lower()]
+        self.ingore_np = params['NormalizeWithMeanStd_ignore_non_positive'.lower()]
         self.inverse = params['NormalizeWithMeanStd_inverse'.lower()]
 
     def __call__(self, sample):
         image= sample['image']
         chns = self.chns if self.chns is not None else range(image.shape[0])
-        if self.mask_enable:
-            mask = sample['mask']
+        if(self.mean is None):
+            self.mean = [None] * len(chns)
+            self.std  = [None] * len(chns)
 
         for i in range(len(chns)):
             chn = chns[i]
-            if(self.mean is None or self.std is None):
-                pixels = image[chn][mask > 0] if self.mask_enable else image[chn]
-                chn_mean, chn_std = pixels.mean(), pixels.std()
-            else:
-                chn_mean, chn_std = self.mean[i], self.std[i]
+            chn_mean, chn_std = self.mean[i], self.std[i]
+            if(chn_mean is None):
+                if(self.ingore_np):
+                    pixels = image[chn][image[chn] > 0]
+                    chn_mean, chn_std = pixels.mean(), pixels.std() 
+                else:
+                    chn_mean, chn_std = image[chn].mean(), image[chn].std()
+    
             chn_norm = (image[chn] - chn_mean)/chn_std
-            if(self.mask_enable and self.random_fill):
-                chn_random = np.random.normal(0, 1, size = chn_norm.shape)
-                chn_norm[mask == 0] = chn_random[mask == 0]
-            image[chn] = chn_norm
 
+            if(self.ingore_np):
+                chn_random = np.random.normal(0, 1, size = chn_norm.shape)
+                chn_norm[image[chn] <= 0] = chn_random[image[chn] <= 0]
+            image[chn] = chn_norm
         sample['image'] = image
         return sample
 
@@ -74,8 +77,11 @@ class NormalizeWithMinMax(AbstractTransform):
         for i in range(len(chns)):
             chn = chns[i]
             img_chn = image[chn]
-            v0 = img_chn.min() if self.thred_lower is None else self.thred_lower[i]
-            v1 = img_chn.max() if self.thred_upper is None else self.thred_upper[i]
+            v0, v1 = img_chn.min(), img_chn.max()
+            if(self.thred_lower is not None) and  (self.thred_lower[i] is not None):
+                v0 = self.thred_lower[i]
+            if(self.thred_upper is not None) and  (self.thred_upper[i] is not None):
+                v1 = self.thred_upper[i]
 
             img_chn[img_chn < v0] = v0
             img_chn[img_chn > v1] = v1
