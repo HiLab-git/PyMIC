@@ -40,24 +40,46 @@ class DiceLoss(nn.Module):
         dice_loss  = 1.0 - average_dice
         return dice_loss
 
-class DiceWithCrossEntropyLoss(nn.Module):
-    def __init__(self, params):
-        super(DiceWithCrossEntropyLoss, self).__init__()
-        self.enable_pix_weight = params['DiceWithCrossEntropyLoss_Enable_Pixel_Weight'.lower()]
-        self.enable_cls_weight = params['DiceWithCrossEntropyLoss_Enable_Class_Weight'.lower()]
-        self.ce_weight = params['DiceWithCrossEntropyLoss_CE_Weight'.lower()]
-        dice_params = {'DiceLoss_Enable_Pixel_Weight'.lower(): self.enable_pix_weight,
-                       'DiceLoss_Enable_Class_Weight'.lower(): self.enable_cls_weight}
-        ce_params   = {'CrossEntropyLoss_Enable_Pixel_Weight'.lower(): self.enable_pix_weight,
-                       'CrossEntropyLoss_Enable_Class_Weight'.lower(): self.enable_cls_weight}
-        self.dice_loss = DiceLoss(dice_params)
-        self.ce_loss   = CrossEntropyLoss(ce_params)
+class FocalDiceLoss(nn.Module):
+    """
+    focal Dice according to the following paper:
+    Pei Wang and Albert C. S. Chung, Focal Dice Loss and Image Dilation for 
+    Brain Tumor Segmentation, 2018
+    """
+    def __init__(self, params = None):
+        super(FocalDiceLoss, self).__init__()
+        self.beta = params['FocalDiceLoss_beta'.lower()] #beta should be >=1.0
 
     def forward(self, loss_input_dict):
-        loss1 = self.dice_loss(loss_input_dict)
-        loss2 = self.ce_loss(loss_input_dict)
-        loss = loss1 + self.ce_weight * loss2
-        return loss 
+        predict = loss_input_dict['prediction']
+        soft_y  = loss_input_dict['ground_truth']
+        img_w   = loss_input_dict['image_weight']
+        pix_w   = loss_input_dict['pixel_weight']
+        cls_w   = loss_input_dict['class_weight']
+        softmax = loss_input_dict['softmax']
+
+        if(isinstance(predict, (list, tuple))):
+            predict = predict[0]
+        tensor_dim = len(predict.size())
+        if(softmax):
+            predict = nn.Softmax(dim = 1)(predict)
+        predict = reshape_tensor_to_2D(predict)
+        soft_y  = reshape_tensor_to_2D(soft_y) 
+
+        # combien pixel weight and image weight
+        if(tensor_dim == 5):
+            img_w = img_w[:, None, None, None, None]
+        else:
+            img_w = img_w[:, None, None, None]
+        pix_w = pix_w * img_w
+        pix_w = reshape_tensor_to_2D(pix_w)
+        dice_score = get_classwise_dice(predict, soft_y, pix_w)
+
+        dice_score = torch.pow(dice_score, 1.0 / self.beta)
+        weighted_dice = dice_score * cls_w
+        average_dice  =  weighted_dice.sum() / cls_w.sum()
+        dice_loss  = 1.0 - average_dice
+        return dice_loss
 
 class MultiScaleDiceLoss(nn.Module):
     def __init__(self, params):
