@@ -256,7 +256,6 @@ class SegmentationAgent(NetRunAgent):
                 'valid':valid_scalars['class_dice'][c]}
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
        
-        print("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
         print('train loss {0:.4f}, avg dice {1:.4f}'.format(
             train_scalars['loss'], train_scalars['avg_dice']), train_scalars['class_dice'])        
         print('valid loss {0:.4f}, avg dice {1:.4f}'.format(
@@ -313,9 +312,14 @@ class SegmentationAgent(NetRunAgent):
         print("{0:} training start".format(str(datetime.now())[:-7]))
         self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
         for it in range(iter_start, iter_max, iter_valid):
+            t0 = time.time()
             train_scalars = self.training()
+            t1 = time.time()
             valid_scalars = self.validation()
+            t2 = time.time()
             glob_it = it + iter_valid
+            print("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
+            print("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
             self.write_scalars(train_scalars, valid_scalars, glob_it)
 
             if(valid_scalars['avg_dice'] > self.max_val_dice):
