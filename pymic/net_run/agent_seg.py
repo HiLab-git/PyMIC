@@ -351,7 +351,7 @@ class SegmentationAgent(NetRunAgent):
         txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefx), 'wt')
         txt_file.write(str(self.max_val_it))
         txt_file.close()
-        print('The best perfroming iter is {0:}, valid dice {1:}'.format(\
+        print('The best performing iter is {0:}, valid dice {1:}'.format(\
             self.max_val_it, self.max_val_dice))
         self.summ_writer.close()
     
