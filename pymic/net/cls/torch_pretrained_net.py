@@ -73,3 +73,30 @@ class VGG16(nn.Module):
         else:
             raise(ValueError("update_layers can only be 0 (all layers) " +
                 "or -1 (the last layer)"))
+
+class MobileNetV2(nn.Module):
+    def __init__(self, params):
+        super(MobileNetV2, self).__init__()
+        self.params = params
+        net_name = params['net_type']
+        cls_num  = params['class_num']
+        in_chns  = params['input_chns']
+        self.pretrain = params['pretrain']
+        self.update_layers = params.get('update_layers', 0)
+        self.net = models.mobilenet_v2(pretrained = self.pretrain)
+        
+        # replace the last layer 
+        num_ftrs = self.net.last_channel
+        self.net.classifier[-1] = nn.Linear(num_ftrs, cls_num)
+    
+    def forward(self, x):
+        return self.net(x)
+    
+    def get_parameters_to_update(self):
+        if(self.pretrain == False or self.update_layers == 0):
+            return self.net.parameters()
+        elif(self.update_layers == -1):
+            return self.net.classifier[-1].parameters()
+        else:
+            raise(ValueError("update_layers can only be 0 (all layers) " +
+                "or -1 (the last layer)"))
