@@ -30,7 +30,7 @@ class ChannelWiseThreshold(AbstractTransform):
         self.threshold_upper = params['ChannelWiseThreshold_threshold_upper'.lower()]
         self.replace_lower   = params['ChannelWiseThreshold_replace_lower'.lower()]
         self.replace_upper   = params['ChannelWiseThreshold_replace_upper'.lower()]
-        self.inverse = params['ChannelWiseThreshold_inverse'.lower()]
+        self.inverse = params.get('ChannelWiseThreshold_inverse'.lower(), False)
 
     def __call__(self, sample):
         image= sample['image']
