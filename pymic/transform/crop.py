@@ -17,7 +17,9 @@ class CenterCrop(AbstractTransform):
     """
     def __init__(self, params):
         """
-        output_size (tuple/list): Desired spatial output size.
+        output_size (tuple/list): Desired spatial output size. 
+            [D, H, W] for 3D images and [H, W] for 2D images
+            If D is None, then the z-axis is not cropped
         """
         self.output_size = params['CenterCrop_output_size'.lower()]
         self.inverse = params['CenterCrop_inverse'.lower()]
@@ -27,6 +29,8 @@ class CenterCrop(AbstractTransform):
         input_shape = sample['image'].shape
         input_dim   = len(input_shape) - 1
         assert(input_dim == len(self.output_size))
+        if(input_dim == 3 and self.output_size[0] is None):
+            self.output_size[0] = input_shape[0]
         crop_margin = [input_shape[i + 1] - self.output_size[i]\
             for i in range(input_dim)]
         crop_min = [int(item/2) for item in crop_margin]
@@ -154,6 +158,7 @@ class RandomCrop(CenterCrop):
         """
         output_size (tuple or list): Desired output size [D, H, W] or [H, W].
             the output channel is the same as the input channel.
+            If D is None for 3D images, the z-axis is not cropped
         foreground_focus (bool): If true, allow crop around the foreground.
         foreground_ratio (float): Specifying the probability of foreground 
             focus cropping when foreground_focus is true.
@@ -177,6 +182,8 @@ class RandomCrop(CenterCrop):
         input_dim   = len(input_shape) - 1
 
         assert(input_dim == len(self.output_size))
+        if(input_dim == 3 and self.output_size[0] is None):
+            self.output_size[0] = input_shape[0]
         crop_margin = [input_shape[i + 1] - self.output_size[i]\
             for i in range(input_dim)]
         crop_min = [random.randint(0, item) for item in crop_margin]

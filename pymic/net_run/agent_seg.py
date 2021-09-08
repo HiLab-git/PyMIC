@@ -275,6 +275,10 @@ class SegmentationAgent(NetRunAgent):
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training']['iter_save']
+        if(isinstance(iter_save, (tuple, list))):
+            iter_save_list = iter_save
+        else:
+            iter_save_list = range(iter_start, iter_max +1, iter_save)
 
         self.max_val_dice = 0.0
         self.max_val_it   = 0
@@ -330,7 +334,7 @@ class SegmentationAgent(NetRunAgent):
                 else:
                     self.best_model_wts = copy.deepcopy(self.net.state_dict())
 
-            if (glob_it % iter_save ==  0):
+            if (glob_it in iter_save_list):
                 save_dict = {'iteration': glob_it,
                              'valid_pred': valid_scalars['avg_dice'],
                              'model_state_dict': self.net.module.state_dict() \
