@@ -29,12 +29,15 @@ class CenterCrop(AbstractTransform):
         input_shape = sample['image'].shape
         input_dim   = len(input_shape) - 1
         assert(input_dim == len(self.output_size))
+        temp_output_size = self.output_size
         if(input_dim == 3 and self.output_size[0] is None):
-            self.output_size[0] = input_shape[0]
-        crop_margin = [input_shape[i + 1] - self.output_size[i]\
+            # note that output size is [D, H, W] and input is [C, D, H, W]
+            temp_output_size = [input_shape[1]] + self.output_size[1:]
+
+        crop_margin = [input_shape[i + 1] - temp_output_size[i]\
             for i in range(input_dim)]
         crop_min = [int(item/2) for item in crop_margin]
-        crop_max = [crop_min[i] + self.output_size[i] \
+        crop_max = [crop_min[i] + temp_output_size[i] \
             for i in range(input_dim)]
         crop_min = [0] + crop_min
         crop_max = list(input_shape[0:1]) + crop_max
@@ -177,16 +180,18 @@ class RandomCrop(CenterCrop):
             assert isinstance(self.mask_label, (list, tuple))
 
     def get_crop_param(self, sample):
-        image = sample['image']
+        image       = sample['image']
         input_shape = image.shape
         input_dim   = len(input_shape) - 1
-
         assert(input_dim == len(self.output_size))
+        temp_output_size = self.output_size
         if(input_dim == 3 and self.output_size[0] is None):
-            self.output_size[0] = input_shape[0]
-        crop_margin = [input_shape[i + 1] - self.output_size[i]\
+            # note that output size is [D, H, W] and input is [C, D, H, W]
+            temp_output_size = [input_shape[1]] + self.output_size[1:]
+
+        crop_margin = [input_shape[i + 1] - temp_output_size[i]\
             for i in range(input_dim)]
-        crop_min = [random.randint(0, item) for item in crop_margin]
+        crop_min = [0 if item == 0 else random.randint(0, item) for item in crop_margin]
         if(self.fg_focus and random.random() < self.fg_ratio):
             label = sample['label']
             mask  = np.zeros_like(label)
@@ -198,13 +203,13 @@ class RandomCrop(CenterCrop):
             else:
                 bb_min, bb_max = get_ND_bounding_box(mask)
             bb_min, bb_max = bb_min[1:], bb_max[1:]
-            crop_min = [random.randint(bb_min[i], bb_max[i]) - int(self.output_size[i]/2) \
+            crop_min = [random.randint(bb_min[i], bb_max[i]) - int(temp_output_size[i]/2) \
                 for i in range(input_dim)]
             crop_min = [max(0, item) for item in crop_min]
-            crop_min = [min(crop_min[i], input_shape[i+1] - self.output_size[i]) \
+            crop_min = [min(crop_min[i], input_shape[i+1] - temp_output_size[i]) \
                 for i in range(input_dim)]
 
-        crop_max = [crop_min[i] + self.output_size[i] \
+        crop_max = [crop_min[i] + temp_output_size[i] \
             for i in range(input_dim)]
         crop_min = [0] + crop_min
         crop_max = list(input_shape[0:1]) + crop_max
