@@ -363,11 +363,7 @@ class SegmentationAgent(NetRunAgent):
         device_ids = self.config['testing']['gpus']
         device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(device)
-        # load network parameters and set the network as evaluation mode
-        checkpoint_name = self.get_checkpoint_name()
-        checkpoint = torch.load(checkpoint_name, map_location = device)
-        self.net.load_state_dict(checkpoint['model_state_dict'])
-        
+
         if(self.config['testing']['evaluation_mode'] == True):
             self.net.eval()
             if(self.config['testing']['test_time_dropout'] == True):
@@ -376,6 +372,20 @@ class SegmentationAgent(NetRunAgent):
                         print('dropout layer')
                         m.train()
                 self.net.apply(test_time_dropout)
+
+        ckpt_mode = self.config['testing']['ckpt_mode']
+        ckpt_name = self.get_checkpoint_name()
+        if(ckpt_mode == 3):
+            assert(isinstance(ckpt_name, (tuple, list)))
+            self.infer_with_multiple_checkpoints()
+            return 
+        else:
+            if(isinstance(ckpt_name, (tuple, list))):
+                raise ValueError("ckpt_mode should be 3 if ckpt_name is a list")
+
+        # load network parameters and set the network as evaluation mode
+        checkpoint = torch.load(ckpt_name, map_location = device)
+        self.net.load_state_dict(checkpoint['model_state_dict'])
 
         infer_cfg = self.config['testing']
         infer_cfg['class_num'] = self.config['network']['class_num']
@@ -409,6 +419,59 @@ class SegmentationAgent(NetRunAgent):
                     if (transform.inverse):
                         data = transform.inverse_transform_for_prediction(data) 
 
+                infer_time = time.time() - start_time
+                infer_time_list.append(infer_time)
+                self.save_ouputs(data)
+        infer_time_list = np.asarray(infer_time_list)
+        time_avg, time_std = infer_time_list.mean(), infer_time_list.std()
+        print("testing time {0:} +/- {1:}".format(time_avg, time_std))
+
+    def infer_with_multiple_checkpoints(self):
+        """
+        inference with ensemble of multilple check points
+        """
+        device_ids = self.config['testing']['gpus']
+        device = torch.device("cuda:{0:}".format(device_ids[0]))
+        
+        ckpt_names = self.config['testing']['ckpt_name']
+        infer_cfg  = self.config['testing']
+        infer_cfg['class_num'] = self.config['network']['class_num']
+        infer_obj = Inferer(self.net, infer_cfg)
+        infer_time_list = []
+        with torch.no_grad():
+            for data in self.test_loder:
+                images = self.convert_tensor_type(data['image'])
+                images = images.to(device)
+    
+                # for debug
+                # for i in range(images.shape[0]):
+                #     image_i = images[i][0]
+                #     label_i = images[i][0]
+                #     image_name = "temp/{0:}_image.nii.gz".format(names[0])
+                #     label_name = "temp/{0:}_label.nii.gz".format(names[0])
+                #     save_nd_array_as_image(image_i, image_name, reference_name = None)
+                #     save_nd_array_as_image(label_i, label_name, reference_name = None)
+                # continue
+                start_time = time.time()
+                predict_list = []
+                for ckpt_name in ckpt_names:
+                    checkpoint = torch.load(ckpt_name, map_location = device)
+                    self.net.load_state_dict(checkpoint['model_state_dict'])
+                    
+                    pred = infer_obj.run(images)
+                    # convert tensor to numpy
+                    if(isinstance(pred, (tuple, list))):
+                        pred = [item.cpu().numpy() for item in pred]
+                    else:
+                        pred = pred.cpu().numpy()
+                    predict_list.append(pred)
+                pred = np.mean(predict_list, axis=0)
+                data['predict'] = pred
+                # inverse transform
+                for transform in self.transform_list[::-1]:
+                    if (transform.inverse):
+                        data = transform.inverse_transform_for_prediction(data) 
+                
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
                 self.save_ouputs(data)
