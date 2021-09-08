@@ -23,10 +23,10 @@ class NormalizeWithMeanStd(AbstractTransform):
         """
         super(NormalizeWithMeanStd, self).__init__(params)
         self.chns = params['NormalizeWithMeanStd_channels'.lower()]
-        self.mean = params['NormalizeWithMeanStd_mean'.lower()]
-        self.std  = params['NormalizeWithMeanStd_std'.lower()]
-        self.ingore_np = params['NormalizeWithMeanStd_ignore_non_positive'.lower()]
-        self.inverse = params['NormalizeWithMeanStd_inverse'.lower()]
+        self.mean = params.get('NormalizeWithMeanStd_mean'.lower(), None)
+        self.std  = params.get('NormalizeWithMeanStd_std'.lower(), None)
+        self.ingore_np = params.get('NormalizeWithMeanStd_ignore_non_positive'.lower(), False)
+        self.inverse = params.get('NormalizeWithMeanStd_inverse'.lower(), False)
 
     def __call__(self, sample):
         image= sample['image']
@@ -69,7 +69,7 @@ class NormalizeWithMinMax(AbstractTransform):
         self.chns = params['NormalizeWithMinMax_channels'.lower()]
         self.thred_lower = params['NormalizeWithMinMax_threshold_lower'.lower()]
         self.thred_upper = params['NormalizeWithMinMax_threshold_upper'.lower()]
-        self.inverse = params['NormalizeWithMinMax_inverse'.lower()]
+        self.inverse = params.get('NormalizeWithMinMax_inverse'.lower(), False)
 
     def __call__(self, sample):
         image= sample['image']
@@ -104,7 +104,7 @@ class NormalizeWithPercentiles(AbstractTransform):
         self.chns = params['NormalizeWithPercentiles_channels'.lower()]
         self.percent_lower = params['NormalizeWithPercentiles_percentile_lower'.lower()]
         self.percent_upper = params['NormalizeWithPercentiles_percentile_upper'.lower()]
-        self.inverse = params['NormalizeWithPercentiles_inverse'.lower()]
+        self.inverse = params.get('NormalizeWithPercentiles_inverse'.lower(), False)
 
     def __call__(self, sample):
         image= sample['image']

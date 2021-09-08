@@ -22,7 +22,7 @@ class CenterCrop(AbstractTransform):
             If D is None, then the z-axis is not cropped
         """
         self.output_size = params['CenterCrop_output_size'.lower()]
-        self.inverse = params['CenterCrop_inverse'.lower()]
+        self.inverse = params.get('CenterCrop_inverse'.lower(), True)
         self.task = params['Task'.lower()]
 
     def get_crop_param(self, sample):
@@ -113,7 +113,7 @@ class CropWithBoundingBox(CenterCrop):
         """
         self.start       = params['CropWithBoundingBox_start'.lower()]
         self.output_size = params['CropWithBoundingBox_output_size'.lower()]
-        self.inverse = params['CropWithBoundingBox_inverse'.lower()]
+        self.inverse     = params.get('CropWithBoundingBox_inverse'.lower(), True)
         self.task = params['task']
         
     def get_crop_param(self, sample):
@@ -170,10 +170,10 @@ class RandomCrop(CenterCrop):
         """
         # super(RandomCrop, self).__init__(params)
         self.output_size = params['RandomCrop_output_size'.lower()]
-        self.fg_focus    = params['RandomCrop_foreground_focus'.lower()]
-        self.fg_ratio    = params['RandomCrop_foreground_ratio'.lower()]
-        self.mask_label  = params['RandomCrop_mask_label'.lower()]
-        self.inverse     = params['RandomCrop_inverse'.lower()]
+        self.fg_focus    = params.get('RandomCrop_foreground_focus'.lower(), False)
+        self.fg_ratio    = params.get('RandomCrop_foreground_ratio'.lower(), 0.5)
+        self.mask_label  = params.get('RandomCrop_mask_label'.lower(), [1])
+        self.inverse     = params.get('RandomCrop_inverse'.lower(), True)
         self.task        = params['Task'.lower()]
         assert isinstance(self.output_size, (list, tuple))
         if(self.mask_label is not None):
@@ -238,7 +238,7 @@ class RandomResizedCrop(CenterCrop):
         self.output_size = params['RandomResizedCrop_output_size'.lower()]
         self.scale       = params['RandomResizedCrop_scale'.lower()]
         self.ratio       = params['RandomResizedCrop_ratio'.lower()]
-        self.inverse     = params['RandomResizedCrop_inverse'.lower()]
+        self.inverse     = params.get('RandomResizedCrop_inverse'.lower(), True)
         self.task        = params['Task'.lower()]
         assert isinstance(self.output_size, (list, tuple))
         assert isinstance(self.scale, (list, tuple))

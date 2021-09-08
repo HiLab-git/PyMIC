@@ -26,7 +26,7 @@ class RandomRotate(AbstractTransform):
         self.angle_range_d  = params['RandomRotate_angle_range_d'.lower()]
         self.angle_range_h  = params['RandomRotate_angle_range_h'.lower()]
         self.angle_range_w  = params['RandomRotate_angle_range_w'.lower()]
-        self.inverse = params['RandomRotate_inverse'.lower()]
+        self.inverse = params.get('RandomRotate_inverse'.lower(), True)
 
     def __apply_transformation(self, image, transform_param_list, order = 1):
         """

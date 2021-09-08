@@ -23,7 +23,7 @@ class RandomFlip(AbstractTransform):
         self.flip_depth  = params['RandomFlip_flip_depth'.lower()]
         self.flip_height = params['RandomFlip_flip_height'.lower()]
         self.flip_width  = params['RandomFlip_flip_width'.lower()]
-        self.inverse = params['RandomFlip_inverse'.lower()]
+        self.inverse = params.get('RandomFlip_inverse'.lower(), True)
 
     def __call__(self, sample):
         image = sample['image']

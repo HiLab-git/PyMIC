@@ -364,9 +364,9 @@ class SegmentationAgent(NetRunAgent):
         device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(device)
 
-        if(self.config['testing']['evaluation_mode'] == True):
+        if(self.config['testing'].get('evaluation_mode', True)):
             self.net.eval()
-            if(self.config['testing']['test_time_dropout'] == True):
+            if(self.config['testing'].get('test_time_dropout', False)):
                 def test_time_dropout(m):
                     if(type(m) == nn.Dropout):
                         print('dropout layer')
@@ -432,7 +432,7 @@ class SegmentationAgent(NetRunAgent):
         """
         device_ids = self.config['testing']['gpus']
         device = torch.device("cuda:{0:}".format(device_ids[0]))
-        
+
         ckpt_names = self.config['testing']['ckpt_name']
         infer_cfg  = self.config['testing']
         infer_cfg['class_num'] = self.config['network']['class_num']

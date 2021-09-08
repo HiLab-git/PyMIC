@@ -72,7 +72,7 @@ class ChannelWiseThresholdWithNormalize(AbstractTransform):
         self.threshold_lower = params['ChannelWiseThresholdWithNormalize_threshold_lower'.lower()]
         self.threshold_upper = params['ChannelWiseThresholdWithNormalize_threshold_upper'.lower()]
         self.mean_std_mode   = params['ChannelWiseThresholdWithNormalize_mean_std_mode'.lower()]
-        self.inverse = params['ChannelWiseThresholdWithNormalize_inverse'.lower()]
+        self.inverse = params.get('ChannelWiseThresholdWithNormalize_inverse'.lower(), False)
 
     def __call__(self, sample):
         image= sample['image']
