@@ -278,7 +278,7 @@ class ClassificationAgent(NetRunAgent):
         checkpoint = torch.load(checkpoint_name, map_location = device)
         self.net.load_state_dict(checkpoint['model_state_dict'])
         
-        if(self.config['testing']['evaluation_mode'] == True):
+        if(self.config['testing'].get('evaluation_mode', True)):
             self.net.eval()
             
         output_csv   = self.config['testing']['output_csv']
