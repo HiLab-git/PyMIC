@@ -38,7 +38,7 @@ class SigmoidCELoss(nn.Module):
         predict = loss_input_dict['prediction']
         labels  = loss_input_dict['ground_truth']
         # for numeric stability
-        predict = nn.Sigmoid()(predict) * 0.999 + 0.0005
+        predict = nn.Sigmoid()(predict) * 0.999 + 5e-4
         loss = - labels * torch.log(predict) - (1 - labels) * torch.log( 1 - predict)
         loss = loss.mean()
         return loss

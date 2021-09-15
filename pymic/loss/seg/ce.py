@@ -25,6 +25,8 @@ class CrossEntropyLoss(nn.Module):
         predict = reshape_tensor_to_2D(predict)
         soft_y  = reshape_tensor_to_2D(soft_y)
 
+        # for numeric stability
+        predict = predict * 0.999 + 5e-4
         ce = - soft_y* torch.log(predict)
         if(self.enable_cls_weight):
             if(cls_w is None):
