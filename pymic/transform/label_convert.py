@@ -16,7 +16,7 @@ class ReduceLabelDim(AbstractTransform):
     """
     def __init__(self, params):
         super(ReduceLabelDim, self).__init__(params)
-        self.inverse = params['ReduceLabelDim_inverse'.lower()]
+        self.inverse = params.get('ReduceLabelDim_inverse'.lower(), False)
     
     def __call__(self, sample):
         label = sample['label']
@@ -34,7 +34,7 @@ class LabelConvert(AbstractTransform):
         super(LabelConvert, self).__init__(params)
         self.source_list = params['LabelConvert_source_list'.lower()]
         self.target_list = params['LabelConvert_target_list'.lower()]
-        self.inverse = params['LabelConvert_inverse'.lower()]
+        self.inverse = params.get('LabelConvert_inverse'.lower(), False)
         assert(len(self.source_list) == len(self.target_list))
     
     def __call__(self, sample):
@@ -47,7 +47,7 @@ class LabelConvertNonzero(AbstractTransform):
     """ Convert label into binary (nonzero as 1)"""
     def __init__(self, params):
         super(LabelConvertNonzero, self).__init__(params)
-        self.inverse = params['LabelConvertNonzero_inverse'.lower()]
+        self.inverse = params.get('LabelConvertNonzero_inverse'.lower(), False)
     
     def __call__(self, sample):
         label = sample['label']
@@ -63,7 +63,7 @@ class LabelToProbability(AbstractTransform):
         """
         super(LabelToProbability, self).__init__(params)
         self.class_num = params['LabelToProbability_class_num'.lower()]
-        self.inverse   = params['LabelToProbability_inverse'.lower()]
+        self.inverse   = params.get('LabelToProbability_inverse'.lower(), False)
     
     def __call__(self, sample):
         if(self.task == 'segmentation'):

@@ -149,5 +149,7 @@ class Inferer(object):
                 outputs3 = torch.flip(outputs3, [-2])
                 outputs4 = torch.flip(outputs4, [-2, -1])
                 outputs = (outputs1 + outputs2 + outputs3 + outputs4) / 4
+        else:
+            raise ValueError("Undefined tta_mode {0:}".format(tta_mode))
         return outputs
 

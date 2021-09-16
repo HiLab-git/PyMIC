@@ -17,20 +17,27 @@ class CenterCrop(AbstractTransform):
     """
     def __init__(self, params):
         """
-        output_size (tuple/list): Desired spatial output size.
+        output_size (tuple/list): Desired spatial output size. 
+            [D, H, W] for 3D images and [H, W] for 2D images
+            If D is None, then the z-axis is not cropped
         """
         self.output_size = params['CenterCrop_output_size'.lower()]
-        self.inverse = params['CenterCrop_inverse'.lower()]
+        self.inverse = params.get('CenterCrop_inverse'.lower(), True)
         self.task = params['Task'.lower()]
 
     def get_crop_param(self, sample):
         input_shape = sample['image'].shape
         input_dim   = len(input_shape) - 1
         assert(input_dim == len(self.output_size))
-        crop_margin = [input_shape[i + 1] - self.output_size[i]\
+        temp_output_size = self.output_size
+        if(input_dim == 3 and self.output_size[0] is None):
+            # note that output size is [D, H, W] and input is [C, D, H, W]
+            temp_output_size = [input_shape[1]] + self.output_size[1:]
+
+        crop_margin = [input_shape[i + 1] - temp_output_size[i]\
             for i in range(input_dim)]
         crop_min = [int(item/2) for item in crop_margin]
-        crop_max = [crop_min[i] + self.output_size[i] \
+        crop_max = [crop_min[i] + temp_output_size[i] \
             for i in range(input_dim)]
         crop_min = [0] + crop_min
         crop_max = list(input_shape[0:1]) + crop_max
@@ -104,10 +111,9 @@ class CropWithBoundingBox(CenterCrop):
         output_size (None or tuple/list): Desired spatial output size.
             if None, set it as the size of bounding box of non-zero region 
         """
-        super(CropWithBoundingBox, self).__init__(params)
         self.start       = params['CropWithBoundingBox_start'.lower()]
         self.output_size = params['CropWithBoundingBox_output_size'.lower()]
-        self.inverse = params['CropWithBoundingBox_inverse'.lower()]
+        self.inverse     = params.get('CropWithBoundingBox_inverse'.lower(), True)
         self.task = params['task']
         
     def get_crop_param(self, sample):
@@ -155,6 +161,7 @@ class RandomCrop(CenterCrop):
         """
         output_size (tuple or list): Desired output size [D, H, W] or [H, W].
             the output channel is the same as the input channel.
+            If D is None for 3D images, the z-axis is not cropped
         foreground_focus (bool): If true, allow crop around the foreground.
         foreground_ratio (float): Specifying the probability of foreground 
             focus cropping when foreground_focus is true.
@@ -163,24 +170,28 @@ class RandomCrop(CenterCrop):
         """
         # super(RandomCrop, self).__init__(params)
         self.output_size = params['RandomCrop_output_size'.lower()]
-        self.fg_focus    = params['RandomCrop_foreground_focus'.lower()]
-        self.fg_ratio    = params['RandomCrop_foreground_ratio'.lower()]
-        self.mask_label  = params['RandomCrop_mask_label'.lower()]
-        self.inverse     = params['RandomCrop_inverse'.lower()]
+        self.fg_focus    = params.get('RandomCrop_foreground_focus'.lower(), False)
+        self.fg_ratio    = params.get('RandomCrop_foreground_ratio'.lower(), 0.5)
+        self.mask_label  = params.get('RandomCrop_mask_label'.lower(), [1])
+        self.inverse     = params.get('RandomCrop_inverse'.lower(), True)
         self.task        = params['Task'.lower()]
         assert isinstance(self.output_size, (list, tuple))
         if(self.mask_label is not None):
             assert isinstance(self.mask_label, (list, tuple))
 
     def get_crop_param(self, sample):
-        image = sample['image']
+        image       = sample['image']
         input_shape = image.shape
         input_dim   = len(input_shape) - 1
-
         assert(input_dim == len(self.output_size))
-        crop_margin = [input_shape[i + 1] - self.output_size[i]\
+        temp_output_size = self.output_size
+        if(input_dim == 3 and self.output_size[0] is None):
+            # note that output size is [D, H, W] and input is [C, D, H, W]
+            temp_output_size = [input_shape[1]] + self.output_size[1:]
+
+        crop_margin = [input_shape[i + 1] - temp_output_size[i]\
             for i in range(input_dim)]
-        crop_min = [random.randint(0, item) for item in crop_margin]
+        crop_min = [0 if item == 0 else random.randint(0, item) for item in crop_margin]
         if(self.fg_focus and random.random() < self.fg_ratio):
             label = sample['label']
             mask  = np.zeros_like(label)
@@ -192,13 +203,13 @@ class RandomCrop(CenterCrop):
             else:
                 bb_min, bb_max = get_ND_bounding_box(mask)
             bb_min, bb_max = bb_min[1:], bb_max[1:]
-            crop_min = [random.randint(bb_min[i], bb_max[i]) - int(self.output_size[i]/2) \
+            crop_min = [random.randint(bb_min[i], bb_max[i]) - int(temp_output_size[i]/2) \
                 for i in range(input_dim)]
             crop_min = [max(0, item) for item in crop_min]
-            crop_min = [min(crop_min[i], input_shape[i+1] - self.output_size[i]) \
+            crop_min = [min(crop_min[i], input_shape[i+1] - temp_output_size[i]) \
                 for i in range(input_dim)]
 
-        crop_max = [crop_min[i] + self.output_size[i] \
+        crop_max = [crop_min[i] + temp_output_size[i] \
             for i in range(input_dim)]
         crop_min = [0] + crop_min
         crop_max = list(input_shape[0:1]) + crop_max
@@ -227,7 +238,7 @@ class RandomResizedCrop(CenterCrop):
         self.output_size = params['RandomResizedCrop_output_size'.lower()]
         self.scale       = params['RandomResizedCrop_scale'.lower()]
         self.ratio       = params['RandomResizedCrop_ratio'.lower()]
-        self.inverse     = params['RandomResizedCrop_inverse'.lower()]
+        self.inverse     = params.get('RandomResizedCrop_inverse'.lower(), True)
         self.task        = params['Task'.lower()]
         assert isinstance(self.output_size, (list, tuple))
         assert isinstance(self.scale, (list, tuple))

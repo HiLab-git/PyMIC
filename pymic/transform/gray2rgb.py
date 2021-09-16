@@ -20,7 +20,7 @@ class GrayscaleToRGB(AbstractTransform):
         (gamma_min, gamma_max) specify the range of gamma
         """
         super(GrayscaleToRGB, self).__init__(params)
-        self.inverse = params['GrayscaleToRGB_inverse'.lower()]
+        self.inverse = params.get('GrayscaleToRGB_inverse'.lower(), False)
     
     def __call__(self, sample):
         image= sample['image']

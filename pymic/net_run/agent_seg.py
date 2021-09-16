@@ -256,7 +256,6 @@ class SegmentationAgent(NetRunAgent):
                 'valid':valid_scalars['class_dice'][c]}
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
        
-        print("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
         print('train loss {0:.4f}, avg dice {1:.4f}'.format(
             train_scalars['loss'], train_scalars['avg_dice']), train_scalars['class_dice'])        
         print('valid loss {0:.4f}, avg dice {1:.4f}'.format(
@@ -276,6 +275,10 @@ class SegmentationAgent(NetRunAgent):
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training']['iter_save']
+        if(isinstance(iter_save, (tuple, list))):
+            iter_save_list = iter_save
+        else:
+            iter_save_list = range(iter_start, iter_max +1, iter_save)
 
         self.max_val_dice = 0.0
         self.max_val_it   = 0
@@ -313,9 +316,14 @@ class SegmentationAgent(NetRunAgent):
         print("{0:} training start".format(str(datetime.now())[:-7]))
         self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
         for it in range(iter_start, iter_max, iter_valid):
+            t0 = time.time()
             train_scalars = self.training()
+            t1 = time.time()
             valid_scalars = self.validation()
+            t2 = time.time()
             glob_it = it + iter_valid
+            print("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
+            print("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
             self.write_scalars(train_scalars, valid_scalars, glob_it)
 
             if(valid_scalars['avg_dice'] > self.max_val_dice):
@@ -326,7 +334,7 @@ class SegmentationAgent(NetRunAgent):
                 else:
                     self.best_model_wts = copy.deepcopy(self.net.state_dict())
 
-            if (glob_it % iter_save ==  0):
+            if (glob_it in iter_save_list):
                 save_dict = {'iteration': glob_it,
                              'valid_pred': valid_scalars['avg_dice'],
                              'model_state_dict': self.net.module.state_dict() \
@@ -347,7 +355,7 @@ class SegmentationAgent(NetRunAgent):
         txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefx), 'wt')
         txt_file.write(str(self.max_val_it))
         txt_file.close()
-        print('The best perfroming iter is {0:}, valid dice {1:}'.format(\
+        print('The best performing iter is {0:}, valid dice {1:}'.format(\
             self.max_val_it, self.max_val_dice))
         self.summ_writer.close()
     
@@ -355,19 +363,29 @@ class SegmentationAgent(NetRunAgent):
         device_ids = self.config['testing']['gpus']
         device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(device)
-        # load network parameters and set the network as evaluation mode
-        checkpoint_name = self.get_checkpoint_name()
-        checkpoint = torch.load(checkpoint_name, map_location = device)
-        self.net.load_state_dict(checkpoint['model_state_dict'])
-        
-        if(self.config['testing']['evaluation_mode'] == True):
+
+        if(self.config['testing'].get('evaluation_mode', True)):
             self.net.eval()
-            if(self.config['testing']['test_time_dropout'] == True):
+            if(self.config['testing'].get('test_time_dropout', False)):
                 def test_time_dropout(m):
                     if(type(m) == nn.Dropout):
                         print('dropout layer')
                         m.train()
                 self.net.apply(test_time_dropout)
+
+        ckpt_mode = self.config['testing']['ckpt_mode']
+        ckpt_name = self.get_checkpoint_name()
+        if(ckpt_mode == 3):
+            assert(isinstance(ckpt_name, (tuple, list)))
+            self.infer_with_multiple_checkpoints()
+            return 
+        else:
+            if(isinstance(ckpt_name, (tuple, list))):
+                raise ValueError("ckpt_mode should be 3 if ckpt_name is a list")
+
+        # load network parameters and set the network as evaluation mode
+        checkpoint = torch.load(ckpt_name, map_location = device)
+        self.net.load_state_dict(checkpoint['model_state_dict'])
 
         infer_cfg = self.config['testing']
         infer_cfg['class_num'] = self.config['network']['class_num']
@@ -391,14 +409,69 @@ class SegmentationAgent(NetRunAgent):
                 
                 pred = infer_obj.run(images)
                 # convert tensor to numpy
-                if isinstance(pred, (tuple, list)):
-                    pred = pred[0]
-                data['predict'] = pred.cpu().numpy() 
+                if(isinstance(pred, (tuple, list))):
+                    pred = [item.cpu().numpy() for item in pred]
+                else:
+                    pred = pred.cpu().numpy()
+                data['predict'] = pred
                 # inverse transform
                 for transform in self.transform_list[::-1]:
                     if (transform.inverse):
                         data = transform.inverse_transform_for_prediction(data) 
 
+                infer_time = time.time() - start_time
+                infer_time_list.append(infer_time)
+                self.save_ouputs(data)
+        infer_time_list = np.asarray(infer_time_list)
+        time_avg, time_std = infer_time_list.mean(), infer_time_list.std()
+        print("testing time {0:} +/- {1:}".format(time_avg, time_std))
+
+    def infer_with_multiple_checkpoints(self):
+        """
+        inference with ensemble of multilple check points
+        """
+        device_ids = self.config['testing']['gpus']
+        device = torch.device("cuda:{0:}".format(device_ids[0]))
+
+        ckpt_names = self.config['testing']['ckpt_name']
+        infer_cfg  = self.config['testing']
+        infer_cfg['class_num'] = self.config['network']['class_num']
+        infer_obj = Inferer(self.net, infer_cfg)
+        infer_time_list = []
+        with torch.no_grad():
+            for data in self.test_loder:
+                images = self.convert_tensor_type(data['image'])
+                images = images.to(device)
+    
+                # for debug
+                # for i in range(images.shape[0]):
+                #     image_i = images[i][0]
+                #     label_i = images[i][0]
+                #     image_name = "temp/{0:}_image.nii.gz".format(names[0])
+                #     label_name = "temp/{0:}_label.nii.gz".format(names[0])
+                #     save_nd_array_as_image(image_i, image_name, reference_name = None)
+                #     save_nd_array_as_image(label_i, label_name, reference_name = None)
+                # continue
+                start_time = time.time()
+                predict_list = []
+                for ckpt_name in ckpt_names:
+                    checkpoint = torch.load(ckpt_name, map_location = device)
+                    self.net.load_state_dict(checkpoint['model_state_dict'])
+                    
+                    pred = infer_obj.run(images)
+                    # convert tensor to numpy
+                    if(isinstance(pred, (tuple, list))):
+                        pred = [item.cpu().numpy() for item in pred]
+                    else:
+                        pred = pred.cpu().numpy()
+                    predict_list.append(pred)
+                pred = np.mean(predict_list, axis=0)
+                data['predict'] = pred
+                # inverse transform
+                for transform in self.transform_list[::-1]:
+                    if (transform.inverse):
+                        data = transform.inverse_transform_for_prediction(data) 
+                
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
                 self.save_ouputs(data)

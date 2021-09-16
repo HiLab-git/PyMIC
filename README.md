@@ -35,7 +35,11 @@ Run the following command to install the current released version of PyMIC:
 pip install PYMIC
 ```
 
-Alternatively, you can download the source code and add the path of pymic to the `PYTHONPATH` environment variable. 
+Alternatively, you can download the source code for the latest version. Run the following command to compile and install:
+
+```bash
+python setup.py install
+``` 
 
 ## Examples
 [PyMIC_examples][examples] provides some examples of starting to use PyMIC. For beginners, you only need to simply change the configuration files to select different datasets, networks and training methods for running the code. For advanced users, you can develop your own modules based on this package. You can find both types of examples 

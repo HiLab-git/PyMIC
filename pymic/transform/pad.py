@@ -24,7 +24,7 @@ class Pad(AbstractTransform):
         super(Pad, self).__init__(params)
         self.output_size = params['Pad_output_size'.lower()]
         self.ceil_mode   = params['Pad_ceil_mode'.lower()]
-        self.inverse = params['Pad_inverse'.lower()]
+        self.inverse = params.get('Pad_inverse'.lower(), True)
 
     def __call__(self, sample):
         image = sample['image']

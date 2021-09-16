@@ -8,8 +8,8 @@ from pymic.loss.seg.util import reshape_tensor_to_2D
 class CrossEntropyLoss(nn.Module):
     def __init__(self, params):
         super(CrossEntropyLoss, self).__init__()
-        self.enable_pix_weight = params['CrossEntropyLoss_Enable_Pixel_Weight'.lower()]
-        self.enable_cls_weight = params['CrossEntropyLoss_Enable_Class_Weight'.lower()]
+        self.enable_pix_weight = params.get('CrossEntropyLoss_Enable_Pixel_Weight'.lower(), False)
+        self.enable_cls_weight = params.get('CrossEntropyLoss_Enable_Class_Weight'.lower(), False)
     
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
@@ -25,6 +25,8 @@ class CrossEntropyLoss(nn.Module):
         predict = reshape_tensor_to_2D(predict)
         soft_y  = reshape_tensor_to_2D(soft_y)
 
+        # for numeric stability
+        predict = predict * 0.999 + 5e-4
         ce = - soft_y* torch.log(predict)
         if(self.enable_cls_weight):
             if(cls_w is None):

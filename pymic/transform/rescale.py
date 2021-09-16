@@ -24,7 +24,7 @@ class Rescale(AbstractTransform):
         """
         super(Rescale, self).__init__(params)
         self.output_size = params["Rescale_output_size".lower()]
-        self.inverse     = params["Rescale_inverse".lower()]
+        self.inverse     = params.get("Rescale_inverse".lower(), True)
         assert isinstance(self.output_size, (int, list, tuple))
 
     def __call__(self, sample):
@@ -89,7 +89,7 @@ class RandomRescale(AbstractTransform):
         super(RandomRescale, self).__init__(params)
         self.ratio0 = params["RandomRescale_lower_bound".lower()]
         self.ratio1 = params["RandomRescale_upper_bound".lower()]
-        self.inverse     = params["RandomRescale_inverse".lower()]
+        self.inverse     = params.get("RandomRescale_inverse".lower(), True)
         assert isinstance(self.ratio0, (float, list, tuple))
         assert isinstance(self.ratio1, (float, list, tuple))
 

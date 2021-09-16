@@ -79,7 +79,10 @@ def save_array_as_nifty_volume(data, image_name, reference_name = None):
     img = sitk.GetImageFromArray(data)
     if(reference_name is not None):
         img_ref = sitk.ReadImage(reference_name)
-        img.CopyInformation(img_ref)
+        #img.CopyInformation(img_ref)
+        img.SetSpacing(img_ref.GetSpacing())
+        img.SetOrigin(img_ref.GetOrigin())
+        img.SetDirection(img_ref.GetDirection())
     sitk.WriteImage(img, image_name)
 
 def save_array_as_rgb_image(data, image_name):

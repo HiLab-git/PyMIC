@@ -22,7 +22,7 @@ class ChannelWiseGammaCorrection(AbstractTransform):
         super(ChannelWiseGammaCorrection, self).__init__(params)
         self.gamma_min = params['ChannelWiseGammaCorrection_gamma_min'.lower()]
         self.gamma_max = params['ChannelWiseGammaCorrection_gamma_max'.lower()]
-        self.inverse = params['ChannelWiseGammaCorrection_inverse'.lower()]
+        self.inverse = params.get('ChannelWiseGammaCorrection_inverse'.lower(), False)
     
     def __call__(self, sample):
         image= sample['image']
