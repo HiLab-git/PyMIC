@@ -127,7 +127,8 @@ class NoiseRobustDiceLoss(nn.Module):
     """
     Noise-robust Dice loss according to the following paper. 
         G. Wang et al. A Noise-Robust Framework for Automatic Segmentation of COVID-19 
-        Pneumonia Lesions From CT Images, IEEE TMI, 2020.
+        Pneumonia Lesions From CT Images, IEEE TMI, 2020. 
+        https://doi.org/10.1109/TMI.2020.3000314
     """
     def __init__(self, params):
         super(NoiseRobustDiceLoss, self).__init__()
