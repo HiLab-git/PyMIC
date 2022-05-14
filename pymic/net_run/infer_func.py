@@ -76,10 +76,10 @@ class Inferer(object):
 
         output_shape = [batch_size, class_num] + img_shape
         mask_shape   = [batch_size, class_num] + window_size
-        counter      = torch.zeros(output_shape).cuda()
-        temp_mask    = torch.ones(mask_shape).cuda()
+        counter      = torch.zeros(output_shape).to(image.device)
+        temp_mask    = torch.ones(mask_shape).to(image.device)
         if(out_num == 1): # for a single prediction
-            output = torch.zeros(output_shape).cuda()
+            output = torch.zeros(output_shape).to(image.device)
             for c0 in crop_start_list:
                 c1 = [c0[d] + window_size[d] for d in range(img_dim)]
                 if(img_dim == 2):
@@ -102,7 +102,7 @@ class Inferer(object):
             for i in range(out_num):
                 output_shape_i = [batch_size, class_num] + \
                     [int(img_shape[d] * scale_list[i][d]) for d in range(img_dim)]
-                output_list.append(torch.zeros(output_shape_i).cuda())
+                output_list.append(torch.zeros(output_shape_i).to(image.device))
 
             for c0 in crop_start_list:
                 c1 = [c0[d] + window_size[d] for d in range(img_dim)]

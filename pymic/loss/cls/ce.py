@@ -29,7 +29,6 @@ class SigmoidCELoss(nn.Module):
     Args:
     predict has a shape of [N, C] where C is the class number
     labels  has a shape of [N, C] with binary values
-    
     note that predict is the digit output of a network, before using sigmoid."""
     def __init__(self, params):
         super(SigmoidCELoss, self).__init__()
@@ -37,7 +36,6 @@ class SigmoidCELoss(nn.Module):
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
         labels  = loss_input_dict['ground_truth']
-        # for numeric stability
         predict = nn.Sigmoid()(predict) * 0.999 + 5e-4
         loss = - labels * torch.log(predict) - (1 - labels) * torch.log( 1 - predict)
         loss = loss.mean()

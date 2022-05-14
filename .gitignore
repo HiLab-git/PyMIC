@@ -1,1 +1,6 @@
 *.pyc
+build/*
+dist/*
+*egg*/*
+*stop*
+files.txt
