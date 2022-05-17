@@ -34,71 +34,28 @@ from pymic.loss.seg.util import get_classwise_dice
 from pymic.util.image_process import convert_label
 from pymic.util.parse_config import parse_config
 from pymic.loss.seg.ssl import EntropyLoss
+from pymic.net_run_ssl.ssl_em import SSLSegAgent
 
 
-class SSLSegAgent(SegmentationAgent):
+class SSLMeanTeacher(SSLSegAgent):
     """
     Training and testing agent for semi-supervised segmentation
     """
     def __init__(self, config, stage = 'train'):
-        super(SSLSegAgent, self).__init__(config, stage)
-        self.transform_dict  = TransformDict
-        self.train_set_unlab = None 
+        super(SSLMeanTeacher, self).__init__(config, stage)
+        self.net_ema = None 
 
-    def get_unlabeled_dataset_from_config(self):
-        root_dir  = self.config['dataset']['root_dir']
-        modal_num = self.config['dataset']['modal_num']
-        transform_names = self.config['dataset']['train_transform_unlab']
-        
-        self.transform_list  = []
-        if(transform_names is None or len(transform_names) == 0):
-            data_transform = None 
+    def create_network(self):
+        super(SSLMeanTeacher, self).create_network()
+        if(self.net_ema is None):
+            net_name = self.config['network']['net_type']
+            if(net_name not in SegNetDict):
+                raise ValueError("Undefined network {0:}".format(net_name))
+            self.net_ema = SegNetDict[net_name](self.config['network'])
+        if(self.tensor_type == 'float'):
+            self.net_ema.float()
         else:
-            transform_param = self.config['dataset']
-            transform_param['task'] = 'segmentation' 
-            for name in transform_names:
-                if(name not in self.transform_dict):
-                    raise(ValueError("Undefined transform {0:}".format(name))) 
-                one_transform = self.transform_dict[name](transform_param)
-                self.transform_list.append(one_transform)
-            data_transform = transforms.Compose(self.transform_list)
-
-        csv_file = self.config['dataset'].get('train_csv_unlab', None)
-        dataset  = NiftyDataset(root_dir=root_dir,
-                                csv_file  = csv_file,
-                                modal_num = modal_num,
-                                with_label= False,
-                                transform = data_transform )
-        return dataset
-
-    def create_dataset(self):
-        super(SSLSegAgent, self).create_dataset()
-        if(self.stage == 'train'):
-            if(self.train_set_unlab is None):
-                self.train_set_unlab = self.get_unlabeled_dataset_from_config()
-            if(self.deterministic):
-                def worker_init_fn(worker_id):
-                    random.seed(self.random_seed+worker_id)
-                worker_init = worker_init_fn
-            else:
-                worker_init = None
-
-            bn_train_unlab = self.config['dataset']['train_batch_size_unlab']
-            num_worker = self.config['dataset'].get('num_workder', 16)
-            self.train_loader_unlab = torch.utils.data.DataLoader(self.train_set_unlab, 
-                batch_size = bn_train_unlab, shuffle=True, num_workers= num_worker,
-                worker_init_fn=worker_init)
-
-    def get_consistency_weight_with_rampup(self, w0, current, rampup_length):
-        """
-        Get conssitency weight with rampup https://arxiv.org/abs/1610.02242
-        """
-        if(rampup_length is None or rampup_length == 0):
-            return w0
-        else:
-            current = np.clip(current, 0, rampup_length)
-            phase   = 1.0 - (current + 0.0) / rampup_length
-            return  w0*np.exp(-5.0 * phase * phase)
+            self.net_ema.double()
 
     def training(self):
         class_num   = self.config['network']['class_num']
@@ -109,6 +66,7 @@ class SSLSegAgent(SegmentationAgent):
         train_loss_unsup = 0
         train_dice_list = []
         self.net.train()
+        self.net_ema.to(self.device)
         for it in range(iter_valid):
             try:
                 data_lab = next(self.trainIter)
@@ -142,18 +100,23 @@ class SSLSegAgent(SegmentationAgent):
             # continue
 
             inputs, y0 = inputs.to(self.device), y0.to(self.device)
-            
+            noise = torch.clamp(torch.randn_like(x1) * 0.1, -0.2, 0.2)
+            inputs_ema = x1 + noise
+            inputs_ema = inputs_ema.to(self.device)
+
             # zero the parameter gradients
             self.optimizer.zero_grad()
                 
-            # forward + backward + optimize
             outputs = self.net(inputs)
             n0 = list(x0.shape)[0] 
             p0, p1  = torch.tensor_split(outputs, [n0,], dim = 0)
+            outputs_soft = torch.softmax(outputs, dim=1)
+            p0_soft, p1_soft = torch.tensor_split(outputs_soft, [n0,], dim = 0)
+            with torch.no_grad():
+                outputs_ema = self.net_ema(inputs_ema)
+                p1_ema_soft = torch.softmax(outputs_ema, dim=1)
+                
             loss_sup = self.get_loss_value(data_lab, x0, p0, y0)
-            loss_dict = {"prediction":outputs, 'softmax':True}
-            loss_unsup = EntropyLoss()(loss_dict)
-
             consis_w0= ssl_cfg.get('consis_w', 0.1)
             iter_sup = ssl_cfg.get('iter_sup', 0)
             iter_max = self.config['training']['iter_max']
@@ -161,11 +124,18 @@ class SSLSegAgent(SegmentationAgent):
             consis_w = self.get_consistency_weight_with_rampup(
                 consis_w0, self.glob_it, ramp_up_length)
             consis_w = 0.0 if self.glob_it < iter_sup else consis_w
+            loss_unsup = torch.nn.MSELoss()(p1_soft, p1_ema_soft)
             loss = loss_sup + consis_w*loss_unsup
-            # if (self.config['training']['use'])
+
             loss.backward()
             self.optimizer.step()
             self.scheduler.step()
+
+            # update EMA
+            alpha = ssl_cfg.get('ema_decay', 0.99)
+            alpha = min(1 - 1 / (iter_max + 1), alpha)
+            for ema_param, param in zip(self.net_ema.parameters(), self.net.parameters()):
+                ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
 
             train_loss = train_loss + loss.item()
             train_loss_sup   = train_loss_sup + loss_sup.item()
@@ -188,33 +158,7 @@ class SSLSegAgent(SegmentationAgent):
             'loss_unsup':train_avg_loss_unsup, 'consis_w':consis_w,
             'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers
-        
-    def write_scalars(self, train_scalars, valid_scalars, glob_it):
-        loss_scalar ={'train':train_scalars['loss'], 
-                      'valid':valid_scalars['loss']}
-        loss_sup_scalar  = {'train':train_scalars['loss_sup']}
-        loss_upsup_scalar  = {'train':train_scalars['loss_unsup']}
-        dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
-        self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
-        self.summ_writer.add_scalars('loss_sup', loss_sup_scalar, glob_it)
-        self.summ_writer.add_scalars('loss_unsup', loss_upsup_scalar, glob_it)
-        self.summ_writer.add_scalars('consis_w', {'consis_w':train_scalars['consis_w']}, glob_it)
-        self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
-        class_num = self.config['network']['class_num']
-        for c in range(class_num):
-            cls_dice_scalar = {'train':train_scalars['class_dice'][c], \
-                'valid':valid_scalars['class_dice'][c]}
-            self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
-       
-        print('train loss {0:.4f}, avg dice {1:.4f}'.format(
-            train_scalars['loss'], train_scalars['avg_dice']), train_scalars['class_dice'])        
-        print('valid loss {0:.4f}, avg dice {1:.4f}'.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']), valid_scalars['class_dice'])  
-
-    def train_valid(self):
-        self.trainIter_unlab = iter(self.train_loader_unlab)   
-        super(SSLSegAgent, self).train_valid()    
-
+           
 def main():
     if(len(sys.argv) < 3):
         print('Number of arguments should be 3. e.g.')
@@ -223,7 +167,7 @@ def main():
     stage    = str(sys.argv[1])
     cfg_file = str(sys.argv[2])
     config   = parse_config(cfg_file)
-    agent = SSLSegAgent(config, stage)
+    agent = SSLMeanTeacher(config, stage)
     agent.run()
 
 if __name__ == "__main__":

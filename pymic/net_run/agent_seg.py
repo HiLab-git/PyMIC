@@ -315,35 +315,36 @@ class SegmentationAgent(NetRunAgent):
         
         print("{0:} training start".format(str(datetime.now())[:-7]))
         self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
+        self.glob_it = iter_start
         for it in range(iter_start, iter_max, iter_valid):
             t0 = time.time()
             train_scalars = self.training()
             t1 = time.time()
             valid_scalars = self.validation()
             t2 = time.time()
-            glob_it = it + iter_valid
-            print("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
+            self.glob_it = it + iter_valid
+            print("{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
             print("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
-            self.write_scalars(train_scalars, valid_scalars, glob_it)
+            self.write_scalars(train_scalars, valid_scalars, self.glob_it)
 
             if(valid_scalars['avg_dice'] > self.max_val_dice):
                 self.max_val_dice = valid_scalars['avg_dice']
-                self.max_val_it   = glob_it
+                self.max_val_it   = self.glob_it
                 if(len(device_ids) > 1):
                     self.best_model_wts = copy.deepcopy(self.net.module.state_dict())
                 else:
                     self.best_model_wts = copy.deepcopy(self.net.state_dict())
 
-            if (glob_it in iter_save_list):
-                save_dict = {'iteration': glob_it,
+            if (self.glob_it in iter_save_list):
+                save_dict = {'iteration': self.glob_it,
                              'valid_pred': valid_scalars['avg_dice'],
                              'model_state_dict': self.net.module.state_dict() \
                                  if len(device_ids) > 1 else self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
-                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, glob_it)
+                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, self.glob_it)
                 torch.save(save_dict, save_name) 
                 txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefx), 'wt')
-                txt_file.write(str(glob_it))
+                txt_file.write(str(self.glob_it))
                 txt_file.close()
         # save the best performing checkpoint
         save_dict = {'iteration': self.max_val_it,

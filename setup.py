@@ -29,9 +29,10 @@ setuptools.setup(
     python_requires = '>=3.6',
     entry_points = {
         'console_scripts': [
-            'pymic_net_run  = pymic.net_run.net_run:main',
-            'pymic_evaluate_cls = pymic.util.evaluation_cls:main',
-            'pymic_evaluate_seg = pymic.util.evaluation_seg:main'
+            'pymic_run  = pymic.net_run.net_run:main',
+            'pymic_ssl  = pymic.net_run_ssl.ssl_main:main',
+            'pymic_eval_cls = pymic.util.evaluation_cls:main',
+            'pymic_eval_seg = pymic.util.evaluation_seg:main'
         ],
     },
 )
