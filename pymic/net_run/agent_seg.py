@@ -134,7 +134,9 @@ class SegmentationAgent(NetRunAgent):
         Assume inputs, outputs and label_prob has been sent to self.device
         """
         cls_w = self.get_class_level_weight()
-        img_w = self.get_image_level_weight(data) 
+        img_w = self.get_image_level_weight(data)
+        if("label_prob" not in data):
+            data["label_prob"] = labels_prob
         pix_w = self.get_pixel_level_weight(data)
 
         img_w, pix_w = img_w.to(self.device), pix_w.to(self.device)

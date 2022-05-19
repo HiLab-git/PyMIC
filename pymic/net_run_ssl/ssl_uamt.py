@@ -7,29 +7,16 @@ from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.util.ramps import sigmoid_rampup
-from pymic.net_run_ssl.ssl_em import SSLSegAgent
-from pymic.net.net_dict_seg import SegNetDict
+from pymic.net_run_ssl.ssl_mt import SSLMeanTeacher
 
-class SSLMeanTeacher(SSLSegAgent):
+class SSLUncertaintyAwareMeanTeacher(SSLMeanTeacher):
     """
-    Training and testing agent for semi-supervised segmentation
+    Uncertainty Aware Mean Teacher according to the following paper:
+    Lequan Yu, Shujun Wang, Xiaomeng Li, Chi-Wing Fu, and Pheng-Ann Heng.
+    Uncertainty-aware Self-ensembling Model for Semi-supervised 3D Left 
+    Atrium Segmentation, MICCAI 2019.
+    https://arxiv.org/abs/1907.07034 
     """
-    def __init__(self, config, stage = 'train'):
-        super(SSLMeanTeacher, self).__init__(config, stage)
-        self.net_ema = None 
-
-    def create_network(self):
-        super(SSLMeanTeacher, self).create_network()
-        if(self.net_ema is None):
-            net_name = self.config['network']['net_type']
-            if(net_name not in SegNetDict):
-                raise ValueError("Undefined network {0:}".format(net_name))
-            self.net_ema = SegNetDict[net_name](self.config['network'])
-        if(self.tensor_type == 'float'):
-            self.net_ema.float()
-        else:
-            self.net_ema.double()
-
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
@@ -58,7 +45,6 @@ class SSLMeanTeacher(SSLSegAgent):
             x1   = self.convert_tensor_type(data_unlab['image'])
             inputs = torch.cat([x0, x1], dim = 0)               
             inputs, y0 = inputs.to(self.device), y0.to(self.device)
-            noise = torch.clamp(torch.randn_like(x1) * 0.1, -0.2, 0.2)
             inputs_ema = x1 + torch.clamp(torch.randn_like(x1) * 0.1, -0.2, 0.2)
             inputs_ema = inputs_ema.to(self.device)
 
@@ -67,24 +53,46 @@ class SSLMeanTeacher(SSLSegAgent):
                 
             outputs = self.net(inputs)
             n0 = list(x0.shape)[0] 
-            p0 = outputs[:n0]
+            p0, p1  = torch.tensor_split(outputs, [n0,], dim = 0)
+            outputs_soft = torch.softmax(outputs, dim=1)
+            p0_soft, p1_soft = torch.tensor_split(outputs_soft, [n0,], dim = 0)
             loss_sup = self.get_loss_value(data_lab, x0, p0, y0)
 
-            outputs_soft = torch.softmax(outputs, dim=1)
-            p1_soft = outputs_soft[n0:]
-            
             with torch.no_grad():
                 outputs_ema = self.net_ema(inputs_ema)
                 p1_ema_soft = torch.softmax(outputs_ema, dim=1)
+            square_error = torch.square(p1_soft - p1_ema_soft)
+
+            # the forward pass number for uncertainty estimation
+            T = ssl_cfg.get("uamt_mcdroput_n", 8)
+            preds = torch.zeros([T] + list(p1.shape)).to(self.device)
+            for i in range(T//2):
+                ema_inputs_r = torch.cat([x1, x1], dim = 0)
+                ema_inputs_r = ema_inputs_r + \
+                    torch.clamp(torch.randn_like(ema_inputs_r) * 0.1, -0.2, 0.2)
+                ema_inputs_r = ema_inputs_r.to(self.device)
+                with torch.no_grad():
+                    ema_outputs_r = self.net_ema(ema_inputs_r)
+                # reshape from [2B, C, D, H, W] to [2, B, C, D, H, W]
+                preds[2*i:2*(i+1)] = ema_outputs_r.reshape([2]+list(p1.shape))
+            preds = torch.softmax(preds, dim = 2)
+            preds = torch.mean(preds, dim = 0)
+            uncertainty = -1.0 * torch.sum(preds*torch.log(preds + 1e-6),
+                 dim=1, keepdim=True)
             
             iter_max = self.config['training']['iter_max']
             ramp_up_length = ssl_cfg.get('ramp_up_length', iter_max)
+            threshold_ramp = sigmoid_rampup(self.glob_it, iter_max)
+            class_num = list(y0.shape)[1]
+            threshold = (0.75+0.25*threshold_ramp)*np.log(class_num)
+            mask      = (uncertainty < threshold).float()
+            loss_unsup= torch.sum(mask*square_error)/(2*torch.sum(mask)+1e-16)
+
             consis_w = 0.0
             if(self.glob_it > ssl_cfg.get('iter_sup', 0)):
                 consis_w = ssl_cfg.get('consis_w', 0.1)
                 if(ramp_up_length is not None and ramp_up_length > 0):
                     consis_w = consis_w * sigmoid_rampup(self.glob_it, ramp_up_length)
-            loss_unsup = torch.nn.MSELoss()(p1_soft, p1_ema_soft)
             loss = loss_sup + consis_w*loss_unsup
 
             loss.backward()
@@ -118,17 +126,3 @@ class SSLMeanTeacher(SSLSegAgent):
             'loss_unsup':train_avg_loss_unsup, 'consis_w':consis_w,
             'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers
-           
-def main():
-    if(len(sys.argv) < 3):
-        print('Number of arguments should be 3. e.g.')
-        print('   pymic_net_run train config.cfg')
-        exit()
-    stage    = str(sys.argv[1])
-    cfg_file = str(sys.argv[2])
-    config   = parse_config(cfg_file)
-    agent = SSLMeanTeacher(config, stage)
-    agent.run()
-
-if __name__ == "__main__":
-    main()

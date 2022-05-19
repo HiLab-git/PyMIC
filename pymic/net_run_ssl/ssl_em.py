@@ -1,40 +1,18 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 
-import copy
-import os
-import sys
-import time
-import random
-import scipy
-import torch
-import torchvision
-import torchvision.transforms as transforms
 import numpy as np
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import torch.backends.cudnn as cudnn
-
-from scipy import special
-from datetime import datetime
-from tensorboardX import SummaryWriter
-from pymic.io.image_read_write import save_nd_array_as_image
+import random
+import torch
+import torchvision.transforms as transforms
 from pymic.io.nifty_dataset import NiftyDataset
-from pymic.transform.trans_dict import TransformDict
-from pymic.net.net_dict_seg import SegNetDict
-from pymic.net_run.agent_abstract import NetRunAgent
-from pymic.net_run.agent_seg import SegmentationAgent
-from pymic.net_run.infer_func import Inferer
-from pymic.loss.loss_dict_seg import SegLossDict
-from pymic.loss.seg.combined import CombinedLoss
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.util.image_process import convert_label
-from pymic.util.parse_config import parse_config
 from pymic.loss.seg.ssl import EntropyLoss
-
+from pymic.net_run.agent_seg import SegmentationAgent
+from pymic.transform.trans_dict import TransformDict
+from pymic.util.ramps import sigmoid_rampup
 
 class SSLSegAgent(SegmentationAgent):
     """
@@ -89,17 +67,6 @@ class SSLSegAgent(SegmentationAgent):
                 batch_size = bn_train_unlab, shuffle=True, num_workers= num_worker,
                 worker_init_fn=worker_init)
 
-    def get_consistency_weight_with_rampup(self, w0, current, rampup_length):
-        """
-        Get conssitency weight with rampup https://arxiv.org/abs/1610.02242
-        """
-        if(rampup_length is None or rampup_length == 0):
-            return w0
-        else:
-            current = np.clip(current, 0, rampup_length)
-            phase   = 1.0 - (current + 0.0) / rampup_length
-            return  w0*np.exp(-5.0 * phase * phase)
-
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
@@ -126,21 +93,6 @@ class SSLSegAgent(SegmentationAgent):
             y0   = self.convert_tensor_type(data_lab['label_prob'])  
             x1   = self.convert_tensor_type(data_unlab['image'])
             inputs = torch.cat([x0, x1], dim = 0)               
-            
-            # # for debug
-            # for i in range(inputs.shape[0]):
-            #     image_i = inputs[i][0]
-            #     label_i = labels_prob[i][1]
-            #     pixw_i  = pix_w[i][0]
-            #     print(image_i.shape, label_i.shape, pixw_i.shape)
-            #     image_name = "temp/image_{0:}_{1:}.nii.gz".format(it, i)
-            #     label_name = "temp/label_{0:}_{1:}.nii.gz".format(it, i)
-            #     weight_name= "temp/weight_{0:}_{1:}.nii.gz".format(it, i)
-            #     save_nd_array_as_image(image_i, image_name, reference_name = None)
-            #     save_nd_array_as_image(label_i, label_name, reference_name = None)
-            #     save_nd_array_as_image(pixw_i, weight_name, reference_name = None)
-            # continue
-
             inputs, y0 = inputs.to(self.device), y0.to(self.device)
             
             # zero the parameter gradients
@@ -149,18 +101,18 @@ class SSLSegAgent(SegmentationAgent):
             # forward + backward + optimize
             outputs = self.net(inputs)
             n0 = list(x0.shape)[0] 
-            p0, p1  = torch.tensor_split(outputs, [n0,], dim = 0)
+            p0 = outputs[:n0]
             loss_sup = self.get_loss_value(data_lab, x0, p0, y0)
             loss_dict = {"prediction":outputs, 'softmax':True}
             loss_unsup = EntropyLoss()(loss_dict)
-
-            consis_w0= ssl_cfg.get('consis_w', 0.1)
-            iter_sup = ssl_cfg.get('iter_sup', 0)
+            
             iter_max = self.config['training']['iter_max']
             ramp_up_length = ssl_cfg.get('ramp_up_length', iter_max)
-            consis_w = self.get_consistency_weight_with_rampup(
-                consis_w0, self.glob_it, ramp_up_length)
-            consis_w = 0.0 if self.glob_it < iter_sup else consis_w
+            consis_w = 0.0
+            if(self.glob_it > ssl_cfg.get('iter_sup', 0)):
+                consis_w = ssl_cfg.get('consis_w', 0.1)
+                if(ramp_up_length is not None and ramp_up_length > 0):
+                    consis_w = consis_w * sigmoid_rampup(self.glob_it, ramp_up_length)
             loss = loss_sup + consis_w*loss_unsup
             # if (self.config['training']['use'])
             loss.backward()
@@ -214,17 +166,3 @@ class SSLSegAgent(SegmentationAgent):
     def train_valid(self):
         self.trainIter_unlab = iter(self.train_loader_unlab)   
         super(SSLSegAgent, self).train_valid()    
-
-def main():
-    if(len(sys.argv) < 3):
-        print('Number of arguments should be 3. e.g.')
-        print('   pymic_net_run train config.cfg')
-        exit()
-    stage    = str(sys.argv[1])
-    cfg_file = str(sys.argv[2])
-    config   = parse_config(cfg_file)
-    agent = SSLSegAgent(config, stage)
-    agent.run()
-
-if __name__ == "__main__":
-    main()

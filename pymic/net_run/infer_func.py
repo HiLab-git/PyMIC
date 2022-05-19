@@ -60,7 +60,10 @@ class Inferer(object):
                 window_stride[d] = window_size[d]
                 
         if all([window_size[d] >= img_shape[d] for d in range(img_dim)]):
-            return self.model(image)
+            output = self.model(image)
+            if(out_num == 1 and isinstance(output, (tuple, list))):
+                output = output[0]
+            return output
 
         crop_start_list  = []
         for w in range(0, img_shape[-1], window_stride[-1]):
