@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
+from cmath import log
 
 import copy
 import os
 import sys
 import time
 import random
+import logging
 import scipy
 import torch
 import torchvision
@@ -80,7 +82,7 @@ class SegmentationAgent(NetRunAgent):
         else:
             self.net.double()
         param_number = sum(p.numel() for p in self.net.parameters() if p.requires_grad)
-        print('parameter number:', param_number)
+        logging.info('parameter number {0:}'.format(param_number))
 
     def get_parameters_to_update(self):
         return self.net.parameters()
@@ -258,10 +260,12 @@ class SegmentationAgent(NetRunAgent):
                 'valid':valid_scalars['class_dice'][c]}
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
        
-        print('train loss {0:.4f}, avg dice {1:.4f}'.format(
-            train_scalars['loss'], train_scalars['avg_dice']), train_scalars['class_dice'])        
-        print('valid loss {0:.4f}, avg dice {1:.4f}'.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']), valid_scalars['class_dice'])  
+        logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
+            train_scalars['loss'], train_scalars['avg_dice']) + "[" + \
+            ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
+        logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
+            valid_scalars['loss'], valid_scalars['avg_dice']) + "[" + \
+            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")        
 
     def train_valid(self):
         device_ids = self.config['training']['gpus']
@@ -315,7 +319,7 @@ class SegmentationAgent(NetRunAgent):
                 
         self.trainIter  = iter(self.train_loader)
         
-        print("{0:} training start".format(str(datetime.now())[:-7]))
+        logging.info("{0:} training start".format(str(datetime.now())[:-7]))
         self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
         self.glob_it = iter_start
         for it in range(iter_start, iter_max, iter_valid):
@@ -325,8 +329,8 @@ class SegmentationAgent(NetRunAgent):
             valid_scalars = self.validation()
             t2 = time.time()
             self.glob_it = it + iter_valid
-            print("{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
-            print("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
+            logging.info("{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
+            logging.info("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
             self.write_scalars(train_scalars, valid_scalars, self.glob_it)
 
             if(valid_scalars['avg_dice'] > self.max_val_dice):
@@ -358,7 +362,7 @@ class SegmentationAgent(NetRunAgent):
         txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefx), 'wt')
         txt_file.write(str(self.max_val_it))
         txt_file.close()
-        print('The best performing iter is {0:}, valid dice {1:}'.format(\
+        logging.info('The best performing iter is {0:}, valid dice {1:}'.format(\
             self.max_val_it, self.max_val_dice))
         self.summ_writer.close()
     
@@ -372,7 +376,7 @@ class SegmentationAgent(NetRunAgent):
             if(self.config['testing'].get('test_time_dropout', False)):
                 def test_time_dropout(m):
                     if(type(m) == nn.Dropout):
-                        print('dropout layer')
+                        logging.info('dropout layer')
                         m.train()
                 self.net.apply(test_time_dropout)
 

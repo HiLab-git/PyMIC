@@ -2,6 +2,7 @@
 from __future__ import absolute_import, print_function
 
 import configparser
+
 def is_int(val_str):
     start_digit = 0
     if(val_str[0] =='-'):
@@ -94,7 +95,7 @@ def parse_config(filename):
                 output[section][key] = val
             else:
                 val = None
-            print(section, key, val_str, val)
+            print(section, key, val)
     return output
             
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
+import logging
 import sys
 from pymic.util.parse_config import parse_config
 from pymic.net_run.agent_cls import ClassificationAgent
@@ -15,6 +16,11 @@ def main():
     config   = parse_config(cfg_file)
     task     = config['dataset']['task_type']
     assert task in ['cls', 'cls_nexcl', 'seg']
+    log_dir  = config['training']['ckpt_save_dir']
+    logging.basicConfig(filename=log_dir+"/log.txt", level=logging.INFO,
+                        format='%(message)s')
+    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+
     if(task == 'cls' or task == 'cls_nexcl'):
         agent = ClassificationAgent(config, stage)
     else:
