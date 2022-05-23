@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
-
+import logging
 import torch
 import numpy as np
 from pymic.loss.seg.util import get_soft_label
@@ -68,7 +68,7 @@ class SSLMeanTeacher(SSLSegAgent):
             outputs = self.net(inputs)
             n0 = list(x0.shape)[0] 
             p0 = outputs[:n0]
-            loss_sup = self.get_loss_value(data_lab, x0, p0, y0)
+            loss_sup = self.get_loss_value(data_lab, p0, y0)
 
             outputs_soft = torch.softmax(outputs, dim=1)
             p1_soft = outputs_soft[n0:]
@@ -118,17 +118,3 @@ class SSLMeanTeacher(SSLSegAgent):
             'loss_unsup':train_avg_loss_unsup, 'consis_w':consis_w,
             'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers
-           
-def main():
-    if(len(sys.argv) < 3):
-        print('Number of arguments should be 3. e.g.')
-        print('   pymic_net_run train config.cfg')
-        exit()
-    stage    = str(sys.argv[1])
-    cfg_file = str(sys.argv[2])
-    config   = parse_config(cfg_file)
-    agent = SSLMeanTeacher(config, stage)
-    agent.run()
-
-if __name__ == "__main__":
-    main()

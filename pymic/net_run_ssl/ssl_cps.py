@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
-
+import logging
 import numpy as np
 import torch
 import torch.optim as optim
@@ -95,8 +95,8 @@ class SSLCrossPseudoSupervision(SSLSegAgent):
 
             n0 = list(x0.shape)[0] 
             p0 = outputs_soft1[:n0]
-            loss_sup1 = self.get_loss_value(data_lab, x0, outputs1[:n0], y0)
-            loss_sup2 = self.get_loss_value(data_lab, x0, outputs2[:n0], y0)
+            loss_sup1 = self.get_loss_value(data_lab, outputs1[:n0], y0)
+            loss_sup2 = self.get_loss_value(data_lab, outputs2[:n0], y0)
             
             # Get pseudo labels of unannotated data and convert to one-hot
             pse_outputs1 = torch.argmax(outputs_soft1[n0:].detach(), dim=1, keepdim=True)
@@ -104,8 +104,8 @@ class SSLCrossPseudoSupervision(SSLSegAgent):
             pse_prob1 = get_soft_label(pse_outputs1, class_num, self.tensor_type)
             pse_prob2 = get_soft_label(pse_outputs2, class_num, self.tensor_type)
 
-            pse_sup1 = self.get_loss_value(data_unlab, x1, outputs1[n0:], pse_prob2)
-            pse_sup2 = self.get_loss_value(data_unlab, x1, outputs2[n0:], pse_prob1)
+            pse_sup1 = self.get_loss_value(data_unlab, outputs1[n0:], pse_prob2)
+            pse_sup2 = self.get_loss_value(data_unlab, outputs2[n0:], pse_prob1)
 
             iter_max = self.config['training']['iter_max']
             ramp_up_length = ssl_cfg.get('ramp_up_length', iter_max)
@@ -171,8 +171,10 @@ class SSLCrossPseudoSupervision(SSLSegAgent):
             cls_dice_scalar = {'train':train_scalars['class_dice'][c], \
                 'valid':valid_scalars['class_dice'][c]}
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
-       
-        print('train loss {0:.4f}, avg dice {1:.4f}'.format(
-            train_scalars['loss'], train_scalars['avg_dice']), train_scalars['class_dice'])        
-        print('valid loss {0:.4f}, avg dice {1:.4f}'.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']), valid_scalars['class_dice'])
+
+        logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
+            train_scalars['loss'], train_scalars['avg_dice']) + "[" + \
+            ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
+        logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
+            valid_scalars['loss'], valid_scalars['avg_dice']) + "[" + \
+            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]") 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
-
+import logging
 import torch
 import numpy as np
 from pymic.loss.seg.util import get_soft_label
@@ -56,7 +56,7 @@ class SSLUncertaintyAwareMeanTeacher(SSLMeanTeacher):
             p0, p1  = torch.tensor_split(outputs, [n0,], dim = 0)
             outputs_soft = torch.softmax(outputs, dim=1)
             p0_soft, p1_soft = torch.tensor_split(outputs_soft, [n0,], dim = 0)
-            loss_sup = self.get_loss_value(data_lab, x0, p0, y0)
+            loss_sup = self.get_loss_value(data_lab, p0, y0)
 
             with torch.no_grad():
                 outputs_ema = self.net_ema(inputs_ema)

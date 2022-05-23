@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
-
+import logging
 import torch
 import torch.nn as nn
 import numpy as np
@@ -58,20 +58,17 @@ class SSLURPC(SSLSegAgent):
 
             # get supervised loss
             p0 = [output_i[:n0] for output_i in outputs_list]
-            loss_sup = 0.0
-            for p0_i in p0:
-                loss_sup += self.get_loss_value(data_lab, x0, p0_i, y0)
-            loss_sup = loss_sup / len(outputs_list)
+            loss_sup = self.get_loss_value(data_lab, p0, y0)
 
             # get average probability across scales
             outputs_soft_list = [torch.softmax(item, dim=1) for item in outputs_list]
             outputs_soft_avg  = torch.mean(torch.stack(outputs_soft_list),dim = 0)
-            p1_avg = outputs_soft_avg[n0:] # for unannotated images
+            p1_avg = outputs_soft_avg[n0:] * 0.99 + 0.005 # for unannotated images
 
             # unsupervised loss
             loss_unsup = 0.0
             for soft_i in outputs_soft_list:
-                p1_i = soft_i[n0:]
+                p1_i = soft_i[n0:] * 0.99 + 0.005
                 var  = torch.sum(kl_distance(
                         torch.log(p1_i), p1_avg), dim=1, keepdim=True)
                 exp_var = torch.exp(-var)            

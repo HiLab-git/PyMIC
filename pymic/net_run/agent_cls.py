@@ -92,6 +92,15 @@ class ClassificationAgent(NetRunAgent):
         params = self.net.get_parameters_to_update()
         return params
 
+    def create_loss_calculator(self):
+        if(self.loss_dict is None):
+            self.loss_dict = PyMICClsLossDict
+        loss_name = self.config['training']['loss_type']
+        if(loss_name in self.loss_dict):
+            self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
+        else:
+            raise ValueError("Undefined loss function {0:}".format(loss_name))
+
     def get_loss_value(self, data, inputs, outputs, labels):
         loss_input_dict = {}
         loss_input_dict['prediction'] = outputs
@@ -217,16 +226,8 @@ class ClassificationAgent(NetRunAgent):
             self.max_val_it     = self.checkpoint['iteration']
             self.best_model_wts = self.checkpoint['model_state_dict']
         
-        params = self.get_parameters_to_update()
-        self.create_optimizer(params)
-        
-        if(self.loss_dict is None):
-            self.loss_dict = PyMICClsLossDict
-        loss_name = self.config['training']['loss_type']
-        if(loss_name in self.loss_dict):
-                self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
-        else:
-            raise ValueError("Undefined loss function {0:}".format(loss_name))
+        self.create_optimizer(self.get_parameters_to_update())
+        self.create_loss_calculator()
 
         self.trainIter  = iter(self.train_loader)
 

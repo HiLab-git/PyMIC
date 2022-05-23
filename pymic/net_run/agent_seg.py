@@ -10,28 +10,25 @@ import random
 import logging
 import scipy
 import torch
-import torchvision
 import torchvision.transforms as transforms
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-import torch.backends.cudnn as cudnn
-
-from scipy import special
 from datetime import datetime
 from tensorboardX import SummaryWriter
 from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.io.nifty_dataset import NiftyDataset
-from pymic.transform.trans_dict import TransformDict
 from pymic.net.net_dict_seg import SegNetDict
 from pymic.net_run.agent_abstract import NetRunAgent
 from pymic.net_run.infer_func import Inferer
 from pymic.loss.loss_dict_seg import SegLossDict
 from pymic.loss.seg.combined import CombinedLoss
+from pymic.loss.seg.deep_sup import DeepSuperviseLoss
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
+from pymic.transform.trans_dict import TransformDict
 from pymic.util.image_process import convert_label
 from pymic.util.parse_config import parse_config
 
@@ -130,23 +127,34 @@ class SegmentationAgent(NetRunAgent):
             pix_w = torch.ones(pix_w_shape)
         pix_w = self.convert_tensor_type(pix_w)
         return pix_w
-        
-    def get_loss_value(self, data, inputs, outputs, labels_prob):
-        """
-        Assume inputs, outputs and label_prob has been sent to self.device
-        """
-        cls_w = self.get_class_level_weight()
-        img_w = self.get_image_level_weight(data)
-        if("label_prob" not in data):
-            data["label_prob"] = labels_prob
-        pix_w = self.get_pixel_level_weight(data)
 
-        img_w, pix_w = img_w.to(self.device), pix_w.to(self.device)
-        cls_w = cls_w.to(self.device)
-        loss_input_dict = {'image':inputs, 'prediction':outputs, 'ground_truth':labels_prob,
-                'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': cls_w, 
-                'softmax': True}
-        loss_value = self.loss_calculater(loss_input_dict)
+    def create_loss_calculator(self):
+        if(self.loss_dict is None):
+            self.loss_dict = SegLossDict
+        loss_name = self.config['training']['loss_type']
+        if isinstance(loss_name, (list, tuple)):
+            base_loss = CombinedLoss(self.config['training'], self.loss_dict)
+        elif (loss_name not in self.loss_dict):
+            raise ValueError("Undefined loss function {0:}".format(loss_name))
+        else:
+            base_loss = self.loss_dict[loss_name](self.config['training'])
+        if(self.config['network'].get('deep_supervise', False)):
+            weight = self.config['network'].get('deep_supervise_weight', None)
+            params = {'deep_supervise_weight': weight, 'base_loss':base_loss}
+            self.loss_calculator = DeepSuperviseLoss(params)
+        else:
+            self.loss_calculator = base_loss
+                
+    def get_loss_value(self, data, pred, gt, param = None):
+        """
+        Assume pred and gt has been sent to self.device
+        data is obtained by dataloaderis  and is dictionary containing extra 
+        information, such as pixel-level weight, class-level weight.
+        By default, such information is not used by standard loss functions 
+        such as Dice loss and cross entropy loss.  
+        """
+        loss_input_dict = {'prediction':pred, 'ground_truth': gt}
+        loss_value = self.loss_calculator(loss_input_dict)
         return loss_value
     
     def training(self):
@@ -186,7 +194,7 @@ class SegmentationAgent(NetRunAgent):
                 
             # forward + backward + optimize
             outputs = self.net(inputs)
-            loss = self.get_loss_value(data, inputs, outputs, labels_prob)
+            loss = self.get_loss_value(data, outputs, labels_prob)
             # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
@@ -228,7 +236,7 @@ class SegmentationAgent(NetRunAgent):
                 outputs = infer_obj.run(inputs)
 
                 # The tensors are on CPU when calculating loss for validation data
-                loss = self.get_loss_value(data, inputs, outputs, labels_prob)
+                loss = self.get_loss_value(data, outputs, labels_prob)
                 valid_loss_list.append(loss.item())
 
                 if(isinstance(outputs, tuple) or isinstance(outputs, list)):
@@ -276,7 +284,7 @@ class SegmentationAgent(NetRunAgent):
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
         ckpt_dir    = self.config['training']['ckpt_save_dir']
-        ckpt_prefx  = self.config['training']['ckpt_save_prefix']
+        ckpt_prefx = ckpt_dir.split('/')[-1]
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
@@ -303,20 +311,9 @@ class SegmentationAgent(NetRunAgent):
             self.max_val_it   = iter_start
             self.best_model_wts = self.checkpoint['model_state_dict']
             
-        params = self.get_parameters_to_update()
-        self.create_optimizer(params)
-
-        if(self.loss_dict is None):
-            self.loss_dict = SegLossDict
-        loss_name = self.config['training']['loss_type']
-        if isinstance(loss_name, (list, tuple)):
-            self.loss_calculater = CombinedLoss(self.config['training'], self.loss_dict)
-        else:
-            if(loss_name in self.loss_dict):
-                self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
-            else:
-                raise ValueError("Undefined loss function {0:}".format(loss_name))
-                
+        self.create_optimizer(self.get_parameters_to_update())
+        self.create_loss_calculator()
+    
         self.trainIter  = iter(self.train_loader)
         
         logging.info("{0:} training start".format(str(datetime.now())[:-7]))
@@ -498,6 +495,8 @@ class SegmentationAgent(NetRunAgent):
             os.mkdir(output_dir)
 
         names, pred = data['names'], data['predict']
+        if(isinstance(pred, (list, tuple))):
+            pred =  pred[0]
         prob   = scipy.special.softmax(pred, axis = 1) 
         output = np.asarray(np.argmax(prob,  axis = 1), np.uint8)
         if((label_source is not None) and (label_target is not None)):

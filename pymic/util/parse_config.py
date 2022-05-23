@@ -2,6 +2,7 @@
 from __future__ import absolute_import, print_function
 
 import configparser
+import logging
 
 def is_int(val_str):
     start_digit = 0
@@ -98,6 +99,21 @@ def parse_config(filename):
             print(section, key, val)
     return output
             
+def synchronize_config(config):
+    data_cfg = config['dataset'] 
+    net_cfg  = config['network']
+    data_cfg["modal_num"] = net_cfg["in_chns"]
+    data_cfg["LabelToProbability_class_num".lower()] = net_cfg["class_num"] 
+    config['dataset'] = data_cfg
+    config['network'] = net_cfg
+    return config 
+
+def logging_config(config):
+    for section in config:
+        for key in config[section]:
+            value = config[section][key]
+            logging.info("{0:} {1:} = {2:}".format(section, key, value))
+
 if __name__ == "__main__":
     print(is_int('555'))
     print(is_float('555.10'))

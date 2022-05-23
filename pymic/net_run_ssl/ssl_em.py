@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
-
+import logging
 import numpy as np
 import random
 import torch
@@ -102,7 +102,7 @@ class SSLSegAgent(SegmentationAgent):
             outputs = self.net(inputs)
             n0 = list(x0.shape)[0] 
             p0 = outputs[:n0]
-            loss_sup = self.get_loss_value(data_lab, x0, p0, y0)
+            loss_sup = self.get_loss_value(data_lab, p0, y0)
             loss_dict = {"prediction":outputs, 'softmax':True}
             loss_unsup = EntropyLoss()(loss_dict)
             
@@ -157,11 +157,12 @@ class SSLSegAgent(SegmentationAgent):
             cls_dice_scalar = {'train':train_scalars['class_dice'][c], \
                 'valid':valid_scalars['class_dice'][c]}
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
-       
-        print('train loss {0:.4f}, avg dice {1:.4f}'.format(
-            train_scalars['loss'], train_scalars['avg_dice']), train_scalars['class_dice'])        
-        print('valid loss {0:.4f}, avg dice {1:.4f}'.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']), valid_scalars['class_dice'])  
+        logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
+            train_scalars['loss'], train_scalars['avg_dice']) + "[" + \
+            ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
+        logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
+            valid_scalars['loss'], valid_scalars['avg_dice']) + "[" + \
+            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")  
 
     def train_valid(self):
         self.trainIter_unlab = iter(self.train_loader_unlab)   

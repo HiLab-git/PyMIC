@@ -13,14 +13,17 @@ class EntropyLoss(nn.Module):
     """
     def __init__(self, params = None):
         super(EntropyLoss, self).__init__()
+        if(params is None):
+            self.softmax = True
+        else:
+            self.softmax = params.get('loss_softmax', True)
         
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
-        softmax = loss_input_dict['softmax']
 
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(softmax):
+        if(self.softmax):
             predict = nn.Softmax(dim = 1)(predict)
 
         # for numeric stability

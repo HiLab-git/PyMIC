@@ -73,7 +73,7 @@ class NetRunAgent(object):
         ckpt_mode = self.config['testing']['ckpt_mode']
         if(ckpt_mode == 0 or ckpt_mode == 1):
             ckpt_dir    = self.config['training']['ckpt_save_dir']
-            ckpt_prefix = self.config['training']['ckpt_save_prefix']
+            ckpt_prefix = ckpt_dir.split('/')[-1]
             txt_name = ckpt_dir + '/' + ckpt_prefix
             txt_name += "_latest.txt" if ckpt_mode == 0 else "_best.txt"
             with open(txt_name, 'r') as txt_file:

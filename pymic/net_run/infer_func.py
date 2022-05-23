@@ -21,21 +21,24 @@ class Inferer(object):
             outputs = self.__infer_with_sliding_window(image)
         return outputs
 
-    def __get_prediction_scales(self, tensor_shape, output_num):
+    def __get_prediction_number_and_scales(self, tempx):
         """
         If the network outputs multiple tensors with different sizes, return the
-        scale of each tensor compared with the first one
+        number of tensors and the scale of each tensor compared with the first one
         """
-        img_dim = len(tensor_shape) - 2
-        tempx  = torch.ones(tensor_shape).cuda()
+        img_dim = len(tempx.shape) - 2
         output = self.model(tempx)
-        scales = [[1.0] * img_dim]
-        shape0 = list(output[0].shape[2:])
-        for  i in range(1, output_num):
-            shapei= list(output[i].shape[2:])
-            scale = [(shapei[d] + 0.0) / shape0[d] for d in range(img_dim)]
-            scales.append(scale)
-        return scales
+        if(isinstance(output, (tuple, list))):
+            output_num = len(output)
+            scales = [[1.0] * img_dim]
+            shape0 = list(output[0].shape[2:])
+            for  i in range(1, output_num):
+                shapei= list(output[i].shape[2:])
+                scale = [(shapei[d] + 0.0) / shape0[d] for d in range(img_dim)]
+                scales.append(scale)
+        else:
+            output_num, scales = 1, None
+        return output_num, scales
 
     def __infer_with_sliding_window(self, image):
         """
@@ -45,7 +48,6 @@ class Inferer(object):
         window_size   = [x for x in self.config['sliding_window_size']]
         window_stride = [x for x in self.config['sliding_window_stride']]
         class_num     = self.config['class_num']
-        out_num       = self.config.get('output_num', 1)
         img_full_shape = list(image.shape)
         batch_size = img_full_shape[0]
         img_shape  = img_full_shape[2:]
@@ -61,8 +63,6 @@ class Inferer(object):
                 
         if all([window_size[d] >= img_shape[d] for d in range(img_dim)]):
             output = self.model(image)
-            if(out_num == 1 and isinstance(output, (tuple, list))):
-                output = output[0]
             return output
 
         crop_start_list  = []
@@ -81,6 +81,9 @@ class Inferer(object):
         mask_shape   = [batch_size, class_num] + window_size
         counter      = torch.zeros(output_shape).to(image.device)
         temp_mask    = torch.ones(mask_shape).to(image.device)
+        temp_in_shape = img_full_shape[:2] + window_size
+        tempx = torch.ones(temp_in_shape).to(image.device)
+        out_num, scale_list = self.__get_prediction_number_and_scales(tempx)
         if(out_num == 1): # for a single prediction
             output = torch.zeros(output_shape).to(image.device)
             for c0 in crop_start_list:
@@ -101,7 +104,6 @@ class Inferer(object):
             return output/counter
         else: # for multiple prediction
             output_list= []
-            scale_list = self.__get_prediction_scales(img_full_shape[:2] + window_size, out_num)
             for i in range(out_num):
                 output_shape_i = [batch_size, class_num] + \
                     [int(img_shape[d] * scale_list[i][d]) for d in range(img_dim)]
