@@ -154,6 +154,8 @@ class SegmentationAgent(NetRunAgent):
         such as Dice loss and cross entropy loss.  
         """
         loss_input_dict = {'prediction':pred, 'ground_truth': gt}
+        if data.get('pixel_weight', None) is not None:
+            loss_input_dict['pixel_weight'] = data['pixel_weight'].to(pred.device)
         loss_value = self.loss_calculator(loss_input_dict)
         return loss_value
     
@@ -329,7 +331,6 @@ class SegmentationAgent(NetRunAgent):
             logging.info("{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
             logging.info("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
             self.write_scalars(train_scalars, valid_scalars, self.glob_it)
-
             if(valid_scalars['avg_dice'] > self.max_val_dice):
                 self.max_val_dice = valid_scalars['avg_dice']
                 self.max_val_it   = self.glob_it

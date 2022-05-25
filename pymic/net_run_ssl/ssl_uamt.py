@@ -91,7 +91,7 @@ class SSLUncertaintyAwareMeanTeacher(SSLMeanTeacher):
             consis_w = 0.0
             if(self.glob_it > ssl_cfg.get('iter_sup', 0)):
                 consis_w = ssl_cfg.get('consis_w', 0.1)
-                if(ramp_up_length is not None and ramp_up_length > 0):
+                if(ramp_up_length is not None and self.glob_it < ramp_up_length):
                     consis_w = consis_w * sigmoid_rampup(self.glob_it, ramp_up_length)
             loss = loss_sup + consis_w*loss_unsup
 

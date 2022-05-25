@@ -108,12 +108,12 @@ class SSLCrossPseudoSupervision(SSLSegAgent):
             pse_sup2 = self.get_loss_value(data_unlab, outputs2[n0:], pse_prob1)
 
             iter_max = self.config['training']['iter_max']
-            ramp_up_length = ssl_cfg.get('ramp_up_length', iter_max)
+            ramp_up_len = ssl_cfg.get('ramp_up_length', iter_max)
             consis_w = 0.0
             if(self.glob_it > ssl_cfg.get('iter_sup', 0)):
                 consis_w = ssl_cfg.get('consis_w', 0.1)
-                if(ramp_up_length is not None and ramp_up_length > 0):
-                    consis_w = consis_w * sigmoid_rampup(self.glob_it, ramp_up_length)
+                if(ramp_up_len is not None and self.glob_it < ramp_up_len):
+                    consis_w = consis_w * sigmoid_rampup(self.glob_it, ramp_up_len)
 
             model1_loss = loss_sup1 + consis_w * pse_sup1
             model2_loss = loss_sup2 + consis_w * pse_sup2

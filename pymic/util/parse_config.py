@@ -104,6 +104,8 @@ def synchronize_config(config):
     net_cfg  = config['network']
     data_cfg["modal_num"] = net_cfg["in_chns"]
     data_cfg["LabelToProbability_class_num".lower()] = net_cfg["class_num"] 
+    if "PartialLabelToProbability" in data_cfg['train_transform']:
+        data_cfg["PartialLabelToProbability_class_num".lower()] = net_cfg["class_num"]
     config['dataset'] = data_cfg
     config['network'] = net_cfg
     return config 

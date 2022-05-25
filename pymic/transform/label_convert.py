@@ -80,4 +80,40 @@ class LabelToProbability(AbstractTransform):
         return sample
 
 
+class PartialLabelToProbability(AbstractTransform):
+    """Convert one-channel label map to one-hot multi-channel probability map
+    Note that the label map represents partial labels.
+    For segmentation tasks only. 
+    0: background
+    1 to C-1: foreground (C-classes)
+    C: unknown label. 
+    the output consists of:
+    label_prob: one-hot probability map
+    pixel_weight: weigh of pixels, 0 if the label is unknown
+    """
+    def __init__(self, params): 
+        """
+        class_num (int): the class number in the label map
+        """
+        super(PartialLabelToProbability, self).__init__(params)
+        self.class_num = params['PartialLabelToProbability_class_num'.lower()]
+        self.inverse   = params.get('PartialLabelToProbability_inverse'.lower(), False)
+    
+    def __call__(self, sample):
+        label = sample['label'][0]
+        assert(label.max() <= self.class_num)
+        label_prob = np.zeros((self.class_num, *label.shape), dtype = np.float32)
+        for i in range(self.class_num):
+            label_prob[i] = label == i*np.ones_like(label)
+        sample['label_prob'] = label_prob
+        sample['pixel_weight'] = 1.0 - np.asarray([label == self.class_num], np.float32)
+
+        # # for gated CRF loss
+        # scribble = label - 1
+        # scribble[label == 0] = 255
+        # sample['scribbles'] = scribble
+        return sample
+
+
+
 
