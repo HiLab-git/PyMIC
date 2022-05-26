@@ -109,14 +109,14 @@ class SSLCrossPseudoSupervision(SSLEntropyMinimization):
 
             iter_max = self.config['training']['iter_max']
             ramp_up_len = ssl_cfg.get('ramp_up_length', iter_max)
-            consis_w = 0.0
+            regular_w = 0.0
             if(self.glob_it > ssl_cfg.get('iter_sup', 0)):
-                consis_w = ssl_cfg.get('consis_w', 0.1)
+                regular_w = ssl_cfg.get('regularize_w', 0.1)
                 if(ramp_up_len is not None and self.glob_it < ramp_up_len):
-                    consis_w = consis_w * sigmoid_rampup(self.glob_it, ramp_up_len)
+                    regular_w = regular_w * sigmoid_rampup(self.glob_it, ramp_up_len)
 
-            model1_loss = loss_sup1 + consis_w * pse_sup1
-            model2_loss = loss_sup2 + consis_w * pse_sup2
+            model1_loss = loss_sup1 + regular_w * pse_sup1
+            model2_loss = loss_sup2 + regular_w * pse_sup2
             loss = model1_loss + model2_loss
 
             loss.backward()
@@ -150,7 +150,7 @@ class SSLCrossPseudoSupervision(SSLEntropyMinimization):
         train_scalers = {'loss': train_avg_loss, 
             'loss_sup1':train_avg_loss_sup1, 'loss_sup2': train_avg_loss_sup2,
             'loss_pse_sup1':train_avg_loss_pse_sup1, 'loss_pse_sup2': train_avg_loss_pse_sup2,
-            'consis_w':consis_w, 'avg_dice':train_avg_dice, 'class_dice': train_cls_dice}
+            'regular_w':regular_w, 'avg_dice':train_avg_dice, 'class_dice': train_cls_dice}
         return train_scalers
     
     def write_scalars(self, train_scalars, valid_scalars, glob_it):
@@ -164,7 +164,7 @@ class SSLCrossPseudoSupervision(SSLEntropyMinimization):
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars('loss_sup', loss_sup_scalar, glob_it)
         self.summ_writer.add_scalars('loss_pseudo_sup', loss_pse_sup_scalar, glob_it)
-        self.summ_writer.add_scalars('consis_w', {'consis_w':train_scalars['consis_w']}, glob_it)
+        self.summ_writer.add_scalars('regular_w', {'regular_w':train_scalars['regular_w']}, glob_it)
         self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
         class_num = self.config['network']['class_num']
         for c in range(class_num):

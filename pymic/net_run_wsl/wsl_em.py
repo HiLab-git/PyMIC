@@ -27,7 +27,7 @@ class WSL_EntropyMinimization(SegmentationAgent):
         wsl_cfg     = self.config['weakly_supervised_learning']
         train_loss  = 0
         train_loss_sup = 0
-        train_loss_unsup = 0
+        train_loss_reg = 0
         train_dice_list = []
         self.net.train()
         for it in range(iter_valid):
@@ -49,25 +49,25 @@ class WSL_EntropyMinimization(SegmentationAgent):
             # forward + backward + optimize
             outputs = self.net(inputs)
             loss_sup = self.get_loss_value(data, outputs, y)
-            loss_dict = {"prediction":outputs, 'softmax':True}
-            loss_unsup = EntropyLoss()(loss_dict)
+            loss_dict= {"prediction":outputs, 'softmax':True}
+            loss_reg = EntropyLoss()(loss_dict)
             
             iter_max = self.config['training']['iter_max']
             ramp_up_length = wsl_cfg.get('ramp_up_length', iter_max)
-            consis_w = 0.0
+            regular_w = 0.0
             if(self.glob_it > wsl_cfg.get('iter_sup', 0)):
-                consis_w = wsl_cfg.get('consis_w', 0.1)
+                regular_w = wsl_cfg.get('regularize_w', 0.1)
                 if(ramp_up_length is not None and self.glob_it < ramp_up_length):
-                    consis_w = consis_w * sigmoid_rampup(self.glob_it, ramp_up_length)
-            loss = loss_sup + consis_w*loss_unsup
-            # if (self.config['training']['use'])
+                    regular_w = regular_w * sigmoid_rampup(self.glob_it, ramp_up_length)
+            loss = loss_sup + regular_w*loss_reg
+
             loss.backward()
             self.optimizer.step()
             self.scheduler.step()
 
             train_loss = train_loss + loss.item()
-            train_loss_sup   = train_loss_sup + loss_sup.item()
-            train_loss_unsup = train_loss_unsup + loss_unsup.item() 
+            train_loss_sup = train_loss_sup + loss_sup.item()
+            train_loss_reg = train_loss_reg + loss_reg.item() 
             # get dice evaluation for each class in annotated images
             if(isinstance(outputs, tuple) or isinstance(outputs, list)):
                 outputs = outputs[0] 
@@ -78,12 +78,12 @@ class WSL_EntropyMinimization(SegmentationAgent):
             train_dice_list.append(dice_list.cpu().numpy())
         train_avg_loss = train_loss / iter_valid
         train_avg_loss_sup = train_loss_sup / iter_valid
-        train_avg_loss_unsup = train_loss_unsup / iter_valid
+        train_avg_loss_reg = train_loss_reg / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
         train_avg_dice = train_cls_dice.mean()
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
-            'loss_unsup':train_avg_loss_unsup, 'consis_w':consis_w,
+            'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
             'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers
         
@@ -91,12 +91,12 @@ class WSL_EntropyMinimization(SegmentationAgent):
         loss_scalar ={'train':train_scalars['loss'], 
                       'valid':valid_scalars['loss']}
         loss_sup_scalar  = {'train':train_scalars['loss_sup']}
-        loss_upsup_scalar  = {'train':train_scalars['loss_unsup']}
+        loss_upsup_scalar  = {'train':train_scalars['loss_reg']}
         dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars('loss_sup', loss_sup_scalar, glob_it)
-        self.summ_writer.add_scalars('loss_unsup', loss_upsup_scalar, glob_it)
-        self.summ_writer.add_scalars('consis_w', {'consis_w':train_scalars['consis_w']}, glob_it)
+        self.summ_writer.add_scalars('loss_reg', loss_upsup_scalar, glob_it)
+        self.summ_writer.add_scalars('regular_w', {'regular_w':train_scalars['regular_w']}, glob_it)
         self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
         class_num = self.config['network']['class_num']
         for c in range(class_num):

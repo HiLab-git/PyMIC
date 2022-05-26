@@ -42,7 +42,7 @@ class WSL_USTM(WSL_EntropyMinimization):
         wsl_cfg     = self.config['weakly_supervised_learning']
         train_loss  = 0
         train_loss_sup = 0
-        train_loss_unsup = 0
+        train_loss_reg = 0
         train_dice_list = []
         self.net.train()
         self.net_ema.to(self.device)
@@ -100,14 +100,14 @@ class WSL_USTM(WSL_EntropyMinimization):
             class_num = list(y.shape)[1]
             threshold = (0.75+0.25*threshold_ramp)*np.log(class_num)
             mask      = (uncertainty < threshold).float()
-            loss_unsup= torch.sum(mask*square_error)/(2*torch.sum(mask)+1e-16)
+            loss_reg  = torch.sum(mask*square_error)/(2*torch.sum(mask)+1e-16)
 
-            consis_w = 0.0
+            regular_w = 0.0
             if(self.glob_it > wsl_cfg.get('iter_sup', 0)):
-                consis_w = wsl_cfg.get('consis_w', 0.1)
+                regular_w = wsl_cfg.get('regularize_w', 0.1)
                 if(ramp_up_length is not None and self.glob_it < ramp_up_length):
-                    consis_w = consis_w * sigmoid_rampup(self.glob_it, ramp_up_length)
-            loss = loss_sup + consis_w*loss_unsup
+                    regular_w = regular_w * sigmoid_rampup(self.glob_it, ramp_up_length)
+            loss = loss_sup + regular_w*loss_reg
 
             loss.backward()
             self.optimizer.step()
@@ -120,8 +120,8 @@ class WSL_USTM(WSL_EntropyMinimization):
                 ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
 
             train_loss = train_loss + loss.item()
-            train_loss_sup   = train_loss_sup + loss_sup.item()
-            train_loss_unsup = train_loss_unsup + loss_unsup.item() 
+            train_loss_sup = train_loss_sup + loss_sup.item()
+            train_loss_reg = train_loss_reg + loss_reg.item() 
             # get dice evaluation for each class in annotated images
             if(isinstance(outputs, tuple) or isinstance(outputs, list)):
                 outputs = outputs[0] 
@@ -132,11 +132,11 @@ class WSL_USTM(WSL_EntropyMinimization):
             train_dice_list.append(dice_list.cpu().numpy())
         train_avg_loss = train_loss / iter_valid
         train_avg_loss_sup = train_loss_sup / iter_valid
-        train_avg_loss_unsup = train_loss_unsup / iter_valid
+        train_avg_loss_reg = train_loss_reg / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
         train_avg_dice = train_cls_dice.mean()
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
-            'loss_unsup':train_avg_loss_unsup, 'consis_w':consis_w,
+            'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
             'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers
