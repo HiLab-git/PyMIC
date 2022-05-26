@@ -9,10 +9,10 @@ from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.util.ramps import sigmoid_rampup
 from pymic.net_run.get_optimizer import get_optimiser
-from pymic.net_run_ssl.ssl_em import SSLSegAgent
+from pymic.net_run_ssl.ssl_em import SSLEntropyMinimization
 from pymic.net.net_dict_seg import SegNetDict
 
-class SSLCrossPseudoSupervision(SSLSegAgent):
+class SSLCrossPseudoSupervision(SSLEntropyMinimization):
     """
     Using cross pseudo supervision according to the following paper:
     Xiaokang Chen, Yuhui Yuan, Gang Zeng, Jingdong Wang, 

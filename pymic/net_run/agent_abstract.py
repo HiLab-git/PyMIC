@@ -48,6 +48,7 @@ class NetRunAgent(object):
         self.random_seed   = config['training'].get('random_seed', 1)
         if(self.deterministic):
             seed_torch(self.random_seed)
+            print("deterministric is true")
         
     def set_datasets(self, train_set, valid_set, test_set):
         self.train_set = train_set
@@ -119,7 +120,10 @@ class NetRunAgent(object):
                 self.valid_set = self.get_stage_dataset_from_config('valid')
             if(self.deterministic):
                 def worker_init_fn(worker_id):
-                    random.seed(self.random_seed+worker_id)
+                    # workder_seed = self.random_seed+worker_id 
+                    workder_seed = torch.initial_seed() % 2 ** 32
+                    np.random.seed(workder_seed)
+                    random.seed(workder_seed)                    
                 worker_init = worker_init_fn
             else:
                 worker_init = None
@@ -127,12 +131,15 @@ class NetRunAgent(object):
             bn_train = self.config['dataset']['train_batch_size']
             bn_valid = self.config['dataset'].get('valid_batch_size', 1)
             num_worker = self.config['dataset'].get('num_workder', 16)
+            g_train, g_valid = torch.Generator(), torch.Generator()
+            g_train.manual_seed(self.random_seed)
+            g_valid.manual_seed(self.random_seed)
             self.train_loader = torch.utils.data.DataLoader(self.train_set, 
                 batch_size = bn_train, shuffle=True, num_workers= num_worker,
-                worker_init_fn=worker_init)
+                worker_init_fn=worker_init, generator = g_train)
             self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
                 batch_size = bn_valid, shuffle=False, num_workers= num_worker,
-                worker_init_fn=worker_init)
+                worker_init_fn=worker_init, generator = g_valid)
         else:
             bn_test = self.config['dataset'].get('test_batch_size', 1)
             if(self.test_set  is None):

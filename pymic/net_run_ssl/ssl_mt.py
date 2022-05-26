@@ -7,10 +7,10 @@ from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.util.ramps import sigmoid_rampup
-from pymic.net_run_ssl.ssl_em import SSLSegAgent
+from pymic.net_run_ssl.ssl_em import SSLEntropyMinimization
 from pymic.net.net_dict_seg import SegNetDict
 
-class SSLMeanTeacher(SSLSegAgent):
+class SSLMeanTeacher(SSLEntropyMinimization):
     """
     Training and testing agent for semi-supervised segmentation
     """

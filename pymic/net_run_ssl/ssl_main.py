@@ -5,13 +5,13 @@ import logging
 import os
 import sys
 from pymic.util.parse_config import *
-from pymic.net_run_ssl.ssl_em import SSLSegAgent
+from pymic.net_run_ssl.ssl_em import SSLEntropyMinimization
 from pymic.net_run_ssl.ssl_mt import SSLMeanTeacher
 from pymic.net_run_ssl.ssl_uamt import SSLUncertaintyAwareMeanTeacher
 from pymic.net_run_ssl.ssl_urpc import SSLURPC
 from pymic.net_run_ssl.ssl_cps import SSLCrossPseudoSupervision
 
-SSLMethodDict = {'EntropyMinimization': SSLSegAgent,
+SSLMethodDict = {'EntropyMinimization': SSLEntropyMinimization,
     'MeanTeacher': SSLMeanTeacher,
     'UAMT': SSLUncertaintyAwareMeanTeacher,
     'URPC': SSLURPC,

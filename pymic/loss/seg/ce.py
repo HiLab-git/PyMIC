@@ -8,7 +8,10 @@ from pymic.loss.seg.util import reshape_tensor_to_2D
 class CrossEntropyLoss(nn.Module):
     def __init__(self, params):
         super(CrossEntropyLoss, self).__init__()
-        self.softmax = params.get('loss_softmax', True)
+        if(params is None):
+            self.softmax = True
+        else:
+            self.softmax = params.get('loss_softmax', True)
     
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
@@ -37,7 +40,6 @@ class PartialCrossEntropyLoss(nn.Module):
     def __init__(self, params):
         super(CrossEntropyLoss, self).__init__()
         self.softmax = params.get('loss_softmax', True)
-        self.ingore_
     
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']

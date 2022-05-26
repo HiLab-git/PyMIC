@@ -4,22 +4,37 @@ import logging
 import numpy as np
 import random
 import torch
+import torch.nn.functional as F
 import torchvision.transforms as transforms
 from pymic.io.nifty_dataset import NiftyDataset
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.loss.seg.ssl import EntropyLoss
-from pymic.net_run.agent_seg import SegmentationAgent
+from pymic.net.net_dict_seg import SegNetDict
+from pymic.net_run_wsl.wsl_em import WSL_EntropyMinimization
 from pymic.transform.trans_dict import TransformDict
 from pymic.util.ramps import sigmoid_rampup
 
-class WSL_EntropyMinimization(SegmentationAgent):
+class WSL_USTM(WSL_EntropyMinimization):
     """
     Training and testing agent for semi-supervised segmentation
     """
     def __init__(self, config, stage = 'train'):
-        super(WSL_EntropyMinimization, self).__init__(config, stage)
+        super(WSL_USTM, self).__init__(config, stage)
+        self.net_ema = None 
+    
+    def create_network(self):
+        super(WSL_USTM, self).create_network()
+        if(self.net_ema is None):
+            net_name = self.config['network']['net_type']
+            if(net_name not in SegNetDict):
+                raise ValueError("Undefined network {0:}".format(net_name))
+            self.net_ema = SegNetDict[net_name](self.config['network'])
+        if(self.tensor_type == 'float'):
+            self.net_ema.float()
+        else:
+            self.net_ema.double()
 
     def training(self):
         class_num   = self.config['network']['class_num']
@@ -30,6 +45,7 @@ class WSL_EntropyMinimization(SegmentationAgent):
         train_loss_unsup = 0
         train_dice_list = []
         self.net.train()
+        self.net_ema.to(self.device)
         for it in range(iter_valid):
             try:
                 data = next(self.trainIter)
@@ -48,22 +64,60 @@ class WSL_EntropyMinimization(SegmentationAgent):
                 
             # forward + backward + optimize
             outputs = self.net(inputs)
+            out_prob= F.softmax(outputs, dim=1)
             loss_sup = self.get_loss_value(data, outputs, y)
-            loss_dict = {"prediction":outputs, 'softmax':True}
-            loss_unsup = EntropyLoss()(loss_dict)
+
+            rot_times = random.randrange(0, 4)
+            inputs_rot= torch.rot90(inputs, rot_times, [-2, -1])
+            noise = torch.clamp(torch.randn_like(inputs) * 0.1, -0.2, 0.2)
+            with torch.no_grad():
+                ema_inputs  = inputs_rot + noise
+                ema_outputs = self.net_ema(ema_inputs)
+                ema_out_prob= F.softmax(ema_outputs, dim=1)
+            out_prob_rot = torch.rot90(out_prob, rot_times, [-2, -1])
+            square_error = torch.square(out_prob_rot - ema_out_prob)
+
+            # the forward pass number for uncertainty estimation
+            T = wsl_cfg.get("ustm_mcdroput_n", 8)
+            preds = torch.zeros([T] + list(y.shape)).to(self.device)
+            for i in range(T//2):
+                ema_inputs_r = torch.cat([inputs_rot, inputs_rot], dim = 0)
+                ema_inputs_r = ema_inputs_r + \
+                    torch.clamp(torch.randn_like(ema_inputs_r) * 0.1, -0.2, 0.2)
+                ema_inputs_r = ema_inputs_r.to(self.device)
+                with torch.no_grad():
+                    ema_outputs_r = self.net_ema(ema_inputs_r)
+                # reshape from [2B, C, D, H, W] to [2, B, C, D, H, W]
+                preds[2*i:2*(i+1)] = ema_outputs_r.reshape([2]+list(y.shape))
+            preds = torch.softmax(preds, dim = 2)
+            preds = torch.mean(preds, dim = 0)
+            uncertainty = -1.0 * torch.sum(preds*torch.log(preds + 1e-6),
+                 dim=1, keepdim=True)
             
             iter_max = self.config['training']['iter_max']
             ramp_up_length = wsl_cfg.get('ramp_up_length', iter_max)
+            threshold_ramp = sigmoid_rampup(self.glob_it, iter_max)
+            class_num = list(y.shape)[1]
+            threshold = (0.75+0.25*threshold_ramp)*np.log(class_num)
+            mask      = (uncertainty < threshold).float()
+            loss_unsup= torch.sum(mask*square_error)/(2*torch.sum(mask)+1e-16)
+
             consis_w = 0.0
             if(self.glob_it > wsl_cfg.get('iter_sup', 0)):
                 consis_w = wsl_cfg.get('consis_w', 0.1)
                 if(ramp_up_length is not None and self.glob_it < ramp_up_length):
                     consis_w = consis_w * sigmoid_rampup(self.glob_it, ramp_up_length)
             loss = loss_sup + consis_w*loss_unsup
-            # if (self.config['training']['use'])
+
             loss.backward()
             self.optimizer.step()
             self.scheduler.step()
+
+            # update EMA
+            alpha = wsl_cfg.get('ema_decay', 0.99)
+            alpha = min(1 - 1 / (iter_max + 1), alpha)
+            for ema_param, param in zip(self.net_ema.parameters(), self.net.parameters()):
+                ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
 
             train_loss = train_loss + loss.item()
             train_loss_sup   = train_loss_sup + loss_sup.item()
@@ -86,26 +140,3 @@ class WSL_EntropyMinimization(SegmentationAgent):
             'loss_unsup':train_avg_loss_unsup, 'consis_w':consis_w,
             'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers
-        
-    def write_scalars(self, train_scalars, valid_scalars, glob_it):
-        loss_scalar ={'train':train_scalars['loss'], 
-                      'valid':valid_scalars['loss']}
-        loss_sup_scalar  = {'train':train_scalars['loss_sup']}
-        loss_upsup_scalar  = {'train':train_scalars['loss_unsup']}
-        dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
-        self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
-        self.summ_writer.add_scalars('loss_sup', loss_sup_scalar, glob_it)
-        self.summ_writer.add_scalars('loss_unsup', loss_upsup_scalar, glob_it)
-        self.summ_writer.add_scalars('consis_w', {'consis_w':train_scalars['consis_w']}, glob_it)
-        self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
-        class_num = self.config['network']['class_num']
-        for c in range(class_num):
-            cls_dice_scalar = {'train':train_scalars['class_dice'][c], \
-                'valid':valid_scalars['class_dice'][c]}
-            self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
-        logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
-            train_scalars['loss'], train_scalars['avg_dice']) + "[" + \
-            ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
-        logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']) + "[" + \
-            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")  

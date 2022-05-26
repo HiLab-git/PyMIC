@@ -9,17 +9,17 @@ from pymic.io.nifty_dataset import NiftyDataset
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.loss.seg.ssl import EntropyLoss
+from pymic.loss.seg.ssl import TotalVariationLoss
 from pymic.net_run.agent_seg import SegmentationAgent
-from pymic.transform.trans_dict import TransformDict
+from pymic.net_run_wsl.wsl_em import WSL_EntropyMinimization
 from pymic.util.ramps import sigmoid_rampup
 
-class WSL_EntropyMinimization(SegmentationAgent):
+class WSL_TotalVariation(WSL_EntropyMinimization):
     """
     Training and testing agent for semi-supervised segmentation
     """
     def __init__(self, config, stage = 'train'):
-        super(WSL_EntropyMinimization, self).__init__(config, stage)
+        super(WSL_TotalVariation, self).__init__(config, stage)
 
     def training(self):
         class_num   = self.config['network']['class_num']
@@ -50,7 +50,7 @@ class WSL_EntropyMinimization(SegmentationAgent):
             outputs = self.net(inputs)
             loss_sup = self.get_loss_value(data, outputs, y)
             loss_dict = {"prediction":outputs, 'softmax':True}
-            loss_unsup = EntropyLoss()(loss_dict)
+            loss_unsup = TotalVariationLoss()(loss_dict)
             
             iter_max = self.config['training']['iter_max']
             ramp_up_length = wsl_cfg.get('ramp_up_length', iter_max)
@@ -87,25 +87,3 @@ class WSL_EntropyMinimization(SegmentationAgent):
             'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers
         
-    def write_scalars(self, train_scalars, valid_scalars, glob_it):
-        loss_scalar ={'train':train_scalars['loss'], 
-                      'valid':valid_scalars['loss']}
-        loss_sup_scalar  = {'train':train_scalars['loss_sup']}
-        loss_upsup_scalar  = {'train':train_scalars['loss_unsup']}
-        dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
-        self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
-        self.summ_writer.add_scalars('loss_sup', loss_sup_scalar, glob_it)
-        self.summ_writer.add_scalars('loss_unsup', loss_upsup_scalar, glob_it)
-        self.summ_writer.add_scalars('consis_w', {'consis_w':train_scalars['consis_w']}, glob_it)
-        self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
-        class_num = self.config['network']['class_num']
-        for c in range(class_num):
-            cls_dice_scalar = {'train':train_scalars['class_dice'][c], \
-                'valid':valid_scalars['class_dice'][c]}
-            self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
-        logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
-            train_scalars['loss'], train_scalars['avg_dice']) + "[" + \
-            ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
-        logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']) + "[" + \
-            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")  

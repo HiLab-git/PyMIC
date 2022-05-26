@@ -14,12 +14,15 @@ from pymic.net_run.agent_seg import SegmentationAgent
 from pymic.transform.trans_dict import TransformDict
 from pymic.util.ramps import sigmoid_rampup
 
-class SSLSegAgent(SegmentationAgent):
+class SSLEntropyMinimization(SegmentationAgent):
     """
-    Training and testing agent for semi-supervised segmentation
+    Implementation of the following paper:
+    Yves Grandvalet and Yoshua Bengio, 
+    Semi-supervised Learningby Entropy Minimization.
+    NeurIPS, 2005. 
     """
     def __init__(self, config, stage = 'train'):
-        super(SSLSegAgent, self).__init__(config, stage)
+        super(SSLEntropyMinimization, self).__init__(config, stage)
         self.transform_dict  = TransformDict
         self.train_set_unlab = None 
 
@@ -50,7 +53,7 @@ class SSLSegAgent(SegmentationAgent):
         return dataset
 
     def create_dataset(self):
-        super(SSLSegAgent, self).create_dataset()
+        super(SSLEntropyMinimization, self).create_dataset()
         if(self.stage == 'train'):
             if(self.train_set_unlab is None):
                 self.train_set_unlab = self.get_unlabeled_dataset_from_config()
@@ -166,4 +169,4 @@ class SSLSegAgent(SegmentationAgent):
 
     def train_valid(self):
         self.trainIter_unlab = iter(self.train_loader_unlab)   
-        super(SSLSegAgent, self).train_valid()    
+        super(SSLEntropyMinimization, self).train_valid()    

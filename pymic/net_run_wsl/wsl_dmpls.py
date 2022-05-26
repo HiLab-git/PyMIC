@@ -9,17 +9,26 @@ from pymic.io.nifty_dataset import NiftyDataset
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.loss.seg.ssl import EntropyLoss
+from pymic.loss.seg.dice import DiceLoss
+from pymic.loss.seg.ssl import TotalVariationLoss
 from pymic.net_run.agent_seg import SegmentationAgent
-from pymic.transform.trans_dict import TransformDict
+from pymic.net_run_wsl.wsl_em import WSL_EntropyMinimization
 from pymic.util.ramps import sigmoid_rampup
 
-class WSL_EntropyMinimization(SegmentationAgent):
+class WSL_DMPLS(WSL_EntropyMinimization):
     """
-    Training and testing agent for semi-supervised segmentation
+    Implementation of the following paper:
+        Xiangde Luo, Minhao Hu, Wenjun Liao, Shuwei Zhai, Tao Song, Guotai Wang,
+        Shaoting Zhang. ScribblScribble-Supervised Medical Image Segmentation via 
+        Dual-Branch Network and Dynamically Mixed Pseudo Labels Supervision.
+        MICCAI 2022. 
     """
     def __init__(self, config, stage = 'train'):
-        super(WSL_EntropyMinimization, self).__init__(config, stage)
+        net_type = config['network']['net_type']
+        if net_type not in ['DualBranchUNet2D', 'DualBranchUNet3D']:
+            raise ValueError("""For WSL_DMPLS, a dual branch network is expected. \
+                It only supports DualBranchUNet2D and DualBranchUNet3D currently.""")
+        super(WSL_DMPLS, self).__init__(config, stage)
 
     def training(self):
         class_num   = self.config['network']['class_num']
@@ -47,10 +56,24 @@ class WSL_EntropyMinimization(SegmentationAgent):
             self.optimizer.zero_grad()
                 
             # forward + backward + optimize
-            outputs = self.net(inputs)
-            loss_sup = self.get_loss_value(data, outputs, y)
-            loss_dict = {"prediction":outputs, 'softmax':True}
-            loss_unsup = EntropyLoss()(loss_dict)
+            outputs1, outputs2 = self.net(inputs)
+            loss_sup1 = self.get_loss_value(data, outputs1, y) 
+            loss_sup2 = self.get_loss_value(data, outputs2, y) 
+            loss_sup  = 0.5 * (loss_sup1 + loss_sup2)
+
+            # get pseudo label with dynamical mix
+            outputs_soft1 = torch.softmax(outputs1, dim=1)
+            outputs_soft2 = torch.softmax(outputs2, dim=1)
+            beta = random.random()
+            pseudo_lab = beta*outputs_soft1.detach() + (1.0-beta)*outputs_soft2.detach()
+            pseudo_lab = torch.argmax(pseudo_lab, dim = 1, keepdim = True)
+            pseudo_lab = get_soft_label(pseudo_lab, class_num, self.tensor_type)
+            
+            # calculate the pseudo label supervision loss
+            loss_calculator = DiceLoss()
+            loss_dict1 = {"prediction":outputs1, 'ground_truth':pseudo_lab}
+            loss_dict2 = {"prediction":outputs2, 'ground_truth':pseudo_lab}
+            loss_pse_sup = 0.5 * (loss_calculator(loss_dict1) + loss_calculator(loss_dict2))
             
             iter_max = self.config['training']['iter_max']
             ramp_up_length = wsl_cfg.get('ramp_up_length', iter_max)
@@ -59,19 +82,19 @@ class WSL_EntropyMinimization(SegmentationAgent):
                 consis_w = wsl_cfg.get('consis_w', 0.1)
                 if(ramp_up_length is not None and self.glob_it < ramp_up_length):
                     consis_w = consis_w * sigmoid_rampup(self.glob_it, ramp_up_length)
-            loss = loss_sup + consis_w*loss_unsup
-            # if (self.config['training']['use'])
+            loss = loss_sup + consis_w*loss_pse_sup
+
             loss.backward()
             self.optimizer.step()
             self.scheduler.step()
 
             train_loss = train_loss + loss.item()
             train_loss_sup   = train_loss_sup + loss_sup.item()
-            train_loss_unsup = train_loss_unsup + loss_unsup.item() 
+            train_loss_unsup = train_loss_unsup + loss_pse_sup.item() 
             # get dice evaluation for each class in annotated images
-            if(isinstance(outputs, tuple) or isinstance(outputs, list)):
-                outputs = outputs[0] 
-            p_argmax = torch.argmax(outputs, dim = 1, keepdim = True)
+            if(isinstance(outputs1, tuple) or isinstance(outputs1, list)):
+                outputs1 = outputs1[0] 
+            p_argmax = torch.argmax(outputs1, dim = 1, keepdim = True)
             p_soft   = get_soft_label(p_argmax, class_num, self.tensor_type)
             p_soft, y = reshape_prediction_and_ground_truth(p_soft, y) 
             dice_list   = get_classwise_dice(p_soft, y)
@@ -87,25 +110,3 @@ class WSL_EntropyMinimization(SegmentationAgent):
             'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers
         
-    def write_scalars(self, train_scalars, valid_scalars, glob_it):
-        loss_scalar ={'train':train_scalars['loss'], 
-                      'valid':valid_scalars['loss']}
-        loss_sup_scalar  = {'train':train_scalars['loss_sup']}
-        loss_upsup_scalar  = {'train':train_scalars['loss_unsup']}
-        dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
-        self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
-        self.summ_writer.add_scalars('loss_sup', loss_sup_scalar, glob_it)
-        self.summ_writer.add_scalars('loss_unsup', loss_upsup_scalar, glob_it)
-        self.summ_writer.add_scalars('consis_w', {'consis_w':train_scalars['consis_w']}, glob_it)
-        self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
-        class_num = self.config['network']['class_num']
-        for c in range(class_num):
-            cls_dice_scalar = {'train':train_scalars['class_dice'][c], \
-                'valid':valid_scalars['class_dice'][c]}
-            self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
-        logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
-            train_scalars['loss'], train_scalars['avg_dice']) + "[" + \
-            ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
-        logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']) + "[" + \
-            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")  

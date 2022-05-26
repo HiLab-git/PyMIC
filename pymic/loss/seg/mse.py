@@ -4,7 +4,10 @@ import torch.nn as nn
 class MSELoss(nn.Module):
     def __init__(self, params):
         super(MSELoss, self).__init__()
-        self.softmax = params.get('loss_softmax', True)
+        if(params is None):
+            self.softmax = True
+        else:
+            self.softmax = params.get('loss_softmax', True)
             
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
@@ -22,7 +25,10 @@ class MSELoss(nn.Module):
 class MAELoss(nn.MSELoss):
     def __init__(self, params):
         super(MAELoss, self).__init__(params)
-        self.softmax = params.get('loss_softmax', True)
+        if(params is None):
+            self.softmax = True
+        else:
+            self.softmax = params.get('loss_softmax', True)
     
     def get_prediction_error(self, loss_input_dict):
         predict = loss_input_dict['prediction']
