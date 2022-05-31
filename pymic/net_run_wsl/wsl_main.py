@@ -6,11 +6,13 @@ import os
 import sys
 from pymic.util.parse_config import *
 from pymic.net_run_wsl.wsl_em import WSL_EntropyMinimization
+from pymic.net_run_wsl.wsl_gatedcrf import WSL_GatedCRF
 from pymic.net_run_wsl.wsl_tv import WSL_TotalVariation
 from pymic.net_run_wsl.wsl_ustm import WSL_USTM
 from pymic.net_run_wsl.wsl_dmpls import WSL_DMPLS
 
 WSLMethodDict = {'EntropyMinimization': WSL_EntropyMinimization,
+    'GatedCRF': WSL_GatedCRF,
     'TotalVariation': WSL_TotalVariation,
     'USTM': WSL_USTM,
     'DMPLS': WSL_DMPLS}
