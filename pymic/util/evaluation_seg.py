@@ -222,6 +222,7 @@ def evaluation(config_file):
         for i in range(item_num):
             gt_name  = image_items.iloc[i, 0]
             seg_name = image_items.iloc[i, 1]
+            # seg_name = seg_name.replace(".nii.gz", "_pred.nii.gz")
             gt_full_name  = gt_root  + '/' + gt_name
             seg_full_name = seg_root_n + '/' + seg_name
             
