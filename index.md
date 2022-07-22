@@ -1,4 +1,6 @@
-## Welcome to GitHub Pages
+## Welcome to PyMIC
+
+This page is under construction, we will update it later.
 
 You can use the [editor on GitHub](https://github.com/HiLab-git/PyMIC/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
 
