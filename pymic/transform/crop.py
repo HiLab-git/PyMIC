@@ -82,12 +82,12 @@ class CenterCrop(AbstractTransform):
         if(isinstance(predict, tuple) or isinstance(predict, list)):
             output_predict = []
             for predict_i in predict:
-                origin_shape     = list(predict_i.shape[:2]) + origin_shape[1:]
-                output_predict_i = np.zeros(origin_shape, predict_i.dtype)
-                crop_min = [0, 0] + crop_min[1:]
-                crop_max = list(predict_i.shape[:2]) + crop_max[1:]
+                origin_shape_i   = list(predict_i.shape[:2]) + origin_shape[1:]
+                output_predict_i = np.zeros(origin_shape_i, predict_i.dtype)
+                crop_min_i = [0, 0] + crop_min[1:]
+                crop_max_i = list(predict_i.shape[:2]) + crop_max[1:]
                 output_predict_i = set_ND_volume_roi_with_bounding_box_range(output_predict_i,
-                    crop_min, crop_max, predict_i)
+                    crop_min_i, crop_max_i, predict_i)
                 output_predict.append(output_predict_i)
         else:
             origin_shape   = list(predict.shape[:2]) + origin_shape[1:]
@@ -96,7 +96,7 @@ class CenterCrop(AbstractTransform):
             crop_max = list(predict.shape[:2]) + crop_max[1:]
             output_predict = set_ND_volume_roi_with_bounding_box_range(output_predict,
                 crop_min, crop_max, predict)
-
+        
         sample['predict'] = output_predict
         return sample
 
@@ -143,6 +143,7 @@ class CropWithBoundingBox(CenterCrop):
         crop_min = [0] + crop_min
         crop_max = list(input_shape[0:1]) + crop_max
         sample['CropWithBoundingBox_Param'] = json.dumps((input_shape, crop_min, crop_max))   
+        print("for crop", crop_min, crop_max)
         return sample, crop_min, crop_max
 
     def get_param_for_inverse_transform(self, sample):

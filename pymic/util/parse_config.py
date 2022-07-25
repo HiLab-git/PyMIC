@@ -102,7 +102,7 @@ def parse_config(filename):
 def synchronize_config(config):
     data_cfg = config['dataset'] 
     net_cfg  = config['network']
-    data_cfg["modal_num"] = net_cfg["in_chns"]
+    # data_cfg["modal_num"] = net_cfg["in_chns"]
     data_cfg["LabelToProbability_class_num".lower()] = net_cfg["class_num"] 
     if "PartialLabelToProbability" in data_cfg['train_transform']:
         data_cfg["PartialLabelToProbability_class_num".lower()] = net_cfg["class_num"]

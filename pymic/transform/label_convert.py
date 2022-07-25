@@ -64,7 +64,7 @@ class LabelToProbability(AbstractTransform):
         super(LabelToProbability, self).__init__(params)
         self.class_num = params['LabelToProbability_class_num'.lower()]
         self.inverse   = params.get('LabelToProbability_inverse'.lower(), False)
-    
+
     def __call__(self, sample):
         if(self.task == 'segmentation'):
             label = sample['label'][0] # sample['label'] is (1, h, w)

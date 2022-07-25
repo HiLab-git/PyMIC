@@ -144,7 +144,7 @@ class NetRunAgent(object):
             bn_test = self.config['dataset'].get('test_batch_size', 1)
             if(self.test_set  is None):
                 self.test_set  = self.get_stage_dataset_from_config('test')
-            self.test_loder = torch.utils.data.DataLoader(self.test_set, 
+            self.test_loader = torch.utils.data.DataLoader(self.test_set, 
                 batch_size = bn_test, shuffle=False, num_workers= bn_test)
        
     def create_optimizer(self, params):

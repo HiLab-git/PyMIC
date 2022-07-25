@@ -40,7 +40,7 @@ class SegmentationAgent(NetRunAgent):
     def get_stage_dataset_from_config(self, stage):
         assert(stage in ['train', 'valid', 'test'])
         root_dir  = self.config['dataset']['root_dir']
-        modal_num = self.config['dataset']['modal_num']
+        modal_num = self.config['dataset'].get('modal_num', 1)
 
         transform_key = stage +  '_transform'
         if(stage == "valid" and transform_key not in self.config['dataset']):
@@ -61,7 +61,7 @@ class SegmentationAgent(NetRunAgent):
             data_transform = transforms.Compose(self.transform_list)
 
         csv_file = self.config['dataset'].get(stage + '_csv', None)
-        dataset  = NiftyDataset(root_dir=root_dir,
+        dataset  = NiftyDataset(root_dir  = root_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
                                 with_label= not (stage == 'test'),
@@ -286,7 +286,7 @@ class SegmentationAgent(NetRunAgent):
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
         ckpt_dir    = self.config['training']['ckpt_save_dir']
-        ckpt_prefx = ckpt_dir.split('/')[-1]
+        ckpt_prefx  = ckpt_dir.split('/')[-1]
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
@@ -397,7 +397,7 @@ class SegmentationAgent(NetRunAgent):
         infer_obj = Inferer(self.net, infer_cfg)
         infer_time_list = []
         with torch.no_grad():
-            for data in self.test_loder:
+            for data in self.test_loader:
                 images = self.convert_tensor_type(data['image'])
                 images = images.to(device)
     
@@ -444,7 +444,7 @@ class SegmentationAgent(NetRunAgent):
         infer_obj = Inferer(self.net, infer_cfg)
         infer_time_list = []
         with torch.no_grad():
-            for data in self.test_loder:
+            for data in self.test_loader:
                 images = self.convert_tensor_type(data['image'])
                 images = images.to(device)
     

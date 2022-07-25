@@ -207,7 +207,7 @@ class ClassificationAgent(NetRunAgent):
         self.net.to(self.device)
 
         ckpt_dir    = self.config['training']['ckpt_save_dir']
-        ckpt_prefx  = self.config['training']['ckpt_save_prefix']
+        ckpt_prefx  = ckpt_dir.split('/')[-1]
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
@@ -290,9 +290,12 @@ class ClassificationAgent(NetRunAgent):
         out_prob_list   = []
         out_lab_list    = []
         with torch.no_grad():
-            for data in self.test_loder:
+            for data in self.test_loader:
                 names  = data['names']
+                if(names[0] != "data3_process/20190711_1005487059.png"):
+                    continue
                 inputs = self.convert_tensor_type(data['image'])
+                print("intensity mean and std", inputs.mean(), inputs.std())
                 inputs = inputs.to(device) 
                 
                 start_time = time.time()

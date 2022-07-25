@@ -24,10 +24,9 @@ class ResNet18(nn.Module):
     def __init__(self, params):
         super(ResNet18, self).__init__()
         self.params    = params
-        net_name = params['net_type']
         cls_num  = params['class_num']
-        in_chns  = params['input_chns']
-        self.pretrain = params['pretrain']
+        in_chns  = params.get('input_chns', 3)
+        self.pretrain = params.get('pretrain', True)
         self.update_layers = params.get('update_layers', 0)
         self.net = models.resnet18(pretrained = self.pretrain)
         
@@ -51,10 +50,9 @@ class VGG16(nn.Module):
     def __init__(self, params):
         super(VGG16, self).__init__()
         self.params    = params
-        net_name = params['net_type']
         cls_num  = params['class_num']
-        in_chns  = params['input_chns']
-        self.pretrain = params['pretrain']
+        in_chns  = params.get('input_chns', 3)
+        self.pretrain = params.get('pretrain', True)
         self.update_layers = params.get('update_layers', 0)
         self.net = models.vgg16(pretrained = self.pretrain)
         
@@ -78,10 +76,9 @@ class MobileNetV2(nn.Module):
     def __init__(self, params):
         super(MobileNetV2, self).__init__()
         self.params = params
-        net_name = params['net_type']
         cls_num  = params['class_num']
-        in_chns  = params['input_chns']
-        self.pretrain = params['pretrain']
+        in_chns  = params.get('input_chns', 3)
+        self.pretrain = params.get('pretrain', True)
         self.update_layers = params.get('update_layers', 0)
         self.net = models.mobilenet_v2(pretrained = self.pretrain)
         

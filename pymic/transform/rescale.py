@@ -31,7 +31,7 @@ class Rescale(AbstractTransform):
         image = sample['image']
         input_shape = image.shape
         input_dim   = len(input_shape) - 1
-
+        
         if isinstance(self.output_size, (list, tuple)):
             output_size = self.output_size
             if(output_size[0] is None):
