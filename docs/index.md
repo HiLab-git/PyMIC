@@ -9,7 +9,9 @@ This page is under construction, we will update it later.
 ### Quick Start
 
 ### Links
-[API][./API/README.md]
+[API][api_link]
+
+api_link:./API/README.md
 ### Markdown
 
 Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
