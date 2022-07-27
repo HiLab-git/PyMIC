@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 
-import os
-import sys
-import math
 import torch
-import numpy as np
 from torch.nn.functional import interpolate
 
 class Inferer(object):

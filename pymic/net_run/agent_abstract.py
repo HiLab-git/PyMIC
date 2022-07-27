@@ -2,18 +2,11 @@
 from __future__ import print_function, division
 
 import os
-import time
 import random
 import torch
-import torchvision
 import numpy as np
-import torch.nn as nn
 import torch.optim as optim
-import torch.backends.cudnn as cudnn
-
 from abc import ABCMeta, abstractmethod
-from datetime import datetime
-from pymic.util.parse_config import parse_config
 from pymic.net_run.get_optimizer import get_optimiser
 
 def seed_torch(seed=1):
