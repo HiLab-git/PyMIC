@@ -221,21 +221,22 @@ class SegmentationAgent(NetRunAgent):
         
     def validation(self):
         class_num = self.config['network']['class_num']
-        infer_cfg = self.config['testing']
-        infer_cfg['class_num'] = class_num
+        if(self.inferer is None):
+            infer_cfg = self.config['testing']
+            infer_cfg['class_num'] = class_num
+            self.inferer = Inferer(infer_cfg)
         
         valid_loss_list = []
         valid_dice_list = []
         validIter  = iter(self.valid_loader)
         with torch.no_grad():
             self.net.eval()
-            infer_obj = Inferer(self.net, infer_cfg)
             for data in validIter:
                 inputs      = self.convert_tensor_type(data['image'])
                 labels_prob = self.convert_tensor_type(data['label_prob'])
                 inputs, labels_prob  = inputs.to(self.device), labels_prob.to(self.device)
                 batch_n = inputs.shape[0]
-                outputs = infer_obj.run(inputs)
+                outputs = self.inferer.run(self.net, inputs)
 
                 # The tensors are on CPU when calculating loss for validation data
                 loss = self.get_loss_value(data, outputs, labels_prob)
@@ -286,6 +287,8 @@ class SegmentationAgent(NetRunAgent):
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
         ckpt_dir    = self.config['training']['ckpt_save_dir']
+        if(ckpt_dir[-1] == "/"):
+            ckpt_dir = ckpt_dir[:-1]
         ckpt_prefx  = ckpt_dir.split('/')[-1]
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
@@ -392,9 +395,10 @@ class SegmentationAgent(NetRunAgent):
         checkpoint = torch.load(ckpt_name, map_location = device)
         self.net.load_state_dict(checkpoint['model_state_dict'])
 
-        infer_cfg = self.config['testing']
-        infer_cfg['class_num'] = self.config['network']['class_num']
-        infer_obj = Inferer(self.net, infer_cfg)
+        if(self.inferer is None):
+            infer_cfg = self.config['testing']
+            infer_cfg['class_num'] = self.config['network']['class_num']
+            self.inferer = Inferer(infer_cfg)
         infer_time_list = []
         with torch.no_grad():
             for data in self.test_loader:
@@ -412,7 +416,7 @@ class SegmentationAgent(NetRunAgent):
                 # continue
                 start_time = time.time()
                 
-                pred = infer_obj.run(images)
+                pred = self.inferer.run(self.net, images)
                 # convert tensor to numpy
                 if(isinstance(pred, (tuple, list))):
                     pred = [item.cpu().numpy() for item in pred]
@@ -438,10 +442,11 @@ class SegmentationAgent(NetRunAgent):
         device_ids = self.config['testing']['gpus']
         device = torch.device("cuda:{0:}".format(device_ids[0]))
 
+        if(self.inferer is None):
+            infer_cfg  = self.config['testing']
+            infer_cfg['class_num'] = self.config['network']['class_num']
+            self.inferer = Inferer(infer_cfg)
         ckpt_names = self.config['testing']['ckpt_name']
-        infer_cfg  = self.config['testing']
-        infer_cfg['class_num'] = self.config['network']['class_num']
-        infer_obj = Inferer(self.net, infer_cfg)
         infer_time_list = []
         with torch.no_grad():
             for data in self.test_loader:
@@ -463,7 +468,7 @@ class SegmentationAgent(NetRunAgent):
                     checkpoint = torch.load(ckpt_name, map_location = device)
                     self.net.load_state_dict(checkpoint['model_state_dict'])
                     
-                    pred = infer_obj.run(images)
+                    pred = self.inferer.run(self.net, images)
                     # convert tensor to numpy
                     if(isinstance(pred, (tuple, list))):
                         pred = [item.cpu().numpy() for item in pred]

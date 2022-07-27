@@ -7,28 +7,20 @@ import os
 import sys
 import time
 import random
-import scipy
 import torch
-import torchvision
-from torchvision import datasets, models, transforms
+from torchvision import transforms
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.optim import lr_scheduler
 import matplotlib.pyplot as plt
 from PIL import Image 
-from scipy import special
 from datetime import datetime
 from tensorboardX import SummaryWriter
-from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.io.nifty_dataset import ClassificationDataset
 from pymic.loss.loss_dict_cls import PyMICClsLossDict
 from pymic.net.net_dict_cls import TorchClsNetDict
-from pymic.net_run.get_optimizer import get_optimiser
 from pymic.transform.trans_dict import TransformDict
-from pymic.util.image_process import convert_label
-from pymic.util.parse_config import parse_config
 from pymic.net_run.agent_abstract import NetRunAgent
 import warnings
 warnings.filterwarnings('ignore', '.*output shape of zoom.*')
@@ -207,6 +199,8 @@ class ClassificationAgent(NetRunAgent):
         self.net.to(self.device)
 
         ckpt_dir    = self.config['training']['ckpt_save_dir']
+        if(ckpt_dir[-1] == "/"):
+            ckpt_dir = ckpt_dir[:-1]
         ckpt_prefx  = ckpt_dir.split('/')[-1]
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
@@ -292,10 +286,7 @@ class ClassificationAgent(NetRunAgent):
         with torch.no_grad():
             for data in self.test_loader:
                 names  = data['names']
-                if(names[0] != "data3_process/20190711_1005487059.png"):
-                    continue
                 inputs = self.convert_tensor_type(data['image'])
-                print("intensity mean and std", inputs.mean(), inputs.std())
                 inputs = inputs.to(device) 
                 
                 start_time = time.time()

@@ -94,8 +94,6 @@ class ClassificationDataset(NiftyDataset):
         super(ClassificationDataset, self).__init__(root_dir, 
             csv_file, modal_num, with_label, transform)
         self.class_num = class_num
-        print("class number for ClassificationDataset", self.class_num)
-        print("self.transform", self.transform)
 
     def __getlabel__(self, idx):
         csv_keys = list(self.csv_items.keys())
@@ -127,7 +125,6 @@ class ClassificationDataset(NiftyDataset):
             sample['label'] = self.__getlabel__(idx) 
         if (self.image_weight_idx is not None):
             sample['image_weight'] = self.__getweight__(idx) 
-        print("***transform", self.transform)
         if self.transform:
             sample = self.transform(sample)
         return sample

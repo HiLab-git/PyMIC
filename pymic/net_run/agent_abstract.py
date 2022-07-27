@@ -42,6 +42,7 @@ class NetRunAgent(object):
         self.scheduler = None 
         self.loss_dict = None 
         self.transform_dict  = None
+        self.inferer   = None
         self.tensor_type   = config['dataset']['tensor_type']
         self.task_type     = config['dataset']['task_type'] #cls, cls_mtbc, seg
         self.deterministic = config['training'].get('deterministic', True)
@@ -69,6 +70,9 @@ class NetRunAgent(object):
     
     def set_scheduler(self, scheduler):
         self.scheduler = scheduler
+    
+    def set_inferer(self, inferer):
+        self.inferer = inferer
 
     def get_checkpoint_name(self):
         ckpt_mode = self.config['testing']['ckpt_mode']

@@ -9,9 +9,8 @@ import numpy as np
 from torch.nn.functional import interpolate
 
 class Inferer(object):
-    def __init__(self, model, config):
-        self.model   = model 
-        self.config  = config
+    def __init__(self, config):
+        self.config = config
         
     def __infer(self, image):
         use_sw  = self.config.get('sliding_window_enable', False)
@@ -131,8 +130,9 @@ class Inferer(object):
                 output_list[i] = output_list[i] / counter_i
             return output_list
 
-    def run(self, image):
-        tta_mode  = self.config.get('tta_mode', 0)
+    def run(self, model, image):
+        self.model = model
+        tta_mode   = self.config.get('tta_mode', 0)
         if(tta_mode == 0):
             outputs = self.__infer(image)
         elif(tta_mode == 1): # test time augmentation with flip in 2D

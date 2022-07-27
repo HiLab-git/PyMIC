@@ -77,10 +77,11 @@ class SegmentationAgentwithCL(SegmentationAgent):
         checkpoint = torch.load(ckpt_name, map_location = device)
         self.net.load_state_dict(checkpoint['model_state_dict'])
 
-        infer_cfg = self.config['testing']
-        class_num = self.config['network']['class_num']
-        infer_cfg['class_num'] = class_num 
-        infer_obj = Inferer(self.net, infer_cfg)
+        if(self.inferer is None):
+            infer_cfg = self.config['testing']
+            class_num = self.config['network']['class_num']
+            infer_cfg['class_num'] = class_num 
+            self.inferer = Inferer(infer_cfg)
         pred_list  = []
         gt_list    = []
         filename_list = []
@@ -102,7 +103,7 @@ class SegmentationAgentwithCL(SegmentationAgent):
                 #     save_nd_array_as_image(label_i, label_name, reference_name = None)
                 # continue
                 
-                pred = infer_obj.run(images)
+                pred = self.inferer.run(self.net, images)
                 # convert tensor to numpy
                 if(isinstance(pred, (tuple, list))):
                     pred = [item.cpu().numpy() for item in pred]
