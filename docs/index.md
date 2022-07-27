@@ -2,6 +2,14 @@
 
 This page is under construction, we will update it later.
 
+### Features
+
+### Installation
+
+### Quick Start
+
+### Links
+
 ### Markdown
 
 Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
