@@ -14,29 +14,28 @@ class ExpLogLoss(nn.Module):
     """
     def __init__(self, params):
         super(ExpLogLoss, self).__init__()
+        self.softmax = params.get('loss_softmax', True)
         self.w_dice = params['ExpLogLoss_w_dice'.lower()]
         self.gamma  = params['ExpLogLoss_gamma'.lower()]
 
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
         soft_y  = loss_input_dict['ground_truth']
-        softmax = loss_input_dict['softmax']
-
+        
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(softmax):
+        if(self.softmax):
             predict = nn.Softmax(dim = 1)(predict)
         predict = reshape_tensor_to_2D(predict)
         soft_y  = reshape_tensor_to_2D(soft_y)
 
-
         dice_score = get_classwise_dice(predict, soft_y)
-        dice_score = 0.01 + dice_score * 0.98
+        dice_score = 0.005 + dice_score * 0.99
         exp_dice   = -torch.log(dice_score)
         exp_dice   = torch.pow(exp_dice, self.gamma)
         exp_dice   = torch.mean(exp_dice)
 
-        predict= 0.01 + predict * 0.98
+        predict= 0.005 + predict * 0.99
         wc     = torch.mean(soft_y, dim = 0)
         wc     = 1.0 / (wc + 0.1)
         wc     = torch.pow(wc, 0.5)

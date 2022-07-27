@@ -42,12 +42,14 @@ class NetRunAgent(object):
         self.scheduler = None 
         self.loss_dict = None 
         self.transform_dict  = None
+        self.inferer   = None
         self.tensor_type   = config['dataset']['tensor_type']
         self.task_type     = config['dataset']['task_type'] #cls, cls_mtbc, seg
         self.deterministic = config['training'].get('deterministic', True)
         self.random_seed   = config['training'].get('random_seed', 1)
         if(self.deterministic):
             seed_torch(self.random_seed)
+            print("deterministric is true")
         
     def set_datasets(self, train_set, valid_set, test_set):
         self.train_set = train_set
@@ -68,12 +70,15 @@ class NetRunAgent(object):
     
     def set_scheduler(self, scheduler):
         self.scheduler = scheduler
+    
+    def set_inferer(self, inferer):
+        self.inferer = inferer
 
     def get_checkpoint_name(self):
         ckpt_mode = self.config['testing']['ckpt_mode']
         if(ckpt_mode == 0 or ckpt_mode == 1):
             ckpt_dir    = self.config['training']['ckpt_save_dir']
-            ckpt_prefix = self.config['training']['ckpt_save_prefix']
+            ckpt_prefix = ckpt_dir.split('/')[-1]
             txt_name = ckpt_dir + '/' + ckpt_prefix
             txt_name += "_latest.txt" if ckpt_mode == 0 else "_best.txt"
             with open(txt_name, 'r') as txt_file:
@@ -119,7 +124,10 @@ class NetRunAgent(object):
                 self.valid_set = self.get_stage_dataset_from_config('valid')
             if(self.deterministic):
                 def worker_init_fn(worker_id):
-                    random.seed(self.random_seed+worker_id)
+                    # workder_seed = self.random_seed+worker_id 
+                    workder_seed = torch.initial_seed() % 2 ** 32
+                    np.random.seed(workder_seed)
+                    random.seed(workder_seed)                    
                 worker_init = worker_init_fn
             else:
                 worker_init = None
@@ -127,17 +135,20 @@ class NetRunAgent(object):
             bn_train = self.config['dataset']['train_batch_size']
             bn_valid = self.config['dataset'].get('valid_batch_size', 1)
             num_worker = self.config['dataset'].get('num_workder', 16)
+            g_train, g_valid = torch.Generator(), torch.Generator()
+            g_train.manual_seed(self.random_seed)
+            g_valid.manual_seed(self.random_seed)
             self.train_loader = torch.utils.data.DataLoader(self.train_set, 
                 batch_size = bn_train, shuffle=True, num_workers= num_worker,
-                worker_init_fn=worker_init)
+                worker_init_fn=worker_init, generator = g_train)
             self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
                 batch_size = bn_valid, shuffle=False, num_workers= num_worker,
-                worker_init_fn=worker_init)
+                worker_init_fn=worker_init, generator = g_valid)
         else:
             bn_test = self.config['dataset'].get('test_batch_size', 1)
             if(self.test_set  is None):
                 self.test_set  = self.get_stage_dataset_from_config('test')
-            self.test_loder = torch.utils.data.DataLoader(self.test_set, 
+            self.test_loader = torch.utils.data.DataLoader(self.test_set, 
                 batch_size = bn_test, shuffle=False, num_workers= bn_test)
        
     def create_optimizer(self, params):

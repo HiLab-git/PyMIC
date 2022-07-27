@@ -1,35 +1,34 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
+from cmath import log
 
 import copy
 import os
 import sys
 import time
 import random
+import logging
 import scipy
 import torch
-import torchvision
 import torchvision.transforms as transforms
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-import torch.backends.cudnn as cudnn
-
-from scipy import special
 from datetime import datetime
 from tensorboardX import SummaryWriter
 from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.io.nifty_dataset import NiftyDataset
-from pymic.transform.trans_dict import TransformDict
 from pymic.net.net_dict_seg import SegNetDict
 from pymic.net_run.agent_abstract import NetRunAgent
 from pymic.net_run.infer_func import Inferer
 from pymic.loss.loss_dict_seg import SegLossDict
 from pymic.loss.seg.combined import CombinedLoss
+from pymic.loss.seg.deep_sup import DeepSuperviseLoss
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
+from pymic.transform.trans_dict import TransformDict
 from pymic.util.image_process import convert_label
 from pymic.util.parse_config import parse_config
 
@@ -41,7 +40,7 @@ class SegmentationAgent(NetRunAgent):
     def get_stage_dataset_from_config(self, stage):
         assert(stage in ['train', 'valid', 'test'])
         root_dir  = self.config['dataset']['root_dir']
-        modal_num = self.config['dataset']['modal_num']
+        modal_num = self.config['dataset'].get('modal_num', 1)
 
         transform_key = stage +  '_transform'
         if(stage == "valid" and transform_key not in self.config['dataset']):
@@ -62,7 +61,7 @@ class SegmentationAgent(NetRunAgent):
             data_transform = transforms.Compose(self.transform_list)
 
         csv_file = self.config['dataset'].get(stage + '_csv', None)
-        dataset  = NiftyDataset(root_dir=root_dir,
+        dataset  = NiftyDataset(root_dir  = root_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
                                 with_label= not (stage == 'test'),
@@ -80,7 +79,7 @@ class SegmentationAgent(NetRunAgent):
         else:
             self.net.double()
         param_number = sum(p.numel() for p in self.net.parameters() if p.requires_grad)
-        print('parameter number:', param_number)
+        logging.info('parameter number {0:}'.format(param_number))
 
     def get_parameters_to_update(self):
         return self.net.parameters()
@@ -128,21 +127,36 @@ class SegmentationAgent(NetRunAgent):
             pix_w = torch.ones(pix_w_shape)
         pix_w = self.convert_tensor_type(pix_w)
         return pix_w
-        
-    def get_loss_value(self, data, inputs, outputs, labels_prob):
-        """
-        Assume inputs, outputs and label_prob has been sent to self.device
-        """
-        cls_w = self.get_class_level_weight()
-        img_w = self.get_image_level_weight(data) 
-        pix_w = self.get_pixel_level_weight(data)
 
-        img_w, pix_w = img_w.to(self.device), pix_w.to(self.device)
-        cls_w = cls_w.to(self.device)
-        loss_input_dict = {'image':inputs, 'prediction':outputs, 'ground_truth':labels_prob,
-                'image_weight': img_w, 'pixel_weight': pix_w, 'class_weight': cls_w, 
-                'softmax': True}
-        loss_value = self.loss_calculater(loss_input_dict)
+    def create_loss_calculator(self):
+        if(self.loss_dict is None):
+            self.loss_dict = SegLossDict
+        loss_name = self.config['training']['loss_type']
+        if isinstance(loss_name, (list, tuple)):
+            base_loss = CombinedLoss(self.config['training'], self.loss_dict)
+        elif (loss_name not in self.loss_dict):
+            raise ValueError("Undefined loss function {0:}".format(loss_name))
+        else:
+            base_loss = self.loss_dict[loss_name](self.config['training'])
+        if(self.config['network'].get('deep_supervise', False)):
+            weight = self.config['network'].get('deep_supervise_weight', None)
+            params = {'deep_supervise_weight': weight, 'base_loss':base_loss}
+            self.loss_calculator = DeepSuperviseLoss(params)
+        else:
+            self.loss_calculator = base_loss
+                
+    def get_loss_value(self, data, pred, gt, param = None):
+        """
+        Assume pred and gt has been sent to self.device
+        data is obtained by dataloaderis  and is dictionary containing extra 
+        information, such as pixel-level weight, class-level weight.
+        By default, such information is not used by standard loss functions 
+        such as Dice loss and cross entropy loss.  
+        """
+        loss_input_dict = {'prediction':pred, 'ground_truth': gt}
+        if data.get('pixel_weight', None) is not None:
+            loss_input_dict['pixel_weight'] = data['pixel_weight'].to(pred.device)
+        loss_value = self.loss_calculator(loss_input_dict)
         return loss_value
     
     def training(self):
@@ -182,7 +196,7 @@ class SegmentationAgent(NetRunAgent):
                 
             # forward + backward + optimize
             outputs = self.net(inputs)
-            loss = self.get_loss_value(data, inputs, outputs, labels_prob)
+            loss = self.get_loss_value(data, outputs, labels_prob)
             # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
@@ -207,24 +221,25 @@ class SegmentationAgent(NetRunAgent):
         
     def validation(self):
         class_num = self.config['network']['class_num']
-        infer_cfg = self.config['testing']
-        infer_cfg['class_num'] = class_num
+        if(self.inferer is None):
+            infer_cfg = self.config['testing']
+            infer_cfg['class_num'] = class_num
+            self.inferer = Inferer(infer_cfg)
         
         valid_loss_list = []
         valid_dice_list = []
         validIter  = iter(self.valid_loader)
         with torch.no_grad():
             self.net.eval()
-            infer_obj = Inferer(self.net, infer_cfg)
             for data in validIter:
                 inputs      = self.convert_tensor_type(data['image'])
                 labels_prob = self.convert_tensor_type(data['label_prob'])
                 inputs, labels_prob  = inputs.to(self.device), labels_prob.to(self.device)
                 batch_n = inputs.shape[0]
-                outputs = infer_obj.run(inputs)
+                outputs = self.inferer.run(self.net, inputs)
 
                 # The tensors are on CPU when calculating loss for validation data
-                loss = self.get_loss_value(data, inputs, outputs, labels_prob)
+                loss = self.get_loss_value(data, outputs, labels_prob)
                 valid_loss_list.append(loss.item())
 
                 if(isinstance(outputs, tuple) or isinstance(outputs, list)):
@@ -256,10 +271,12 @@ class SegmentationAgent(NetRunAgent):
                 'valid':valid_scalars['class_dice'][c]}
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
        
-        print('train loss {0:.4f}, avg dice {1:.4f}'.format(
-            train_scalars['loss'], train_scalars['avg_dice']), train_scalars['class_dice'])        
-        print('valid loss {0:.4f}, avg dice {1:.4f}'.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']), valid_scalars['class_dice'])  
+        logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
+            train_scalars['loss'], train_scalars['avg_dice']) + "[" + \
+            ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
+        logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
+            valid_scalars['loss'], valid_scalars['avg_dice']) + "[" + \
+            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")        
 
     def train_valid(self):
         device_ids = self.config['training']['gpus']
@@ -270,7 +287,9 @@ class SegmentationAgent(NetRunAgent):
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
         ckpt_dir    = self.config['training']['ckpt_save_dir']
-        ckpt_prefx  = self.config['training']['ckpt_save_prefix']
+        if(ckpt_dir[-1] == "/"):
+            ckpt_dir = ckpt_dir[:-1]
+        ckpt_prefx  = ckpt_dir.split('/')[-1]
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
@@ -297,53 +316,42 @@ class SegmentationAgent(NetRunAgent):
             self.max_val_it   = iter_start
             self.best_model_wts = self.checkpoint['model_state_dict']
             
-        params = self.get_parameters_to_update()
-        self.create_optimizer(params)
-
-        if(self.loss_dict is None):
-            self.loss_dict = SegLossDict
-        loss_name = self.config['training']['loss_type']
-        if isinstance(loss_name, (list, tuple)):
-            self.loss_calculater = CombinedLoss(self.config['training'], self.loss_dict)
-        else:
-            if(loss_name in self.loss_dict):
-                self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
-            else:
-                raise ValueError("Undefined loss function {0:}".format(loss_name))
-                
+        self.create_optimizer(self.get_parameters_to_update())
+        self.create_loss_calculator()
+    
         self.trainIter  = iter(self.train_loader)
         
-        print("{0:} training start".format(str(datetime.now())[:-7]))
+        logging.info("{0:} training start".format(str(datetime.now())[:-7]))
         self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
+        self.glob_it = iter_start
         for it in range(iter_start, iter_max, iter_valid):
             t0 = time.time()
             train_scalars = self.training()
             t1 = time.time()
             valid_scalars = self.validation()
             t2 = time.time()
-            glob_it = it + iter_valid
-            print("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
-            print("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
-            self.write_scalars(train_scalars, valid_scalars, glob_it)
-
+            self.glob_it = it + iter_valid
+            logging.info("{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
+            logging.info("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
+            self.write_scalars(train_scalars, valid_scalars, self.glob_it)
             if(valid_scalars['avg_dice'] > self.max_val_dice):
                 self.max_val_dice = valid_scalars['avg_dice']
-                self.max_val_it   = glob_it
+                self.max_val_it   = self.glob_it
                 if(len(device_ids) > 1):
                     self.best_model_wts = copy.deepcopy(self.net.module.state_dict())
                 else:
                     self.best_model_wts = copy.deepcopy(self.net.state_dict())
 
-            if (glob_it in iter_save_list):
-                save_dict = {'iteration': glob_it,
+            if (self.glob_it in iter_save_list):
+                save_dict = {'iteration': self.glob_it,
                              'valid_pred': valid_scalars['avg_dice'],
                              'model_state_dict': self.net.module.state_dict() \
                                  if len(device_ids) > 1 else self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
-                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, glob_it)
+                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, self.glob_it)
                 torch.save(save_dict, save_name) 
                 txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefx), 'wt')
-                txt_file.write(str(glob_it))
+                txt_file.write(str(self.glob_it))
                 txt_file.close()
         # save the best performing checkpoint
         save_dict = {'iteration': self.max_val_it,
@@ -355,7 +363,7 @@ class SegmentationAgent(NetRunAgent):
         txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefx), 'wt')
         txt_file.write(str(self.max_val_it))
         txt_file.close()
-        print('The best performing iter is {0:}, valid dice {1:}'.format(\
+        logging.info('The best performing iter is {0:}, valid dice {1:}'.format(\
             self.max_val_it, self.max_val_dice))
         self.summ_writer.close()
     
@@ -369,7 +377,7 @@ class SegmentationAgent(NetRunAgent):
             if(self.config['testing'].get('test_time_dropout', False)):
                 def test_time_dropout(m):
                     if(type(m) == nn.Dropout):
-                        print('dropout layer')
+                        logging.info('dropout layer')
                         m.train()
                 self.net.apply(test_time_dropout)
 
@@ -387,12 +395,13 @@ class SegmentationAgent(NetRunAgent):
         checkpoint = torch.load(ckpt_name, map_location = device)
         self.net.load_state_dict(checkpoint['model_state_dict'])
 
-        infer_cfg = self.config['testing']
-        infer_cfg['class_num'] = self.config['network']['class_num']
-        infer_obj = Inferer(self.net, infer_cfg)
+        if(self.inferer is None):
+            infer_cfg = self.config['testing']
+            infer_cfg['class_num'] = self.config['network']['class_num']
+            self.inferer = Inferer(infer_cfg)
         infer_time_list = []
         with torch.no_grad():
-            for data in self.test_loder:
+            for data in self.test_loader:
                 images = self.convert_tensor_type(data['image'])
                 images = images.to(device)
     
@@ -407,7 +416,7 @@ class SegmentationAgent(NetRunAgent):
                 # continue
                 start_time = time.time()
                 
-                pred = infer_obj.run(images)
+                pred = self.inferer.run(self.net, images)
                 # convert tensor to numpy
                 if(isinstance(pred, (tuple, list))):
                     pred = [item.cpu().numpy() for item in pred]
@@ -433,13 +442,14 @@ class SegmentationAgent(NetRunAgent):
         device_ids = self.config['testing']['gpus']
         device = torch.device("cuda:{0:}".format(device_ids[0]))
 
+        if(self.inferer is None):
+            infer_cfg  = self.config['testing']
+            infer_cfg['class_num'] = self.config['network']['class_num']
+            self.inferer = Inferer(infer_cfg)
         ckpt_names = self.config['testing']['ckpt_name']
-        infer_cfg  = self.config['testing']
-        infer_cfg['class_num'] = self.config['network']['class_num']
-        infer_obj = Inferer(self.net, infer_cfg)
         infer_time_list = []
         with torch.no_grad():
-            for data in self.test_loder:
+            for data in self.test_loader:
                 images = self.convert_tensor_type(data['image'])
                 images = images.to(device)
     
@@ -458,7 +468,7 @@ class SegmentationAgent(NetRunAgent):
                     checkpoint = torch.load(ckpt_name, map_location = device)
                     self.net.load_state_dict(checkpoint['model_state_dict'])
                     
-                    pred = infer_obj.run(images)
+                    pred = self.inferer.run(self.net, images)
                     # convert tensor to numpy
                     if(isinstance(pred, (tuple, list))):
                         pred = [item.cpu().numpy() for item in pred]
@@ -491,6 +501,8 @@ class SegmentationAgent(NetRunAgent):
             os.mkdir(output_dir)
 
         names, pred = data['names'], data['predict']
+        if(isinstance(pred, (list, tuple))):
+            pred =  pred[0]
         prob   = scipy.special.softmax(pred, axis = 1) 
         output = np.asarray(np.argmax(prob,  axis = 1), np.uint8)
         if((label_source is not None) and (label_target is not None)):

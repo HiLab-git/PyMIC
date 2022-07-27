@@ -1,16 +1,28 @@
+
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
-import logging
+import logging 
 import os
 import sys
 from pymic.util.parse_config import *
-from pymic.net_run.agent_cls import ClassificationAgent
-from pymic.net_run.agent_seg import SegmentationAgent
+from pymic.net_run_wsl.wsl_em import WSL_EntropyMinimization
+from pymic.net_run_wsl.wsl_gatedcrf import WSL_GatedCRF
+from pymic.net_run_wsl.wsl_mumford_shah import WSL_MumfordShah
+from pymic.net_run_wsl.wsl_tv import WSL_TotalVariation
+from pymic.net_run_wsl.wsl_ustm import WSL_USTM
+from pymic.net_run_wsl.wsl_dmpls import WSL_DMPLS
+
+WSLMethodDict = {'EntropyMinimization': WSL_EntropyMinimization,
+    'GatedCRF': WSL_GatedCRF,
+    'MumfordShah': WSL_MumfordShah,
+    'TotalVariation': WSL_TotalVariation,
+    'USTM': WSL_USTM,
+    'DMPLS': WSL_DMPLS}
 
 def main():
     if(len(sys.argv) < 3):
         print('Number of arguments should be 3. e.g.')
-        print('   pymic_net_run train config.cfg')
+        print('   pymic_ssl train config.cfg')
         exit()
     stage    = str(sys.argv[1])
     cfg_file = str(sys.argv[2])
@@ -23,15 +35,11 @@ def main():
                         format='%(message)s')
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging_config(config)
-    task     = config['dataset']['task_type']
-    assert task in ['cls', 'cls_nexcl', 'seg']
-    if(task == 'cls' or task == 'cls_nexcl'):
-        agent = ClassificationAgent(config, stage)
-    else:
-        agent = SegmentationAgent(config, stage)
+    wsl_method = config['weakly_supervised_learning']['wsl_method']
+    agent = WSLMethodDict[wsl_method](config, stage)
     agent.run()
 
 if __name__ == "__main__":
     main()
-    
 
+    

@@ -4,9 +4,7 @@ from __future__ import print_function, division
 import os
 import numpy as np
 import SimpleITK as sitk
-
 from PIL import Image
-
 
 def load_nifty_volume_as_4d_array(filename):
     """Read a nifty image and return a dictionay storing data array, spacing and direction

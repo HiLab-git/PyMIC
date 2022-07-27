@@ -7,28 +7,20 @@ import os
 import sys
 import time
 import random
-import scipy
 import torch
-import torchvision
-from torchvision import datasets, models, transforms
+from torchvision import transforms
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.optim import lr_scheduler
 import matplotlib.pyplot as plt
 from PIL import Image 
-from scipy import special
 from datetime import datetime
 from tensorboardX import SummaryWriter
-from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.io.nifty_dataset import ClassificationDataset
 from pymic.loss.loss_dict_cls import PyMICClsLossDict
 from pymic.net.net_dict_cls import TorchClsNetDict
-from pymic.net_run.get_optimizer import get_optimiser
 from pymic.transform.trans_dict import TransformDict
-from pymic.util.image_process import convert_label
-from pymic.util.parse_config import parse_config
 from pymic.net_run.agent_abstract import NetRunAgent
 import warnings
 warnings.filterwarnings('ignore', '.*output shape of zoom.*')
@@ -91,6 +83,15 @@ class ClassificationAgent(NetRunAgent):
     def get_parameters_to_update(self):
         params = self.net.get_parameters_to_update()
         return params
+
+    def create_loss_calculator(self):
+        if(self.loss_dict is None):
+            self.loss_dict = PyMICClsLossDict
+        loss_name = self.config['training']['loss_type']
+        if(loss_name in self.loss_dict):
+            self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
+        else:
+            raise ValueError("Undefined loss function {0:}".format(loss_name))
 
     def get_loss_value(self, data, inputs, outputs, labels):
         loss_input_dict = {}
@@ -198,7 +199,9 @@ class ClassificationAgent(NetRunAgent):
         self.net.to(self.device)
 
         ckpt_dir    = self.config['training']['ckpt_save_dir']
-        ckpt_prefx  = self.config['training']['ckpt_save_prefix']
+        if(ckpt_dir[-1] == "/"):
+            ckpt_dir = ckpt_dir[:-1]
+        ckpt_prefx  = ckpt_dir.split('/')[-1]
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
@@ -217,16 +220,8 @@ class ClassificationAgent(NetRunAgent):
             self.max_val_it     = self.checkpoint['iteration']
             self.best_model_wts = self.checkpoint['model_state_dict']
         
-        params = self.get_parameters_to_update()
-        self.create_optimizer(params)
-        
-        if(self.loss_dict is None):
-            self.loss_dict = PyMICClsLossDict
-        loss_name = self.config['training']['loss_type']
-        if(loss_name in self.loss_dict):
-                self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
-        else:
-            raise ValueError("Undefined loss function {0:}".format(loss_name))
+        self.create_optimizer(self.get_parameters_to_update())
+        self.create_loss_calculator()
 
         self.trainIter  = iter(self.train_loader)
 
@@ -289,7 +284,7 @@ class ClassificationAgent(NetRunAgent):
         out_prob_list   = []
         out_lab_list    = []
         with torch.no_grad():
-            for data in self.test_loder:
+            for data in self.test_loader:
                 names  = data['names']
                 inputs = self.convert_tensor_type(data['image'])
                 inputs = inputs.to(device) 

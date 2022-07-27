@@ -5,7 +5,6 @@ import os
 import torch
 import pandas as pd
 import numpy as np
-
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from pymic.io.image_read_write import load_image_as_nd_array
@@ -95,7 +94,6 @@ class ClassificationDataset(NiftyDataset):
         super(ClassificationDataset, self).__init__(root_dir, 
             csv_file, modal_num, with_label, transform)
         self.class_num = class_num
-        print("class number for ClassificationDataset", self.class_num)
 
     def __getlabel__(self, idx):
         csv_keys = list(self.csv_items.keys())
@@ -129,6 +127,4 @@ class ClassificationDataset(NiftyDataset):
             sample['image_weight'] = self.__getweight__(idx) 
         if self.transform:
             sample = self.transform(sample)
-
         return sample
-

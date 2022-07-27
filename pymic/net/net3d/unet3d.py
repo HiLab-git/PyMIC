@@ -12,6 +12,7 @@ from __future__ import print_function, division
 import torch
 import torch.nn as nn
 import numpy as np
+from torch.nn.functional import interpolate
 
 class ConvBlock(nn.Module):
     """two convolution layers with batch norm and leaky relu"""
@@ -91,9 +92,11 @@ class UNet3D(nn.Module):
         self.params    = params
         self.in_chns   = self.params['in_chns']
         self.ft_chns   = self.params['feature_chns']
+        self.dropout   = self.params['dropout']
         self.n_class   = self.params['class_num']
         self.trilinear = self.params['trilinear']
-        self.dropout   = self.params['dropout']
+        self.deep_sup  = self.params['deep_supervise']
+        self.stage     = self.params['stage']
         assert(len(self.ft_chns) == 5 or len(self.ft_chns) == 4)
 
         self.in_conv= ConvBlock(self.in_chns, self.ft_chns[0], self.dropout[0])
@@ -111,8 +114,11 @@ class UNet3D(nn.Module):
         self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], 
                dropout_p = 0.0, trilinear=self.trilinear) 
     
-        self.out_conv = nn.Conv3d(self.ft_chns[0], self.n_class,  
-            kernel_size = 3, padding = 1)
+        self.out_conv = nn.Conv3d(self.ft_chns[0], self.n_class, kernel_size = 1)
+        if(self.deep_sup):
+            self.out_conv1 = nn.Conv3d(self.ft_chns[1], self.n_class, kernel_size = 1)
+            self.out_conv2 = nn.Conv3d(self.ft_chns[2], self.n_class, kernel_size = 1)
+            self.out_conv3 = nn.Conv3d(self.ft_chns[3], self.n_class, kernel_size = 1)
 
     def forward(self, x):
         x0 = self.in_conv(x)
@@ -121,14 +127,22 @@ class UNet3D(nn.Module):
         x3 = self.down3(x2)
         if(len(self.ft_chns) == 5):
           x4 = self.down4(x3)
-          x = self.up1(x4, x3)
+          x_d3 = self.up1(x4, x3)
         else:
-          x = x3
-        x = self.up2(x, x2)
-        x = self.up3(x, x1)
-        x = self.up4(x, x0)
-        output = self.out_conv(x)
-
+          x_d3 = x3
+        x_d2 = self.up2(x_d3, x2)
+        x_d1 = self.up3(x_d2, x1)
+        x_d0 = self.up4(x_d1, x0)
+        output = self.out_conv(x_d0)
+        if(self.deep_sup and self.stage == "train"):
+            out_shape = list(output.shape)[2:]
+            output1 = self.out_conv1(x_d1)
+            output1 = interpolate(output1, out_shape, mode = 'trilinear')
+            output2 = self.out_conv2(x_d2)
+            output2 = interpolate(output2, out_shape, mode = 'trilinear')
+            output3 = self.out_conv3(x_d3)
+            output3 = interpolate(output3, out_shape, mode = 'trilinear')
+            output = [output, output1, output2, output3]
         return output
 
 if __name__ == "__main__":
