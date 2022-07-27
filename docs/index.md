@@ -1,4 +1,4 @@
-## Welcome to PyMIC
+## Welcome to PyMIC Documentation
 
 This page is under construction, we will update it later.
 
