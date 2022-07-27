@@ -11,7 +11,7 @@ This page is under construction, we will update it later.
 ### Links
 [API][api_link]
 
-[api_link]:API/index.md
+[api_link]:API/index.html
 ### Markdown
 
 Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
