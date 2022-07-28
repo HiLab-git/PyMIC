@@ -3,18 +3,11 @@ from __future__ import print_function, division
 
 import copy
 import csv
-import os
-import sys
 import time
-import random
 import torch
 from torchvision import transforms
 import numpy as np
 import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
-from PIL import Image 
 from datetime import datetime
 from tensorboardX import SummaryWriter
 from pymic.io.nifty_dataset import ClassificationDataset

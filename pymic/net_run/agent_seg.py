@@ -1,12 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
-from cmath import log
-
 import copy
 import os
-import sys
 import time
-import random
 import logging
 import scipy
 import torch
@@ -30,7 +26,6 @@ from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.transform.trans_dict import TransformDict
 from pymic.util.image_process import convert_label
-from pymic.util.parse_config import parse_config
 
 class SegmentationAgent(NetRunAgent):
     def __init__(self, config, stage = 'train'):
