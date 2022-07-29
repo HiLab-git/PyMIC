@@ -323,6 +323,7 @@ class SegmentationAgent(NetRunAgent):
             t0 = time.time()
             train_scalars = self.training()
             t1 = time.time()
+            
             valid_scalars = self.validation()
             t2 = time.time()
             self.glob_it = it + iter_valid
@@ -428,7 +429,7 @@ class SegmentationAgent(NetRunAgent):
                 self.save_ouputs(data)
         infer_time_list = np.asarray(infer_time_list)
         time_avg, time_std = infer_time_list.mean(), infer_time_list.std()
-        print("testing time {0:} +/- {1:}".format(time_avg, time_std))
+        logging.info("testing time {0:} +/- {1:}".format(time_avg, time_std))
 
     def infer_with_multiple_checkpoints(self):
         """
@@ -482,7 +483,7 @@ class SegmentationAgent(NetRunAgent):
                 self.save_ouputs(data)
         infer_time_list = np.asarray(infer_time_list)
         time_avg, time_std = infer_time_list.mean(), infer_time_list.std()
-        print("testing time {0:} +/- {1:}".format(time_avg, time_std))
+        logging.info("testing time {0:} +/- {1:}".format(time_avg, time_std))
 
     def save_ouputs(self, data):
         output_dir = self.config['testing']['output_dir']

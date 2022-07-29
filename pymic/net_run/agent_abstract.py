@@ -3,6 +3,7 @@ from __future__ import print_function, division
 
 import os
 import random
+import logging
 import torch
 import numpy as np
 import torch.optim as optim
@@ -42,7 +43,7 @@ class NetRunAgent(object):
         self.random_seed   = config['training'].get('random_seed', 1)
         if(self.deterministic):
             seed_torch(self.random_seed)
-            print("deterministric is true")
+            logging.info("deterministric is true")
         
     def set_datasets(self, train_set, valid_set, test_set):
         self.train_set = train_set
