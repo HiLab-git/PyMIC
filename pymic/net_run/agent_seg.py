@@ -293,12 +293,14 @@ class SegmentationAgent(NetRunAgent):
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
-        iter_save   = self.config['training']['iter_save']
+        iter_save   = self.config['training'].get('iter_save', None)
         early_stop_it = self.config['training'].get('early_stop_patience', None)
-        if(isinstance(iter_save, (tuple, list))):
+        if(iter_save is None):
+            iter_save_list = [iter_max]
+        elif(isinstance(iter_save, (tuple, list))):
             iter_save_list = iter_save
         else:
-            iter_save_list = range(iter_start, iter_max +1, iter_save)
+            iter_save_list = range(iter_start, iter_max + 1, iter_save)
 
         self.max_val_dice = 0.0
         self.max_val_it   = 0
@@ -354,9 +356,9 @@ class SegmentationAgent(NetRunAgent):
                              'model_state_dict': self.net.module.state_dict() \
                                  if len(device_ids) > 1 else self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
-                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, self.glob_it)
+                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, self.glob_it)
                 torch.save(save_dict, save_name) 
-                txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefx), 'wt')
+                txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefix), 'wt')
                 txt_file.write(str(self.glob_it))
                 txt_file.close()
             if(stop_now):
@@ -367,9 +369,9 @@ class SegmentationAgent(NetRunAgent):
                     'valid_pred': self.max_val_dice,
                     'model_state_dict': self.best_model_wts,
                     'optimizer_state_dict': self.optimizer.state_dict()}
-        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, self.max_val_it)
+        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, self.max_val_it)
         torch.save(save_dict, save_name) 
-        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefx), 'wt')
+        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefix), 'wt')
         txt_file.write(str(self.max_val_it))
         txt_file.close()
         logging.info('The best performing iter is {0:}, valid dice {1:}'.format(\
