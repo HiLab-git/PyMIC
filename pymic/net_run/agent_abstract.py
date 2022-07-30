@@ -8,7 +8,7 @@ import torch
 import numpy as np
 import torch.optim as optim
 from abc import ABCMeta, abstractmethod
-from pymic.net_run.get_optimizer import get_optimiser
+from pymic.net_run.get_optimizer import get_lr_scheduler, get_optimizer
 
 def seed_torch(seed=1):
     random.seed(seed)
@@ -72,7 +72,9 @@ class NetRunAgent(object):
         ckpt_mode = self.config['testing']['ckpt_mode']
         if(ckpt_mode == 0 or ckpt_mode == 1):
             ckpt_dir    = self.config['training']['ckpt_save_dir']
-            ckpt_prefix = ckpt_dir.split('/')[-1]
+            ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
+            if(ckpt_prefix is None):
+                ckpt_prefix = ckpt_dir.split('/')[-1]
             txt_name = ckpt_dir + '/' + ckpt_prefix
             txt_name += "_latest.txt" if ckpt_mode == 0 else "_best.txt"
             with open(txt_name, 'r') as txt_file:
@@ -146,19 +148,17 @@ class NetRunAgent(object):
                 batch_size = bn_test, shuffle=False, num_workers= bn_test)
        
     def create_optimizer(self, params):
+        opt_params = self.config['training']
         if(self.optimizer is None):
-            self.optimizer = get_optimiser(self.config['training']['optimizer'],
-                    params, 
-                    self.config['training'])
+            self.optimizer = get_optimizer(opt_params['optimizer'],
+                    params, opt_params)
         last_iter = -1
         if(self.checkpoint is not None):
             self.optimizer.load_state_dict(self.checkpoint['optimizer_state_dict'])
             last_iter = self.checkpoint['iteration'] - 1
         if(self.scheduler is None):
-            self.scheduler = optim.lr_scheduler.MultiStepLR(self.optimizer,
-                    self.config['training']['lr_milestones'],
-                    self.config['training']['lr_gamma'],
-                    last_epoch = last_iter)
+            opt_params["laster_iter"] = last_iter
+            self.scheduler = get_lr_scheduler(self.optimizer, opt_params)
 
     def convert_tensor_type(self, input_tensor):
         if(self.tensor_type == 'float'):

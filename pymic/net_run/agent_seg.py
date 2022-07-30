@@ -26,6 +26,7 @@ from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.transform.trans_dict import TransformDict
 from pymic.util.image_process import convert_label
+from pymic.util.general import keyword_match
 
 class SegmentationAgent(NetRunAgent):
     def __init__(self, config, stage = 'train'):
@@ -192,10 +193,10 @@ class SegmentationAgent(NetRunAgent):
             # forward + backward + optimize
             outputs = self.net(inputs)
             loss = self.get_loss_value(data, outputs, labels_prob)
-            # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
+            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+                self.scheduler.step()
 
             train_loss = train_loss + loss.item()
             # get dice evaluation for each class
@@ -251,15 +252,19 @@ class SegmentationAgent(NetRunAgent):
         valid_cls_dice = np.asarray(valid_dice_list).mean(axis = 0)
         valid_avg_dice = valid_cls_dice.mean()
         
+        if(keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+            self.scheduler.step(valid_avg_dice)
+
         valid_scalers = {'loss': valid_avg_loss, 'avg_dice': valid_avg_dice,\
             'class_dice': valid_cls_dice}
         return valid_scalers
 
-    def write_scalars(self, train_scalars, valid_scalars, glob_it):
+    def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         loss_scalar ={'train':train_scalars['loss'], 'valid':valid_scalars['loss']}
         dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
+        self.summ_writer.add_scalars('lr', {"lr": lr_value}, glob_it)
         class_num = self.config['network']['class_num']
         for c in range(class_num):
             cls_dice_scalar = {'train':train_scalars['class_dice'][c], \
@@ -282,13 +287,14 @@ class SegmentationAgent(NetRunAgent):
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
         ckpt_dir    = self.config['training']['ckpt_save_dir']
-        if(ckpt_dir[-1] == "/"):
-            ckpt_dir = ckpt_dir[:-1]
-        ckpt_prefx  = ckpt_dir.split('/')[-1]
+        ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
+        if(ckpt_prefix is None):
+            ckpt_prefix = ckpt_dir.split('/')[-1]
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training']['iter_save']
+        early_stop_it = self.config['training'].get('early_stop_patience', None)
         if(isinstance(iter_save, (tuple, list))):
             iter_save_list = iter_save
         else:
@@ -299,7 +305,7 @@ class SegmentationAgent(NetRunAgent):
         self.best_model_wts = None 
         self.checkpoint = None
         if(iter_start > 0):
-            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, iter_start)
+            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, iter_start)
             self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
             # assert(self.checkpoint['iteration'] == iter_start)
             if(len(device_ids) > 1):
@@ -320,6 +326,7 @@ class SegmentationAgent(NetRunAgent):
         self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
         self.glob_it = iter_start
         for it in range(iter_start, iter_max, iter_valid):
+            lr_value = self.optimizer.param_groups[0]['lr']
             t0 = time.time()
             train_scalars = self.training()
             t1 = time.time()
@@ -327,9 +334,10 @@ class SegmentationAgent(NetRunAgent):
             valid_scalars = self.validation()
             t2 = time.time()
             self.glob_it = it + iter_valid
-            logging.info("{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
+            logging.info("\n{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
+            logging.info('learning rate {0:}'.format(lr_value))
             logging.info("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
-            self.write_scalars(train_scalars, valid_scalars, self.glob_it)
+            self.write_scalars(train_scalars, valid_scalars, lr_value, self.glob_it)
             if(valid_scalars['avg_dice'] > self.max_val_dice):
                 self.max_val_dice = valid_scalars['avg_dice']
                 self.max_val_it   = self.glob_it
@@ -338,7 +346,9 @@ class SegmentationAgent(NetRunAgent):
                 else:
                     self.best_model_wts = copy.deepcopy(self.net.state_dict())
 
-            if (self.glob_it in iter_save_list):
+            stop_now = True if(early_stop_it is not None and \
+                self.glob_it - self.max_val_it > early_stop_it) else False
+            if ((self.glob_it in iter_save_list) or stop_now):
                 save_dict = {'iteration': self.glob_it,
                              'valid_pred': valid_scalars['avg_dice'],
                              'model_state_dict': self.net.module.state_dict() \
@@ -349,6 +359,9 @@ class SegmentationAgent(NetRunAgent):
                 txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefx), 'wt')
                 txt_file.write(str(self.glob_it))
                 txt_file.close()
+            if(stop_now):
+                logging.info("The training is early stopped")
+                break
         # save the best performing checkpoint
         save_dict = {'iteration': self.max_val_it,
                     'valid_pred': self.max_val_dice,
