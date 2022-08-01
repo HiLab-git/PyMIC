@@ -4,18 +4,14 @@ import logging
 import numpy as np
 import random
 import torch
-import torchvision.transforms as transforms
-from pymic.io.nifty_dataset import NiftyDataset
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.loss.seg.dice import DiceLoss
-from pymic.loss.seg.ssl import TotalVariationLoss
-from pymic.net_run.agent_seg import SegmentationAgent
-from pymic.net_run_wsl.wsl_em import WSL_EntropyMinimization
+from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
 from pymic.util.ramps import sigmoid_rampup
 
-class WSL_DMPLS(WSL_EntropyMinimization):
+class WSLDMPLS(WSLSegAgent):
     """
     Implementation of the following paper:
         Xiangde Luo, Minhao Hu, Wenjun Liao, Shuwei Zhai, Tao Song, Guotai Wang,
@@ -28,7 +24,7 @@ class WSL_DMPLS(WSL_EntropyMinimization):
         if net_type not in ['DualBranchUNet2D', 'DualBranchUNet3D']:
             raise ValueError("""For WSL_DMPLS, a dual branch network is expected. \
                 It only supports DualBranchUNet2D and DualBranchUNet3D currently.""")
-        super(WSL_DMPLS, self).__init__(config, stage)
+        super(WSLDMPLS, self).__init__(config, stage)
 
     def training(self):
         class_num   = self.config['network']['class_num']

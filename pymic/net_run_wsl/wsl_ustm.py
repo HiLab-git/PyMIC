@@ -5,27 +5,23 @@ import numpy as np
 import random
 import torch
 import torch.nn.functional as F
-import torchvision.transforms as transforms
-from pymic.io.nifty_dataset import NiftyDataset
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.loss.seg.ssl import EntropyLoss
 from pymic.net.net_dict_seg import SegNetDict
-from pymic.net_run_wsl.wsl_em import WSL_EntropyMinimization
-from pymic.transform.trans_dict import TransformDict
+from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
 from pymic.util.ramps import sigmoid_rampup
 
-class WSL_USTM(WSL_EntropyMinimization):
+class WSLUSTM(WSLSegAgent):
     """
     Training and testing agent for semi-supervised segmentation
     """
     def __init__(self, config, stage = 'train'):
-        super(WSL_USTM, self).__init__(config, stage)
+        super(WSLUSTM, self).__init__(config, stage)
         self.net_ema = None 
     
     def create_network(self):
-        super(WSL_USTM, self).create_network()
+        super(WSLUSTM, self).create_network()
         if(self.net_ema is None):
             net_name = self.config['network']['net_type']
             if(net_name not in SegNetDict):
