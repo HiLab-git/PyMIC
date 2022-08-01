@@ -131,24 +131,26 @@ class Inferer(object):
         tta_mode   = self.config.get('tta_mode', 0)
         if(tta_mode == 0):
             outputs = self.__infer(image)
-        elif(tta_mode == 1): # test time augmentation with flip in 2D
+        elif(tta_mode == 1): 
+            # test time augmentation with flip in 2D
+            # you may define your own method for test time augmentation
             outputs1 = self.__infer(image)
             outputs2 = self.__infer(torch.flip(image, [-2]))
-            outputs3 = self.__infer(torch.flip(image, [-3]))
-            outputs4 = self.__infer(torch.flip(image, [-2, -3]))
+            outputs3 = self.__infer(torch.flip(image, [-1]))
+            outputs4 = self.__infer(torch.flip(image, [-2, -1]))
             if(isinstance(outputs1, (tuple, list))):
                 outputs = []
                 for i in range(len(outputs)):
                     temp_out1 = outputs1[i]
                     temp_out2 = torch.flip(outputs2[i], [-2])
-                    temp_out3 = torch.flip(outputs3[i], [-3])
-                    temp_out4 = torch.flip(outputs4[i], [-2, -3])
+                    temp_out3 = torch.flip(outputs3[i], [-1])
+                    temp_out4 = torch.flip(outputs4[i], [-2, -1])
                     temp_mean = (temp_out1 + temp_out2 + temp_out3 + temp_out4) / 4
                     outputs.append(temp_mean)
             else:
                 outputs2 = torch.flip(outputs2, [-2])
-                outputs3 = torch.flip(outputs3, [-3])
-                outputs4 = torch.flip(outputs4, [-2, -3])
+                outputs3 = torch.flip(outputs3, [-1])
+                outputs4 = torch.flip(outputs4, [-2, -1])
                 outputs = (outputs1 + outputs2 + outputs3 + outputs4) / 4
         else:
             raise ValueError("Undefined tta_mode {0:}".format(tta_mode))
