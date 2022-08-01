@@ -8,9 +8,9 @@ from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.util.ramps import sigmoid_rampup
-from pymic.net_run_ssl.ssl_em import SSLEntropyMinimization
+from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
 
-class SSLURPC(SSLEntropyMinimization):
+class SSLURPC(SSLSegAgent):
     """
     Uncertainty-Rectified Pyramid Consistency according to the following paper:
     Xiangde Luo, Wenjun Liao, Jieneng Chen, Tao Song, Yinan Chen,
