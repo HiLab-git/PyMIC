@@ -29,16 +29,14 @@ import os
 import sys
 from pymic.util.parse_config import *
 
-class CoTeachingAgent(SegmentationAgent):
+class NLLCoTeaching(SegmentationAgent):
     """
-    Using cross pseudo supervision according to the following paper:
-    Xiaokang Chen, Yuhui Yuan, Gang Zeng, Jingdong Wang, 
-    Semi-Supervised Semantic Segmentation with Cross Pseudo Supervision,
-    CVPR 2021, pp. 2613-2022.
-    https://arxiv.org/abs/2106.01226 
+    Co-teaching: Robust Training of Deep Neural Networks with Extremely 
+    Noisy Labels
+    https://arxiv.org/abs/1804.06872
     """
     def __init__(self, config, stage = 'train'):
-        super(CoTeachingAgent, self).__init__(config, stage)
+        super(NLLCoTeaching, self).__init__(config, stage)
         self.net2 = None 
         self.optimizer2 = None 
         self.scheduler2 = None
@@ -48,7 +46,7 @@ class CoTeachingAgent(SegmentationAgent):
             " coteaching, the specified loss {0:} is ingored".format(loss_type))
 
     def create_network(self):
-        super(CoTeachingAgent, self).create_network()
+        super(NLLCoTeaching, self).create_network()
         if(self.net2 is None):
             net_name = self.config['network']['net_type']
             if(net_name not in SegNetDict):
@@ -74,7 +72,7 @@ class CoTeachingAgent(SegmentationAgent):
                     self.config['training']['lr_milestones'],
                     self.config['training']['lr_gamma'],
                     last_epoch = last_iter)
-        super(CoTeachingAgent, self).train_valid()
+        super(NLLCoTeaching, self).train_valid()
 
     def training(self):
         class_num   = self.config['network']['class_num']
@@ -211,5 +209,5 @@ if __name__ == "__main__":
                         format='%(message)s')
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging_config(config)
-    agent = CoTeachingAgent(config, stage)
+    agent = NLLCoTeaching(config, stage)
     agent.run()

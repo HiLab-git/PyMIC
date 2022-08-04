@@ -45,9 +45,9 @@ def get_confident_map(gt, pred, CL_type = 'both'):
         noise = cleanlab.pruning.get_noise_indices(gt, prob, prune_method=CL_type, n_jobs=1)
     return noise
 
-class SegmentationAgentwithCL(SegmentationAgent):
+class NLLConfidentLeran(SegmentationAgent):
     def __init__(self, config, stage = 'test'):
-        super(SegmentationAgentwithCL, self).__init__(config, stage)
+        super(NLLConfidentLeran, self).__init__(config, stage)
 
     def infer_with_cl(self):
         device_ids = self.config['testing']['gpus']
@@ -179,7 +179,7 @@ def main():
                             with_label= True,
                             transform = data_transform )
 
-    agent = SegmentationAgentwithCL(config, 'test')
+    agent = NLLConfidentLeran(config, 'test')
     agent.set_datasets(None, None, dataset)
     agent.transform_list = transform_list
     agent.run()
