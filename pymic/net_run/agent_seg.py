@@ -25,13 +25,16 @@ from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.transform.trans_dict import TransformDict
+from pymic.util.post_process import PostProcessDict
 from pymic.util.image_process import convert_label
 from pymic.util.general import keyword_match
 
 class SegmentationAgent(NetRunAgent):
     def __init__(self, config, stage = 'train'):
         super(SegmentationAgent, self).__init__(config, stage)
-        self.transform_dict  = TransformDict
+        self.transform_dict   = TransformDict
+        self.postprocess_dict = PostProcessDict
+        self.postprocessor    = None
         
     def get_stage_dataset_from_config(self, stage):
         assert(stage in ['train', 'valid', 'test'])
@@ -155,6 +158,9 @@ class SegmentationAgent(NetRunAgent):
         loss_value = self.loss_calculator(loss_input_dict)
         return loss_value
     
+    def set_postprocessor(self, postprocessor):
+        self.postprocessor = postprocessor
+
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
@@ -410,6 +416,9 @@ class SegmentationAgent(NetRunAgent):
             infer_cfg = self.config['testing']
             infer_cfg['class_num'] = self.config['network']['class_num']
             self.inferer = Inferer(infer_cfg)
+        postpro_name = self.config['testing'].get('post_process', None)
+        if(self.postprocessor is None and postpro_name is not None):
+            self.postprocessor = PostProcessDict[postpro_name](self.config['testing'])
         infer_time_list = []
         with torch.no_grad():
             for data in self.test_loader:
@@ -518,6 +527,9 @@ class SegmentationAgent(NetRunAgent):
         output = np.asarray(np.argmax(prob,  axis = 1), np.uint8)
         if((label_source is not None) and (label_target is not None)):
             output = convert_label(output, label_source, label_target)
+        if(self.postprocessor is not None):
+            for i in range(len(names)):
+                output[i] = self.postprocessor(output[i])
         # save the output and (optionally) probability predictions
         root_dir  = self.config['dataset']['root_dir']
         for i in range(len(names)):

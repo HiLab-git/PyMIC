@@ -116,12 +116,9 @@ def get_largest_k_components(image, k = 1):
     if(image.sum() == 0 ):
         print('the largest component is null')
         return image
-    if(dim == 2):
-        s = ndimage.generate_binary_structure(2,1)
-    elif(dim == 3):
-        s = ndimage.generate_binary_structure(3,1)
-    else:
+    if(dim < 2 or dim > 3):
         raise ValueError("the dimension number should be 2 or 3")
+    s = ndimage.generate_binary_structure(dim,1)      
     labeled_array, numpatches = ndimage.label(image, s)
     sizes = ndimage.sum(image, labeled_array, range(1, numpatches + 1))
     sizes_sort = sorted(sizes, reverse = True)
