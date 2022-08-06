@@ -140,7 +140,7 @@ class Inferer(object):
             outputs4 = self.__infer(torch.flip(image, [-2, -1]))
             if(isinstance(outputs1, (tuple, list))):
                 outputs = []
-                for i in range(len(outputs)):
+                for i in range(len(outputs1)):
                     temp_out1 = outputs1[i]
                     temp_out2 = torch.flip(outputs2[i], [-2])
                     temp_out3 = torch.flip(outputs3[i], [-1])

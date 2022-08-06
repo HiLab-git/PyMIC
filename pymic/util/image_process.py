@@ -107,9 +107,9 @@ def crop_and_pad_ND_array_to_desired_shape(image, out_shape, pad_mod):
         
     return image_pad
 
-def get_largest_component(image):
+def get_largest_k_components(image, k = 1):
     """
-    get the largest component from 2D or 3D binary image
+    get the largest K components from 2D or 3D binary image
     image: nd array
     """
     dim = len(image.shape)
@@ -124,8 +124,12 @@ def get_largest_component(image):
         raise ValueError("the dimension number should be 2 or 3")
     labeled_array, numpatches = ndimage.label(image, s)
     sizes = ndimage.sum(image, labeled_array, range(1, numpatches + 1))
-    max_label = np.where(sizes == sizes.max())[0] + 1
-    output = np.asarray(labeled_array == max_label, np.uint8)
+    sizes_sort = sorted(sizes, reverse = True)
+    kmin = min(k, numpatches)
+    output = np.zeros_like(image)
+    for i in range(kmin):
+        labeli = np.where(sizes == sizes_sort[i])[0] + 1
+        output = output + np.asarray(labeled_array == labeli, np.uint8)
     return  output
 
 def get_euclidean_distance(image, dim = 3, spacing = [1.0, 1.0, 1.0]):
