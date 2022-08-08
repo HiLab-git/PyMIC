@@ -28,7 +28,7 @@ class SSLSegAgent(SegmentationAgent):
 
     def get_unlabeled_dataset_from_config(self):
         root_dir  = self.config['dataset']['root_dir']
-        modal_num = self.config['dataset']['modal_num']
+        modal_num = self.config['dataset'].get('modal_num', 1)
         transform_names = self.config['dataset']['train_transform_unlab']
         
         self.transform_list  = []
@@ -72,8 +72,8 @@ class SSLSegAgent(SegmentationAgent):
 
     def training(self):
         pass
-        
-    def write_scalars(self, train_scalars, valid_scalars, glob_it):
+
+    def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         loss_scalar ={'train':train_scalars['loss'], 
                       'valid':valid_scalars['loss']}
         loss_sup_scalar  = {'train':train_scalars['loss_sup']}
@@ -83,6 +83,7 @@ class SSLSegAgent(SegmentationAgent):
         self.summ_writer.add_scalars('loss_sup', loss_sup_scalar, glob_it)
         self.summ_writer.add_scalars('loss_reg', loss_upsup_scalar, glob_it)
         self.summ_writer.add_scalars('regular_w', {'regular_w':train_scalars['regular_w']}, glob_it)
+        self.summ_writer.add_scalars('lr', {"lr": lr_value}, glob_it)
         self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
         class_num = self.config['network']['class_num']
         for c in range(class_num):

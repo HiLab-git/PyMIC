@@ -10,6 +10,7 @@ from pymic.loss.seg.ssl import EntropyLoss
 from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
 from pymic.transform.trans_dict import TransformDict
 from pymic.util.ramps import sigmoid_rampup
+from pymic.util.general import keyword_match
 
 class SSLEntropyMinimization(SSLSegAgent):
     """
@@ -73,7 +74,8 @@ class SSLEntropyMinimization(SSLSegAgent):
             # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
+            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+                self.scheduler.step()
 
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()

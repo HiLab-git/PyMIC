@@ -8,7 +8,7 @@ from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.util.ramps import sigmoid_rampup
-from pymic.net_run.get_optimizer import get_optimiser
+from pymic.net_run.get_optimizer import get_optimizer
 from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
 from pymic.net.net_dict_seg import SegNetDict
 
@@ -41,7 +41,7 @@ class SSLCrossPseudoSupervision(SSLSegAgent):
     def train_valid(self):
         # create optimizor for the second network
         if(self.optimizer2 is None):
-            self.optimizer2 = get_optimiser(self.config['training']['optimizer'],
+            self.optimizer2 = get_optimizer(self.config['training']['optimizer'],
                     self.net2.parameters(), 
                     self.config['training'])
         last_iter = -1
