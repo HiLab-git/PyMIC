@@ -6,8 +6,9 @@ import numpy as np
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.util.ramps import sigmoid_rampup
 from pymic.net_run_ssl.ssl_mt import SSLMeanTeacher
+from pymic.util.ramps import sigmoid_rampup
+from pymic.util.general import keyword_match
 
 class SSLUncertaintyAwareMeanTeacher(SSLMeanTeacher):
     """
@@ -97,7 +98,9 @@ class SSLUncertaintyAwareMeanTeacher(SSLMeanTeacher):
 
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
+            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+                self.scheduler.step()
+
 
             # update EMA
             alpha = ssl_cfg.get('ema_decay', 0.99)

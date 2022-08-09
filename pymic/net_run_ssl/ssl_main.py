@@ -9,13 +9,13 @@ from pymic.net_run_ssl.ssl_em import SSLEntropyMinimization
 from pymic.net_run_ssl.ssl_mt import SSLMeanTeacher
 from pymic.net_run_ssl.ssl_uamt import SSLUncertaintyAwareMeanTeacher
 from pymic.net_run_ssl.ssl_urpc import SSLURPC
-from pymic.net_run_ssl.ssl_cps import SSLCrossPseudoSupervision
+from pymic.net_run_ssl.ssl_cps import SSLCPS
 
 SSLMethodDict = {'EntropyMinimization': SSLEntropyMinimization,
     'MeanTeacher': SSLMeanTeacher,
     'UAMT': SSLUncertaintyAwareMeanTeacher,
     'URPC': SSLURPC,
-    'CPS': SSLCrossPseudoSupervision}
+    'CPS': SSLCPS}
 
 def main():
     if(len(sys.argv) < 3):

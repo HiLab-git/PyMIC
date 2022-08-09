@@ -7,12 +7,13 @@ import torch.optim as optim
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.util.ramps import sigmoid_rampup
-from pymic.net_run.get_optimizer import get_optimizer
+from pymic.net_run.get_optimizer import get_optimizer, get_lr_scheduler
 from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
 from pymic.net.net_dict_seg import SegNetDict
+from pymic.util.ramps import sigmoid_rampup
+from pymic.util.general import keyword_match
 
-class SSLCrossPseudoSupervision(SSLSegAgent):
+class SSLCPS(SSLSegAgent):
     """
     Using cross pseudo supervision according to the following paper:
     Xiaokang Chen, Yuhui Yuan, Gang Zeng, Jingdong Wang, 
@@ -21,13 +22,13 @@ class SSLCrossPseudoSupervision(SSLSegAgent):
     https://arxiv.org/abs/2106.01226 
     """
     def __init__(self, config, stage = 'train'):
-        super(SSLCrossPseudoSupervision, self).__init__(config, stage)
+        super(SSLCPS, self).__init__(config, stage)
         self.net2 = None 
         self.optimizer2 = None 
         self.scheduler2 = None
 
     def create_network(self):
-        super(SSLCrossPseudoSupervision, self).create_network()
+        super(SSLCPS, self).create_network()
         if(self.net2 is None):
             net_name = self.config['network']['net_type']
             if(net_name not in SegNetDict):
@@ -40,20 +41,18 @@ class SSLCrossPseudoSupervision(SSLSegAgent):
 
     def train_valid(self):
         # create optimizor for the second network
+        opt_params = self.config['training']
         if(self.optimizer2 is None):
-            self.optimizer2 = get_optimizer(self.config['training']['optimizer'],
-                    self.net2.parameters(), 
-                    self.config['training'])
+            self.optimizer2 = get_optimizer(opt_params['optimizer'],
+                    self.net2.parameters(), opt_params)
         last_iter = -1
         # if(self.checkpoint is not None):
         #     self.optimizer2.load_state_dict(self.checkpoint['optimizer_state_dict'])
         #     last_iter = self.checkpoint['iteration'] - 1
         if(self.scheduler2 is None):
-            self.scheduler2 = optim.lr_scheduler.MultiStepLR(self.optimizer2,
-                    self.config['training']['lr_milestones'],
-                    self.config['training']['lr_gamma'],
-                    last_epoch = last_iter)
-        super(SSLCrossPseudoSupervision, self).train_valid()
+            opt_params["laster_iter"] = last_iter
+            self.scheduler2 = get_lr_scheduler(self.optimizer, opt_params)
+        super(SSLCPS, self).train_valid()
 
     def training(self):
         class_num   = self.config['network']['class_num']
@@ -121,9 +120,10 @@ class SSLCrossPseudoSupervision(SSLSegAgent):
 
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
             self.optimizer2.step()
-            self.scheduler2.step()
+            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+                self.scheduler.step()
+                self.scheduler2.step()   
 
             train_loss = train_loss + loss.item()
             train_loss_sup1  = train_loss_sup1 + loss_sup1.item()
@@ -152,6 +152,12 @@ class SSLCrossPseudoSupervision(SSLSegAgent):
             'loss_pse_sup1':train_avg_loss_pse_sup1, 'loss_pse_sup2': train_avg_loss_pse_sup2,
             'regular_w':regular_w, 'avg_dice':train_avg_dice, 'class_dice': train_cls_dice}
         return train_scalers
+
+    def validation(self):
+        return_value =  super(SSLCPS, self).validation()
+        if(keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+            self.scheduler2.step(return_value['avg_dice'])
+        return return_value
     
     def write_scalars(self, train_scalars, valid_scalars, glob_it):
         loss_scalar ={'train':train_scalars['loss'], 

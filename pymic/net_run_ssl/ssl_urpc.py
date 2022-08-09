@@ -7,8 +7,9 @@ import numpy as np
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.util.ramps import sigmoid_rampup
 from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
+from pymic.util.ramps import sigmoid_rampup
+from pymic.util.general import keyword_match
 
 class SSLURPC(SSLSegAgent):
     """
@@ -90,8 +91,8 @@ class SSLURPC(SSLSegAgent):
 
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
-
+            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+                self.scheduler.step()
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()
             train_loss_reg = train_loss_reg + loss_reg.item() 
