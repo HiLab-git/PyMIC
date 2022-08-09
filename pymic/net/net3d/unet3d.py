@@ -106,13 +106,13 @@ class UNet3D(nn.Module):
         if(len(self.ft_chns) == 5):
           self.down4  = DownBlock(self.ft_chns[3], self.ft_chns[4], self.dropout[4])
           self.up1 = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], 
-               dropout_p = 0.0, trilinear=self.trilinear) 
+               dropout_p = self.dropout[3], trilinear=self.trilinear) 
         self.up2 = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], 
-               dropout_p = 0.0, trilinear=self.trilinear) 
+               dropout_p = self.dropout[2], trilinear=self.trilinear) 
         self.up3 = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], 
-               dropout_p = 0.0, trilinear=self.trilinear) 
+               dropout_p = self.dropout[1], trilinear=self.trilinear) 
         self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], 
-               dropout_p = 0.0, trilinear=self.trilinear) 
+               dropout_p = self.dropout[0], trilinear=self.trilinear) 
     
         self.out_conv = nn.Conv3d(self.ft_chns[0], self.n_class, kernel_size = 1)
         if(self.deep_sup):

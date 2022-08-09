@@ -157,7 +157,7 @@ class NetRunAgent(object):
             self.optimizer.load_state_dict(self.checkpoint['optimizer_state_dict'])
             last_iter = self.checkpoint['iteration'] - 1
         if(self.scheduler is None):
-            opt_params["laster_iter"] = last_iter
+            opt_params["last_iter"] = last_iter
             self.scheduler = get_lr_scheduler(self.optimizer, opt_params)
 
     def convert_tensor_type(self, input_tensor):

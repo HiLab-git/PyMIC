@@ -51,7 +51,7 @@ class SSLCPS(SSLSegAgent):
         #     last_iter = self.checkpoint['iteration'] - 1
         if(self.scheduler2 is None):
             opt_params["laster_iter"] = last_iter
-            self.scheduler2 = get_lr_scheduler(self.optimizer, opt_params)
+            self.scheduler2 = get_lr_scheduler(self.optimizer2, opt_params)
         super(SSLCPS, self).train_valid()
 
     def training(self):
@@ -159,7 +159,7 @@ class SSLCPS(SSLSegAgent):
             self.scheduler2.step(return_value['avg_dice'])
         return return_value
     
-    def write_scalars(self, train_scalars, valid_scalars, glob_it):
+    def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         loss_scalar ={'train':train_scalars['loss'], 
                       'valid':valid_scalars['loss']}
         loss_sup_scalar  = {'net1':train_scalars['loss_sup1'],
@@ -171,6 +171,7 @@ class SSLCPS(SSLSegAgent):
         self.summ_writer.add_scalars('loss_sup', loss_sup_scalar, glob_it)
         self.summ_writer.add_scalars('loss_pseudo_sup', loss_pse_sup_scalar, glob_it)
         self.summ_writer.add_scalars('regular_w', {'regular_w':train_scalars['regular_w']}, glob_it)
+        self.summ_writer.add_scalars('lr', {"lr": lr_value}, glob_it)
         self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
         class_num = self.config['network']['class_num']
         for c in range(class_num):

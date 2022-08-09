@@ -91,10 +91,10 @@ class UNet2D(nn.Module):
         self.down3  = DownBlock(self.ft_chns[2], self.ft_chns[3], self.dropout[3])
         if(len(self.ft_chns) == 5):
             self.down4  = DownBlock(self.ft_chns[3], self.ft_chns[4], self.dropout[4])
-            self.up1 = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], 0.0, self.bilinear) 
-        self.up2 = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], 0.0, self.bilinear) 
-        self.up3 = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], 0.0, self.bilinear) 
-        self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], 0.0, self.bilinear) 
+            self.up1 = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], self.dropout[3], self.bilinear) 
+        self.up2 = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], self.dropout[2], self.bilinear) 
+        self.up3 = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], self.dropout[1], self.bilinear) 
+        self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], self.dropout[0], self.bilinear) 
     
         self.out_conv = nn.Conv2d(self.ft_chns[0], self.n_class, kernel_size = 1)
         if(self.deep_sup):

@@ -149,13 +149,13 @@ class UNet2D5(nn.Module):
         self.block3 = DownBlock(self.ft_chns[2], self.ft_chns[3], self.dims[3], self.dropout[3], True)
         self.block4 = DownBlock(self.ft_chns[3], self.ft_chns[4], self.dims[4], self.dropout[4], False)
         self.up1 = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], 
-                    self.dims[3], dropout_p = 0.0, bilinear = self.bilinear) 
+                    self.dims[3], dropout_p = self.dropout[3], bilinear = self.bilinear) 
         self.up2 = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], 
-                    self.dims[2], dropout_p = 0.0, bilinear = self.bilinear) 
+                    self.dims[2], dropout_p = self.dropout[2], bilinear = self.bilinear) 
         self.up3 = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], 
-                    self.dims[1], dropout_p = 0.0, bilinear = self.bilinear) 
+                    self.dims[1], dropout_p = self.dropout[1], bilinear = self.bilinear) 
         self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], 
-                    self.dims[0], dropout_p = 0.0, bilinear = self.bilinear) 
+                    self.dims[0], dropout_p = self.dropout[0], bilinear = self.bilinear) 
     
         self.out_conv = nn.Conv3d(self.ft_chns[0], self.n_class, 
             kernel_size = (1, 3, 3), padding = (0, 1, 1))
