@@ -9,10 +9,16 @@ from pymic.loss.seg.util import get_classwise_dice
 from pymic.loss.seg.gatedcrf import ModelLossSemsegGatedCRF
 from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
 from pymic.util.ramps import sigmoid_rampup
+from pymic.util.general import keyword_match
 
 class WSLGatedCRF(WSLSegAgent):
     """
-    Training and testing agent for semi-supervised segmentation
+    Implementation of the Gated CRF Loss for Weakly Supervised Semantic Image Segmentation.
+        Anton Obukhov, Stamatios Georgoulis, Dengxin Dai, Luc Van Gool:
+        Gated CRF Loss for Weakly Supervised Semantic Image Segmentation.
+        CoRR, abs/1906.04651, 2019
+        http://arxiv.org/abs/1906.04651
+    }
     """
     def __init__(self, config, stage = 'train'):
         super(WSLGatedCRF, self).__init__(config, stage)
