@@ -4,37 +4,14 @@ from __future__ import print_function, division
 import torch
 import torch.nn as nn
 
-class DiceLoss(nn.Module):
-    def __init__(self, params = None):
-        super(DiceLoss, self).__init__()
-        if(params is None):
-            self.softmax = True
-        else:
-            self.softmax = params.get('loss_softmax', True)
-
-    def forward(self, loss_input_dict):
-        predict = loss_input_dict['prediction']
-        soft_y  = loss_input_dict['ground_truth']
-        
-        if(isinstance(predict, (list, tuple))):
-            predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
-        predict = reshape_tensor_to_2D(predict)
-        soft_y  = reshape_tensor_to_2D(soft_y) 
-        dice_score = get_classwise_dice(predict, soft_y)
-        dice_loss  = 1.0 - dice_score.mean()
-        return dice_loss
-
 class MumfordShahLoss(nn.Module):
     """
     Implementation of Mumford Shah Loss in this paper:
-        Boah Kim and Jong Chul Ye, Mumford–Shah Loss Functional 
+        Boah Kim and Jong Chul Ye: Mumford–Shah Loss Functional 
         for Image Segmentation With Deep Learning. IEEE TIP, 2019.
     The oringial implementation is availabel at:
     https://github.com/jongcye/CNN_MumfordShah_Loss 
-    
-    currently only 2D version is supported.
+    Currently only 2D version is supported.
     """
     def __init__(self, params = None):
         super(MumfordShahLoss, self).__init__()

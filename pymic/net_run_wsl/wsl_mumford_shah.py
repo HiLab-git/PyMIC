@@ -9,10 +9,14 @@ from pymic.loss.seg.util import get_classwise_dice
 from pymic.loss.seg.mumford_shah import MumfordShahLoss
 from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
 from pymic.util.ramps import sigmoid_rampup
+from pymic.util.general import keyword_match
 
 class WSLMumfordShah(WSLSegAgent):
     """
-    Training and testing agent for semi-supervised segmentation
+    Weakly supervised learning with Mumford Shah Loss according to this paper:
+        Boah Kim and Jong Chul Ye: Mumford–Shah Loss Functional 
+        for Image Segmentation With Deep Learning. IEEE TIP, 2019.
+        https://doi.org/10.1109/TIP.2019.2941265 
     """
     def __init__(self, config, stage = 'train'):
         super(WSLMumfordShah, self).__init__(config, stage)
@@ -61,7 +65,8 @@ class WSLMumfordShah(WSLSegAgent):
             # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
+            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+                self.scheduler.step()
 
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()
