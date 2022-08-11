@@ -13,7 +13,11 @@ from pymic.util.general import keyword_match
 
 class SSLMeanTeacher(SSLSegAgent):
     """
-    Training and testing agent for semi-supervised segmentation
+    Mean Teacher for semi-supervised learning according to the following paper:
+    Antti Tarvainen, Harri Valpola: Mean teachers are better role models: Weight-averaged 
+    consistency targets improve semi-supervised deep learning results.
+    NeurIPS 2017.
+    https://arxiv.org/abs/1703.01780
     """
     def __init__(self, config, stage = 'train'):
         super(SSLMeanTeacher, self).__init__(config, stage)

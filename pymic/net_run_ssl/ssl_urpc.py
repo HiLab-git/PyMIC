@@ -14,12 +14,11 @@ from pymic.util.general import keyword_match
 class SSLURPC(SSLSegAgent):
     """
     Uncertainty-Rectified Pyramid Consistency according to the following paper:
-    Xiangde Luo, Wenjun Liao, Jieneng Chen, Tao Song, Yinan Chen,
-    Shichuan Zhang, Nianyong Chen, Guotai Wang, Shaoting Zhang. 
-    Efficient Semi-supervised Gross Target Volume of Nasopharyngeal Carcinoma 
-    Segmentation via Uncertainty Rectified Pyramid Consistency.
-    MICCAI 2021, pp. 318-329.
-    https://arxiv.org/abs/2012.07042 
+    Xiangde Luo, Guotai Wang*, Wenjun Liao, Jieneng Chen, Tao Song, Yinan Chen, 
+    Shichuan Zhang, Dimitris N. Metaxas, Shaoting Zhang. 
+    Semi-Supervised Medical Image Segmentation via Uncertainty Rectified Pyramid Consistency .
+    Medical Image Analysis 2022.
+    https://doi.org/10.1016/j.media.2022.102517
     """
     def training(self):
         class_num   = self.config['network']['class_num']

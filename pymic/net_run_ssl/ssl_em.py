@@ -15,9 +15,10 @@ from pymic.util.general import keyword_match
 class SSLEntropyMinimization(SSLSegAgent):
     """
     Implementation of the following paper:
-    Yves Grandvalet and Yoshua Bengio, 
+    Yves Grandvalet and Yoshua Bengio:
     Semi-supervised Learningby Entropy Minimization.
-    NeurIPS, 2005. 
+    NeurIPS, 2005.
+    https://papers.nips.cc/paper/2004/file/96f2b50b5d3613adf9c27049b2a888c7-Paper.pdf 
     """
     def __init__(self, config, stage = 'train'):
         super(SSLEntropyMinimization, self).__init__(config, stage)
