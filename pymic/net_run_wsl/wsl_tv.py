@@ -9,10 +9,11 @@ from pymic.loss.seg.util import get_classwise_dice
 from pymic.loss.seg.ssl import TotalVariationLoss
 from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
 from pymic.util.ramps import sigmoid_rampup
+from pymic.util.general import keyword_match
 
 class WSLTotalVariation(WSLSegAgent):
     """
-    Training and testing agent for semi-supervised segmentation
+    Weakly suepervised segmentation with Total Variation Regularization.
     """
     def __init__(self, config, stage = 'train'):
         super(WSLTotalVariation, self).__init__(config, stage)
@@ -59,7 +60,8 @@ class WSLTotalVariation(WSLSegAgent):
             # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
+            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+                self.scheduler.step()
 
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 from pymic.net.net2d.unet2d import UNet2D
-from pymic.net.net2d.unet2d_dual_branch import DualBranchUNet2D
+from pymic.net.net2d.unet2d_dual_branch import UNet2D_DualBranch
 from pymic.net.net2d.unet2d_urpc import UNet2D_URPC
 from pymic.net.net2d.unet2d_cct import UNet2D_CCT
 from pymic.net.net2d.cople_net import COPLENet
@@ -14,7 +14,7 @@ from pymic.net.net3d.unet3d_scse import UNet3D_ScSE
 
 SegNetDict = {
 	'UNet2D': UNet2D,
-	'DualBranchUNet2D': DualBranchUNet2D,
+	'UNet2D_DualBranch': UNet2D_DualBranch,
 	'UNet2D_URPC': UNet2D_URPC,
 	'UNet2D_CCT': UNet2D_CCT,
 	'COPLENet': COPLENet,

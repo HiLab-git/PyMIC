@@ -10,6 +10,7 @@ from pymic.loss.seg.util import get_classwise_dice
 from pymic.loss.seg.dice import DiceLoss
 from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
 from pymic.util.ramps import sigmoid_rampup
+from pymic.util.general import keyword_match
 
 class WSLDMPLS(WSLSegAgent):
     """
@@ -18,12 +19,13 @@ class WSLDMPLS(WSLSegAgent):
         Shaoting Zhang. ScribblScribble-Supervised Medical Image Segmentation via 
         Dual-Branch Network and Dynamically Mixed Pseudo Labels Supervision.
         MICCAI 2022. 
+        https://arxiv.org/abs/2203.02106 
     """
     def __init__(self, config, stage = 'train'):
         net_type = config['network']['net_type']
-        if net_type not in ['DualBranchUNet2D', 'DualBranchUNet3D']:
+        if net_type not in ['UNet2D_DualBranch', 'UNet3D_DualBranch']:
             raise ValueError("""For WSL_DMPLS, a dual branch network is expected. \
-                It only supports DualBranchUNet2D and DualBranchUNet3D currently.""")
+                It only supports UNet2D_DualBranch and UNet3D_DualBranch currently.""")
         super(WSLDMPLS, self).__init__(config, stage)
 
     def training(self):
@@ -82,7 +84,8 @@ class WSLDMPLS(WSLSegAgent):
 
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
+            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+                self.scheduler.step()
 
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()

@@ -11,10 +11,38 @@ from __future__ import print_function, division
 
 import torch
 import torch.nn as nn
-import numpy as np 
-from torch.nn.functional import interpolate
 from pymic.net.net2d.unet2d import *
 
+class UNet2D_DualBranch(nn.Module):
+    def __init__(self, params):
+        super(UNet2D_DualBranch, self).__init__()
+        self.encoder  = Encoder(params)
+        self.decoder1 = Decoder(params)    
+        self.decoder2 = Decoder(params)        
+
+    def forward(self, x):
+        x_shape = list(x.shape)
+        if(len(x_shape) == 5):
+          [N, C, D, H, W] = x_shape
+          new_shape = [N*D, C, H, W]
+          x = torch.transpose(x, 1, 2)
+          x = torch.reshape(x, new_shape)
+
+        f = self.encoder(x)
+        output1 = self.decoder1(f)
+        output2 = self.decoder2(f)
+        if(len(x_shape) == 5):
+            new_shape = [N, D] + list(output1.shape)[1:]
+            output1 = torch.reshape(output1, new_shape)
+            output1 = torch.transpose(output1, 1, 2)
+            output2 = torch.reshape(output2, new_shape)
+            output2 = torch.transpose(output2, 1, 2)
+
+        if(self.training):
+          return output1, output2
+        else:
+          return (output1 + output2)/2
+ # for backup
 class DualBranchUNet2D(UNet2D):
     def __init__(self, params):
         params['deep_supervise'] = False

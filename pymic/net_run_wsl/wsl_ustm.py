@@ -11,6 +11,7 @@ from pymic.loss.seg.util import get_classwise_dice
 from pymic.net.net_dict_seg import SegNetDict
 from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
 from pymic.util.ramps import sigmoid_rampup
+from pymic.util.general import keyword_match
 
 class WSLUSTM(WSLSegAgent):
     """
@@ -108,7 +109,8 @@ class WSLUSTM(WSLSegAgent):
 
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
+            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+                self.scheduler.step()
 
             # update EMA
             alpha = wsl_cfg.get('ema_decay', 0.99)

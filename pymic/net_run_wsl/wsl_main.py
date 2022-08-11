@@ -5,19 +5,19 @@ import logging
 import os
 import sys
 from pymic.util.parse_config import *
-from pymic.net_run_wsl.wsl_em import WSL_EntropyMinimization
-from pymic.net_run_wsl.wsl_gatedcrf import WSL_GatedCRF
-from pymic.net_run_wsl.wsl_mumford_shah import WSL_MumfordShah
-from pymic.net_run_wsl.wsl_tv import WSL_TotalVariation
-from pymic.net_run_wsl.wsl_ustm import WSL_USTM
-from pymic.net_run_wsl.wsl_dmpls import WSL_DMPLS
+from pymic.net_run_wsl.wsl_em import WSLEntropyMinimization
+from pymic.net_run_wsl.wsl_gatedcrf import WSLGatedCRF
+from pymic.net_run_wsl.wsl_mumford_shah import WSLMumfordShah
+from pymic.net_run_wsl.wsl_tv import WSLTotalVariation
+from pymic.net_run_wsl.wsl_ustm import WSLUSTM
+from pymic.net_run_wsl.wsl_dmpls import WSLDMPLS
 
-WSLMethodDict = {'EntropyMinimization': WSL_EntropyMinimization,
-    'GatedCRF': WSL_GatedCRF,
-    'MumfordShah': WSL_MumfordShah,
-    'TotalVariation': WSL_TotalVariation,
-    'USTM': WSL_USTM,
-    'DMPLS': WSL_DMPLS}
+WSLMethodDict = {'EntropyMinimization': WSLEntropyMinimization,
+    'GatedCRF': WSLGatedCRF,
+    'MumfordShah': WSLMumfordShah,
+    'TotalVariation': WSLTotalVariation,
+    'USTM': WSLUSTM,
+    'DMPLS': WSLDMPLS}
 
 def main():
     if(len(sys.argv) < 3):
