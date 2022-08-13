@@ -15,7 +15,12 @@ from pymic.util.general import keyword_match
 
 class WSLUSTM(WSLSegAgent):
     """
-    Training and testing agent for semi-supervised segmentation
+    USTM for scribble-supervised segmentation according to the following paper:
+        Xiaoming Liu, Quan Yuan, Yaozong Gao, Helei He, Shuo Wang, Xiao Tang,
+        Jinshan Tang, Dinggang Shen:
+        Weakly Supervised Segmentation of COVID19 Infection with Scribble Annotation on CT Images.
+        Patter Recognition, 2022.
+        https://doi.org/10.1016/j.patcog.2021.108341 
     """
     def __init__(self, config, stage = 'train'):
         super(WSLUSTM, self).__init__(config, stage)
