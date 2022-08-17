@@ -10,6 +10,7 @@ import torchvision.transforms as transforms
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim import lr_scheduler
 import torch.nn.functional as F
 from datetime import datetime
 from tensorboardX import SummaryWriter
@@ -27,7 +28,6 @@ from pymic.loss.seg.util import get_classwise_dice
 from pymic.transform.trans_dict import TransformDict
 from pymic.util.post_process import PostProcessDict
 from pymic.util.image_process import convert_label
-from pymic.util.general import keyword_match
 
 class SegmentationAgent(NetRunAgent):
     def __init__(self, config, stage = 'train'):
@@ -164,7 +164,7 @@ class SegmentationAgent(NetRunAgent):
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
-        train_loss = 0
+        train_loss  = 0
         train_dice_list = []
         self.net.train()
         for it in range(iter_valid):
@@ -201,7 +201,8 @@ class SegmentationAgent(NetRunAgent):
             loss = self.get_loss_value(data, outputs, labels_prob)
             loss.backward()
             self.optimizer.step()
-            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+            if(self.scheduler is not None and \
+                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
                 self.scheduler.step()
 
             train_loss = train_loss + loss.item()
@@ -258,7 +259,7 @@ class SegmentationAgent(NetRunAgent):
         valid_cls_dice = np.asarray(valid_dice_list).mean(axis = 0)
         valid_avg_dice = valid_cls_dice.mean()
         
-        if(keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+        if(isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
             self.scheduler.step(valid_avg_dice)
 
         valid_scalers = {'loss': valid_avg_loss, 'avg_dice': valid_avg_dice,\

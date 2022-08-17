@@ -3,14 +3,14 @@ from __future__ import print_function, division
 import logging
 import numpy as np
 import torch
+from torhc.optim import lr_scheduler
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.loss.seg.ssl import EntropyLoss
 from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
 from pymic.transform.trans_dict import TransformDict
-from pymic.util.ramps import sigmoid_rampup
-from pymic.util.general import keyword_match
+from pymic.util.ramps import get_rampup_ratio
 
 class SSLEntropyMinimization(SSLSegAgent):
     """
@@ -29,6 +29,9 @@ class SSLEntropyMinimization(SSLSegAgent):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
         ssl_cfg     = self.config['semi_supervised_learning']
+        iter_max     = self.config['training']['iter_max']
+        rampup_start = ssl_cfg.get('rampup_start', 0)
+        rampup_end   = ssl_cfg.get('rampup_end', iter_max)
         train_loss  = 0
         train_loss_sup = 0
         train_loss_reg = 0
@@ -64,18 +67,15 @@ class SSLEntropyMinimization(SSLSegAgent):
             loss_dict = {"prediction":outputs, 'softmax':True}
             loss_reg  = EntropyLoss()(loss_dict)
             
-            iter_max = self.config['training']['iter_max']
-            ramp_up_length = ssl_cfg.get('ramp_up_length', iter_max)
-            regular_w = 0.0
-            if(self.glob_it > ssl_cfg.get('iter_sup', 0)):
-                regular_w = ssl_cfg.get('regularize_w', 0.1)
-                if(ramp_up_length is not None and self.glob_it < ramp_up_length):
-                    regular_w = regular_w * sigmoid_rampup(self.glob_it, ramp_up_length)
+            rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end, "sigmoid")
+            regular_w = ssl_cfg.get('regularize_w', 0.1) * rampup_ratio
+
             loss = loss_sup + regular_w*loss_reg
             # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
-            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+            if(self.scheduler is not None and \
+                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
                 self.scheduler.step()
 
             train_loss = train_loss + loss.item()

@@ -5,12 +5,13 @@ import numpy as np
 import random
 import torch
 import torch.nn.functional as F
+from torch.optim import lr_scheduler
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.net.net_dict_seg import SegNetDict
 from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
-from pymic.util.ramps import sigmoid_rampup
+from pymic.util.ramps import get_rampup_ratio
 from pymic.util.general import keyword_match
 
 class WSLUSTM(WSLSegAgent):
@@ -42,6 +43,9 @@ class WSLUSTM(WSLSegAgent):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
         wsl_cfg     = self.config['weakly_supervised_learning']
+        iter_max     = self.config['training']['iter_max']
+        rampup_start = wsl_cfg.get('rampup_start', 0)
+        rampup_end   = wsl_cfg.get('rampup_end', iter_max)
         train_loss  = 0
         train_loss_sup = 0
         train_loss_reg = 0
@@ -97,24 +101,19 @@ class WSLUSTM(WSLSegAgent):
             uncertainty = -1.0 * torch.sum(preds*torch.log(preds + 1e-6),
                  dim=1, keepdim=True)
             
-            iter_max = self.config['training']['iter_max']
-            ramp_up_length = wsl_cfg.get('ramp_up_length', iter_max)
-            threshold_ramp = sigmoid_rampup(self.glob_it, iter_max)
+            rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end, "sigmoid")
             class_num = list(y.shape)[1]
-            threshold = (0.75+0.25*threshold_ramp)*np.log(class_num)
+            threshold = (0.75+0.25*rampup_ratio)*np.log(class_num)
             mask      = (uncertainty < threshold).float()
             loss_reg  = torch.sum(mask*square_error)/(2*torch.sum(mask)+1e-16)
 
-            regular_w = 0.0
-            if(self.glob_it > wsl_cfg.get('iter_sup', 0)):
-                regular_w = wsl_cfg.get('regularize_w', 0.1)
-                if(ramp_up_length is not None and self.glob_it < ramp_up_length):
-                    regular_w = regular_w * sigmoid_rampup(self.glob_it, ramp_up_length)
+            regular_w = wsl_cfg.get('regularize_w', 0.1) * rampup_ratio
             loss = loss_sup + regular_w*loss_reg
 
             loss.backward()
             self.optimizer.step()
-            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+            if(self.scheduler is not None and \
+                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
                 self.scheduler.step()
 
             # update EMA

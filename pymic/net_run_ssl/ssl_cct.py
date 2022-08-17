@@ -5,12 +5,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from torch.optim import lr_scheduler
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
-from pymic.util.ramps import sigmoid_rampup
-from pymic.util.general import keyword_match
+from pymic.util.ramps import get_rampup_ratio
 
 def softmax_mse_loss(inputs, targets, conf_mask=False, threshold=None, use_softmax=False):
     assert inputs.requires_grad == True and targets.requires_grad == False
@@ -73,6 +73,9 @@ class SSLCCT(SSLSegAgent):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
         ssl_cfg     = self.config['semi_supervised_learning']
+        iter_max     = self.config['training']['iter_max']
+        rampup_start = ssl_cfg.get('rampup_start', 0)
+        rampup_end   = ssl_cfg.get('rampup_end', iter_max)
         unsup_loss_name = ssl_cfg.get('unsupervised_loss', "MSE")
         self.unsup_loss_f = unsup_loss_dict[unsup_loss_name]
         train_loss  = 0
@@ -118,20 +121,15 @@ class SSLCCT(SSLSegAgent):
             for p1_auxi in p1_aux:
                 loss_reg += self.unsup_loss_f( p1_auxi, p1, use_softmax = True)
             loss_reg = loss_reg / len(p1_aux)
-                        
-            iter_max = self.config['training']['iter_max']
-            ramp_up_length = ssl_cfg.get('ramp_up_length', iter_max)
-            regular_w = 0.0
-            if(self.glob_it > ssl_cfg.get('iter_sup', 0)):
-                regular_w = ssl_cfg.get('regularize_w', 0.1)
-                if(ramp_up_length is not None and self.glob_it < ramp_up_length):
-                    regular_w = regular_w * sigmoid_rampup(self.glob_it, ramp_up_length)
-
+            
+            rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end, "sigmoid")
+            regular_w = ssl_cfg.get('regularize_w', 0.1) * rampup_ratio
             loss = loss_sup + regular_w*loss_reg
 
             loss.backward()
             self.optimizer.step()
-            if(not keyword_match(self.config['training']['lr_scheduler'], "ReduceLROnPlateau")):
+            if(self.scheduler is not None and \
+                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
                 self.scheduler.step()
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()

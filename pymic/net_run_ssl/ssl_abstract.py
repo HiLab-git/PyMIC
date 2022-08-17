@@ -12,7 +12,6 @@ from pymic.loss.seg.util import get_classwise_dice
 from pymic.loss.seg.ssl import EntropyLoss
 from pymic.net_run.agent_seg import SegmentationAgent
 from pymic.transform.trans_dict import TransformDict
-from pymic.util.ramps import sigmoid_rampup
 
 class SSLSegAgent(SegmentationAgent):
     """
@@ -69,9 +68,6 @@ class SSLSegAgent(SegmentationAgent):
             self.train_loader_unlab = torch.utils.data.DataLoader(self.train_set_unlab, 
                 batch_size = bn_train_unlab, shuffle=True, num_workers= num_worker,
                 worker_init_fn=worker_init)
-
-    def training(self):
-        pass
 
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         loss_scalar ={'train':train_scalars['loss'], 

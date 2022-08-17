@@ -2,8 +2,10 @@
 """
 Spatial Label Smoothing Regularization (SLSR) loss for learning from
 noisy annotatins according to the following paper:
-    Minqing Zhang, Jiantao Gao et al., Characterizing Label Errors: 
-    Confident Learning for Noisy-Labeled Image Segmentation, MICCAI 2020.
+    Minqing Zhang, Jiantao Gao et al.:
+    Characterizing Label Errors: Confident Learning for Noisy-Labeled Image 
+    Segmentation, MICCAI 2020.
+    https://link.springer.com/chapter/10.1007/978-3-030-59710-8_70 
 """
 from __future__ import print_function, division
 
@@ -17,7 +19,7 @@ class SLSRLoss(nn.Module):
         if(params is None):
             params = {}
         self.softmax = params.get('loss_softmax', True)
-        self.epsilon = params.get('slsrloss_softmax', 0.25)
+        self.epsilon = params.get('slsrloss_epsilon', 0.25)
     
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
@@ -35,7 +37,6 @@ class SLSRLoss(nn.Module):
         soft_y  = reshape_tensor_to_2D(soft_y)
         if(pix_w is not None):
             pix_w   = reshape_tensor_to_2D(pix_w > 0).float()
-
             # smooth labels for pixels in the unconfident mask 
             smooth_y = (soft_y - 0.5) * (0.5 - self.epsilon) / 0.5 + 0.5
             smooth_y = pix_w * smooth_y + (1 - pix_w) * soft_y

@@ -38,6 +38,8 @@ def get_optimizer(name, net_params, optim_params):
 
 def get_lr_scheduler(optimizer, sched_params):
     name = sched_params["lr_scheduler"]
+    if(name is None):
+        return None
     lr_gamma = sched_params["lr_gamma"]
     if(keyword_match(name, "ReduceLROnPlateau")):
         patience_it = sched_params["ReduceLROnPlateau_patience".lower()]
