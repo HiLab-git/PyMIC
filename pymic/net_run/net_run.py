@@ -18,8 +18,8 @@ def main():
     config   = synchronize_config(config)
     log_dir  = config['training']['ckpt_save_dir']
     if(not os.path.exists(log_dir)):
-        os.mkdir(log_dir)
-    logging.basicConfig(filename=log_dir+"/log.txt", level=logging.INFO,
+        os.makedirs(log_dir, exist_ok=True)
+    logging.basicConfig(filename=log_dir+"/log_{0:}.txt".format(stage), level=logging.INFO,
                         format='%(message)s')
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging_config(config)
