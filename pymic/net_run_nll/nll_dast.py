@@ -207,10 +207,11 @@ class NLLDAST(SegmentationAgent):
             rank_n = self.noisy_rank.add_val(loss_n)
             rank_c = self.clean_rank.add_val(loss_c)
             if loss_n < loss_c:
-                if rank_c >= rank_length * 0.8:
+                select_ratio = nll_cfg.get('dast_select_ratio', 0.2)
+                if rank_c >= rank_length * (1 - select_ratio):
                     loss_dbc = consist_loss(b1_x1_prob, b0_x1_prob)
                     loss = loss + loss_dbc * w_dbc
-                if rank_n <= 0.2 * rank_length:
+                if rank_n <= rank_length * select_ratio:
                     b0_x1_argmax = torch.argmax(b0_x1_pred, dim = 1, keepdim = True)
                     b0_x1_lab    = get_soft_label(b0_x1_argmax, class_num, self.tensor_type)
                     b1_x1_argmax = torch.argmax(b1_x1_pred, dim = 1, keepdim = True)
