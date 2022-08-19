@@ -307,7 +307,7 @@ class SegmentationAgent(NetRunAgent):
         elif(isinstance(iter_save, (tuple, list))):
             iter_save_list = iter_save
         else:
-            iter_save_list = range(iter_start, iter_max + 1, iter_save)
+            iter_save_list = range(0, iter_max + 1, iter_save)
 
         self.max_val_dice = 0.0
         self.max_val_it   = 0
@@ -519,7 +519,7 @@ class SegmentationAgent(NetRunAgent):
         filename_replace_source = self.config['testing'].get('filename_replace_source', None)
         filename_replace_target = self.config['testing'].get('filename_replace_target', None)
         if(not os.path.exists(output_dir)):
-            os.mkdir(output_dir)
+            os.makedirs(output_dir, exist_ok=True)
 
         names, pred = data['names'], data['predict']
         if(isinstance(pred, (list, tuple))):

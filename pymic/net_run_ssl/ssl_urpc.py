@@ -4,7 +4,7 @@ import logging
 import torch
 import torch.nn as nn
 import numpy as np
-from torhc.optim import lr_scheduler
+from torch.optim import lr_scheduler
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
