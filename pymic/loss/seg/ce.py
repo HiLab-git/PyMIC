@@ -6,7 +6,7 @@ import torch.nn as nn
 from pymic.loss.seg.util import reshape_tensor_to_2D
 
 class CrossEntropyLoss(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params = None):
         super(CrossEntropyLoss, self).__init__()
         if(params is None):
             self.softmax = True

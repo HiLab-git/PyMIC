@@ -7,9 +7,11 @@ import sys
 from pymic.util.parse_config import *
 from pymic.net_run_nll.nll_co_teaching import NLLCoTeaching
 from pymic.net_run_nll.nll_trinet import NLLTriNet
+from pymic.net_run_nll.nll_dast import NLLDAST
 
 NLLMethodDict = {'CoTeaching': NLLCoTeaching,
-    "TriNet": NLLTriNet}
+    "TriNet": NLLTriNet,
+    "DAST": NLLDAST}
 
 def main():
     if(len(sys.argv) < 3):
