@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Implementation of Co-teaching for learning from noisy samples for 
+Implementation of trinet for learning from noisy samples for 
 segmentation tasks according to the following paper:
-    Bo Han et al., Co-teaching: Robust Training of Deep NeuralNetworks
-    with Extremely Noisy Labels, NeurIPS, 2018
-The author's original implementation was:
-https://github.com/bhanML/Co-teaching 
-
-
+    Tianwei Zhang, Lequan Yu, Na Hu, Su Lv, Shi Gu:
+    Robust Medical Image Segmentation from Non-expert Annotations with Tri-network.
+    MICCAI 2020.
+    https://link.springer.com/chapter/10.1007/978-3-030-59719-1_25 
 """
 from __future__ import print_function, division
 import logging
@@ -48,11 +46,6 @@ class TriNet(nn.Module):
           return (out1 + out2 + out3) / 3
 
 class NLLTriNet(SegmentationAgent):
-    """
-    Co-teaching: Robust Training of Deep Neural Networks with Extremely 
-    Noisy Labels
-    https://arxiv.org/abs/1804.06872
-    """
     def __init__(self, config, stage = 'train'):
         super(NLLTriNet, self).__init__(config, stage)
        

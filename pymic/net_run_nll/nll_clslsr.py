@@ -3,7 +3,8 @@
 Caculating the confidence map of labels of training samples,
 which is used in the method of SLSR.
     Minqing Zhang et al., Characterizing Label Errors: Confident Learning
-    for Noisy-Labeled Image Segmentation, MICCAI 2020.    
+    for Noisy-Labeled Image Segmentation, MICCAI 2020.  
+    https://link.springer.com/chapter/10.1007/978-3-030-59710-8_70  
 """
 
 from __future__ import print_function, division

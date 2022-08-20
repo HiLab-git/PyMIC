@@ -195,7 +195,9 @@ class ClassificationAgent(NetRunAgent):
         ckpt_dir    = self.config['training']['ckpt_save_dir']
         if(ckpt_dir[-1] == "/"):
             ckpt_dir = ckpt_dir[:-1]
-        ckpt_prefx  = ckpt_dir.split('/')[-1]
+        ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
+        if(ckpt_prefix is None):
+            ckpt_prefix = ckpt_dir.split('/')[-1]
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
@@ -206,7 +208,7 @@ class ClassificationAgent(NetRunAgent):
         self.best_model_wts = None 
         self.checkpoint = None
         if(iter_start > 0):
-            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, iter_start)
+            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, iter_start)
             self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
             assert(self.checkpoint['iteration'] == iter_start)
             self.net.load_state_dict(self.checkpoint['model_state_dict'])
@@ -237,9 +239,9 @@ class ClassificationAgent(NetRunAgent):
                              'valid_pred': valid_scalars[metrics],
                              'model_state_dict': self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
-                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, glob_it)
+                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, glob_it)
                 torch.save(save_dict, save_name) 
-                txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefx), 'wt')
+                txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefix), 'wt')
                 txt_file.write(str(glob_it))
                 txt_file.close()
 
@@ -248,9 +250,9 @@ class ClassificationAgent(NetRunAgent):
                     'valid_pred': self.max_val_score,
                     'model_state_dict': self.best_model_wts,
                     'optimizer_state_dict': self.optimizer.state_dict()}
-        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, self.max_val_it)
+        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, self.max_val_it)
         torch.save(save_dict, save_name) 
-        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefx), 'wt')
+        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefix), 'wt')
         txt_file.write(str(self.max_val_it))
         txt_file.close()
         logging.info('The best perfroming iter is {0:}, valid {1:} {2:}'.format(\
