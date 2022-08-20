@@ -31,24 +31,26 @@ PyMIC provides flixible modules for medical image computing tasks including clas
 [tbx_link]:https://github.com/lanpa/tensorboardX 
 
 ## Installation
-Run the following command to install the current released version of PyMIC:
+Run the following command to install the latest released version of PyMIC:
 
 ```bash
 pip install PYMIC
 ```
 
-Alternatively, you can download the source code for the latest version. Run the following command to compile and install:
+Alternatively, you can download the source code for the latest dev version. Run the following command to compile and install:
 
 ```bash
 python setup.py install
 ``` 
 
-## Examples
-[PyMIC_examples][examples] provides some examples of starting to use PyMIC. At the beginning, you only need to  edit the configuration files to select different datasets, networks and training methods for running the code. When you are more familiar with PyMIC, you can customize different modules in the PyMIC package. You can find both types of examples: 
+## How to start
+* [PyMIC_examples][exp_link] shows some examples of starting to use PyMIC. 
+* [PyMIC_doc][docs_link] provides documentation of this project. 
 
-[examples]: https://github.com/HiLab-git/PyMIC_examples 
+[docs_link]:https://pymic.readthedocs.io/en/latest/
+[exp_link]:https://github.com/HiLab-git/PyMIC_examples 
 
-# Projects based on PyMIC
+## Projects based on PyMIC
 Using PyMIC, it becomes easy to develop deep learning models for different projects, such as the following:
 
 1, [COPLE-Net][coplenet] (TMI 2020), COVID-19 Pneumonia Segmentation from CT images. 
