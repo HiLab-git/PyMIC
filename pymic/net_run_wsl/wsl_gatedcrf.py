@@ -3,7 +3,7 @@ from __future__ import print_function, division
 import logging
 import numpy as np
 import torch
-from torhc.optim import lr_scheduler
+from torch.optim import lr_scheduler
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
