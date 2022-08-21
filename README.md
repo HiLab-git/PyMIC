@@ -36,8 +36,12 @@ Run the following command to install the latest released version of PyMIC:
 ```bash
 pip install PYMIC
 ```
+To install a specific version of PYMIC such as 0.3.0, run:
 
-Alternatively, you can download the source code for the latest dev version. Run the following command to compile and install:
+```bash
+pip install PYMIC==0.3.0
+```
+Alternatively, you can download the source code for the latest version. Run the following command to compile and install:
 
 ```bash
 python setup.py install
@@ -53,12 +57,15 @@ python setup.py install
 ## Projects based on PyMIC
 Using PyMIC, it becomes easy to develop deep learning models for different projects, such as the following:
 
-1, [COPLE-Net][coplenet] (TMI 2020), COVID-19 Pneumonia Segmentation from CT images. 
+1, [MyoPS][myops] Winner of the MICCAI 2020 myocardial pathology segmentation (MyoPS) Challenge.
 
-2, [Head-Neck-GTV][hn_gtv] (NeuroComputing 2020) Nasopharyngeal Carcinoma (NPC) GTV segmentation from Head and Neck CT images. 
+2, [COPLE-Net][coplenet] (TMI 2020), COVID-19 Pneumonia Segmentation from CT images. 
 
-3, [UGIR][ugir] (MICCAI 2020) Uncertainty-guided interactive refinement for medical image segmentation. 
+3, [Head-Neck-GTV][hn_gtv] (NeuroComputing 2020) Nasopharyngeal Carcinoma (NPC) GTV segmentation from Head and Neck CT images. 
 
+4, [UGIR][ugir] (MICCAI 2020) Uncertainty-guided interactive refinement for medical image segmentation. 
+
+[myops]: https://github.com/HiLab-git/MyoPS2020
 [coplenet]:https://github.com/HiLab-git/COPLE-Net
 [hn_gtv]: https://github.com/HiLab-git/Head-Neck-GTV
 [ugir]: https://github.com/HiLab-git/UGIR
