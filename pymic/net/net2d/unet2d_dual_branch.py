@@ -11,21 +11,15 @@ from __future__ import print_function, division
 
 import torch
 import torch.nn as nn
-import numpy as np 
-from torch.nn.functional import interpolate
 from pymic.net.net2d.unet2d import *
 
-class DualBranchUNet2D(UNet2D):
+class UNet2D_DualBranch(nn.Module):
     def __init__(self, params):
-        params['deep_supervise'] = False
-        super(DualBranchUNet2D, self).__init__(params)
-        if(len(self.ft_chns) == 5):
-            self.up1_aux = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], 0.0, self.bilinear) 
-        self.up2_aux = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], 0.0, self.bilinear) 
-        self.up3_aux = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], 0.0, self.bilinear) 
-        self.up4_aux = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], 0.0, self.bilinear) 
-    
-        self.out_conv_aux = nn.Conv2d(self.ft_chns[0], self.n_class, kernel_size = 1)
+        super(UNet2D_DualBranch, self).__init__()
+        self.output_mode = params.get("output_mode", "average")
+        self.encoder  = Encoder(params)
+        self.decoder1 = Decoder(params)    
+        self.decoder2 = Decoder(params)        
 
     def forward(self, x):
         x_shape = list(x.shape)
@@ -35,25 +29,22 @@ class DualBranchUNet2D(UNet2D):
           x = torch.transpose(x, 1, 2)
           x = torch.reshape(x, new_shape)
 
-        x0 = self.in_conv(x)
-        x1 = self.down1(x0)
-        x2 = self.down2(x1)
-        x3 = self.down3(x2)
-        if(len(self.ft_chns) == 5):
-          x4 = self.down4(x3)
-          x_d3, x_d3_aux = self.up1(x4, x3), self.up1_aux(x4, x3)
-        else:
-          x_d3, x_d3_aux = x3, x3
-
-        x_d2, x_d2_aux = self.up2(x_d3, x2), self.up2_aux(x_d3_aux, x2)
-        x_d1, x_d1_aux = self.up3(x_d2, x1), self.up3_aux(x_d2_aux, x1)
-        x_d0, x_d0_aux = self.up4(x_d1, x0), self.up4_aux(x_d1_aux, x0)
-        output, output_aux = self.out_conv(x_d0), self.out_conv_aux(x_d0_aux)
-        
+        f = self.encoder(x)
+        output1 = self.decoder1(f)
+        output2 = self.decoder2(f)
         if(len(x_shape) == 5):
-            new_shape = [N, D] + list(output.shape)[1:]
-            output = torch.reshape(output, new_shape)
-            output = torch.transpose(output, 1, 2)
-            output_aux = torch.reshape(output_aux, new_shape)
-            output_aux = torch.transpose(output_aux, 1, 2)
-        return output, output_aux
+            new_shape = [N, D] + list(output1.shape)[1:]
+            output1 = torch.reshape(output1, new_shape)
+            output1 = torch.transpose(output1, 1, 2)
+            output2 = torch.reshape(output2, new_shape)
+            output2 = torch.transpose(output2, 1, 2)
+
+        if(self.training):
+          return output1, output2
+        else:
+          if(self.output_mode == "average"):
+            return (output1 + output2)/2
+          elif(self.output_mode == "first"):
+            return output1
+          else:
+            return output2

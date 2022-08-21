@@ -3,6 +3,7 @@ from __future__ import print_function, division
 
 import copy
 import csv
+import logging
 import time
 import torch
 from torchvision import transforms
@@ -71,7 +72,7 @@ class ClassificationAgent(NetRunAgent):
         else:
             self.net.double()
         param_number = sum(p.numel() for p in self.net.parameters() if p.requires_grad)
-        print('parameter number:', param_number)
+        logging.info('parameter number {0:}'.format(param_number))
 
     def get_parameters_to_update(self):
         params = self.net.get_parameters_to_update()
@@ -176,10 +177,10 @@ class ClassificationAgent(NetRunAgent):
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars(metrics, acc_scalar, glob_it)
         
-        print("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
-        print('train loss {0:.4f}, avg {1:} {2:.4f}'.format(
+        logging.info("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
+        logging.info('train loss {0:.4f}, avg {1:} {2:.4f}'.format(
             train_scalars['loss'], metrics, train_scalars[metrics]))
-        print('valid loss {0:.4f}, avg {1:} {2:.4f}'.format(
+        logging.info('valid loss {0:.4f}, avg {1:} {2:.4f}'.format(
             valid_scalars['loss'], metrics, valid_scalars[metrics])) 
 
     def train_valid(self):
@@ -194,7 +195,9 @@ class ClassificationAgent(NetRunAgent):
         ckpt_dir    = self.config['training']['ckpt_save_dir']
         if(ckpt_dir[-1] == "/"):
             ckpt_dir = ckpt_dir[:-1]
-        ckpt_prefx  = ckpt_dir.split('/')[-1]
+        ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
+        if(ckpt_prefix is None):
+            ckpt_prefix = ckpt_dir.split('/')[-1]
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
@@ -205,7 +208,7 @@ class ClassificationAgent(NetRunAgent):
         self.best_model_wts = None 
         self.checkpoint = None
         if(iter_start > 0):
-            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, iter_start)
+            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, iter_start)
             self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
             assert(self.checkpoint['iteration'] == iter_start)
             self.net.load_state_dict(self.checkpoint['model_state_dict'])
@@ -218,7 +221,7 @@ class ClassificationAgent(NetRunAgent):
 
         self.trainIter  = iter(self.train_loader)
 
-        print("{0:} training start".format(str(datetime.now())[:-7]))
+        logging.info("{0:} training start".format(str(datetime.now())[:-7]))
         self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
         for it in range(iter_start, iter_max, iter_valid):
             train_scalars = self.training()
@@ -236,9 +239,9 @@ class ClassificationAgent(NetRunAgent):
                              'valid_pred': valid_scalars[metrics],
                              'model_state_dict': self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
-                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, glob_it)
+                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, glob_it)
                 torch.save(save_dict, save_name) 
-                txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefx), 'wt')
+                txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefix), 'wt')
                 txt_file.write(str(glob_it))
                 txt_file.close()
 
@@ -247,12 +250,12 @@ class ClassificationAgent(NetRunAgent):
                     'valid_pred': self.max_val_score,
                     'model_state_dict': self.best_model_wts,
                     'optimizer_state_dict': self.optimizer.state_dict()}
-        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, self.max_val_it)
+        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, self.max_val_it)
         torch.save(save_dict, save_name) 
-        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefx), 'wt')
+        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefix), 'wt')
         txt_file.write(str(self.max_val_it))
         txt_file.close()
-        print('The best perfroming iter is {0:}, valid {1:} {2:}'.format(\
+        logging.info('The best perfroming iter is {0:}, valid {1:} {2:}'.format(\
             self.max_val_it, metrics, self.max_val_score))
         self.summ_writer.close()
 

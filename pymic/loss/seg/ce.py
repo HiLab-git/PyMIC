@@ -6,7 +6,7 @@ import torch.nn as nn
 from pymic.loss.seg.util import reshape_tensor_to_2D
 
 class CrossEntropyLoss(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params = None):
         super(CrossEntropyLoss, self).__init__()
         if(params is None):
             self.softmax = True
@@ -59,34 +59,36 @@ class PartialCrossEntropyLoss(nn.Module):
         ce = torch.mean(ce)  
         return ce
 
-class GeneralizedCrossEntropyLoss(nn.Module):
+class GeneralizedCELoss(nn.Module):
     """
     Generalized cross entropy loss to deal with noisy labels. 
         Z. Zhang et al. Generalized Cross Entropy Loss for Training Deep Neural Networks 
         with Noisy Labels, NeurIPS 2018.
     """
     def __init__(self, params):
-        super(GeneralizedCrossEntropyLoss, self).__init__()
-        self.enable_pix_weight = params['GeneralizedCrossEntropyLoss_Enable_Pixel_Weight'.lower()]
-        self.enable_cls_weight = params['GeneralizedCrossEntropyLoss_Enable_Class_Weight'.lower()]
-        self.q = params['GeneralizedCrossEntropyLoss_q'.lower()]
+        """
+        q: in (0, 1), becmomes MAE when q = 1
+        """
+        super(GeneralizedCELoss, self).__init__()
+        self.enable_pix_weight = params.get('GeneralizedCELoss_Enable_Pixel_Weight', False)
+        self.enable_cls_weight = params.get('GeneralizedCELoss_Enable_Class_Weight', False)
+        self.q = params.get('GeneralizedCELoss_q', 0.5)
+        self.softmax = params.get('loss_softmax', True)
 
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
-        soft_y  = loss_input_dict['ground_truth']
-        pix_w   = loss_input_dict['pixel_weight']
-        cls_w   = loss_input_dict['class_weight']
-        softmax = loss_input_dict['softmax']
+        soft_y  = loss_input_dict['ground_truth']        
 
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(softmax):
+        if(self.softmax):
             predict = nn.Softmax(dim = 1)(predict)
         predict = reshape_tensor_to_2D(predict)
         soft_y  = reshape_tensor_to_2D(soft_y)
         gce     = (1.0 - torch.pow(predict, self.q)) / self.q * soft_y
         
         if(self.enable_cls_weight):
+            cls_w   = loss_input_dict.get('class_weight', None)
             if(cls_w is None):
                 raise ValueError("Class weight is enabled but not defined")
             gce = torch.sum(gce * cls_w, dim = 1)
@@ -94,6 +96,7 @@ class GeneralizedCrossEntropyLoss(nn.Module):
             gce = torch.sum(gce, dim = 1)
         
         if(self.enable_pix_weight):
+            pix_w   = loss_input_dict.get('pixel_weight', None)
             if(pix_w is None):
                 raise ValueError("Pixel weight is enabled but not defined")
             pix_w = reshape_tensor_to_2D(pix_w)

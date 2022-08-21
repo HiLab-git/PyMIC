@@ -10,6 +10,7 @@ import torchvision.transforms as transforms
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim import lr_scheduler
 import torch.nn.functional as F
 from datetime import datetime
 from tensorboardX import SummaryWriter
@@ -25,12 +26,15 @@ from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.transform.trans_dict import TransformDict
+from pymic.util.post_process import PostProcessDict
 from pymic.util.image_process import convert_label
 
 class SegmentationAgent(NetRunAgent):
     def __init__(self, config, stage = 'train'):
         super(SegmentationAgent, self).__init__(config, stage)
-        self.transform_dict  = TransformDict
+        self.transform_dict   = TransformDict
+        self.postprocess_dict = PostProcessDict
+        self.postprocessor    = None
         
     def get_stage_dataset_from_config(self, stage):
         assert(stage in ['train', 'valid', 'test'])
@@ -154,10 +158,13 @@ class SegmentationAgent(NetRunAgent):
         loss_value = self.loss_calculator(loss_input_dict)
         return loss_value
     
+    def set_postprocessor(self, postprocessor):
+        self.postprocessor = postprocessor
+
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
-        train_loss = 0
+        train_loss  = 0
         train_dice_list = []
         self.net.train()
         for it in range(iter_valid):
@@ -192,10 +199,11 @@ class SegmentationAgent(NetRunAgent):
             # forward + backward + optimize
             outputs = self.net(inputs)
             loss = self.get_loss_value(data, outputs, labels_prob)
-            # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
+            if(self.scheduler is not None and \
+                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
+                self.scheduler.step()
 
             train_loss = train_loss + loss.item()
             # get dice evaluation for each class
@@ -251,15 +259,19 @@ class SegmentationAgent(NetRunAgent):
         valid_cls_dice = np.asarray(valid_dice_list).mean(axis = 0)
         valid_avg_dice = valid_cls_dice.mean()
         
+        if(isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
+            self.scheduler.step(valid_avg_dice)
+
         valid_scalers = {'loss': valid_avg_loss, 'avg_dice': valid_avg_dice,\
             'class_dice': valid_cls_dice}
         return valid_scalers
 
-    def write_scalars(self, train_scalars, valid_scalars, glob_it):
+    def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         loss_scalar ={'train':train_scalars['loss'], 'valid':valid_scalars['loss']}
         dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
+        self.summ_writer.add_scalars('lr', {"lr": lr_value}, glob_it)
         class_num = self.config['network']['class_num']
         for c in range(class_num):
             cls_dice_scalar = {'train':train_scalars['class_dice'][c], \
@@ -282,24 +294,27 @@ class SegmentationAgent(NetRunAgent):
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
         ckpt_dir    = self.config['training']['ckpt_save_dir']
-        if(ckpt_dir[-1] == "/"):
-            ckpt_dir = ckpt_dir[:-1]
-        ckpt_prefx  = ckpt_dir.split('/')[-1]
+        ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
+        if(ckpt_prefix is None):
+            ckpt_prefix = ckpt_dir.split('/')[-1]
         iter_start  = self.config['training']['iter_start']
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
-        iter_save   = self.config['training']['iter_save']
-        if(isinstance(iter_save, (tuple, list))):
+        iter_save   = self.config['training'].get('iter_save', None)
+        early_stop_it = self.config['training'].get('early_stop_patience', None)
+        if(iter_save is None):
+            iter_save_list = [iter_max]
+        elif(isinstance(iter_save, (tuple, list))):
             iter_save_list = iter_save
         else:
-            iter_save_list = range(iter_start, iter_max +1, iter_save)
+            iter_save_list = range(0, iter_max + 1, iter_save)
 
         self.max_val_dice = 0.0
         self.max_val_it   = 0
         self.best_model_wts = None 
         self.checkpoint = None
         if(iter_start > 0):
-            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, iter_start)
+            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, iter_start)
             self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
             # assert(self.checkpoint['iteration'] == iter_start)
             if(len(device_ids) > 1):
@@ -320,15 +335,18 @@ class SegmentationAgent(NetRunAgent):
         self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
         self.glob_it = iter_start
         for it in range(iter_start, iter_max, iter_valid):
+            lr_value = self.optimizer.param_groups[0]['lr']
             t0 = time.time()
             train_scalars = self.training()
             t1 = time.time()
+            
             valid_scalars = self.validation()
             t2 = time.time()
             self.glob_it = it + iter_valid
-            logging.info("{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
+            logging.info("\n{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
+            logging.info('learning rate {0:}'.format(lr_value))
             logging.info("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
-            self.write_scalars(train_scalars, valid_scalars, self.glob_it)
+            self.write_scalars(train_scalars, valid_scalars, lr_value, self.glob_it)
             if(valid_scalars['avg_dice'] > self.max_val_dice):
                 self.max_val_dice = valid_scalars['avg_dice']
                 self.max_val_it   = self.glob_it
@@ -337,25 +355,30 @@ class SegmentationAgent(NetRunAgent):
                 else:
                     self.best_model_wts = copy.deepcopy(self.net.state_dict())
 
-            if (self.glob_it in iter_save_list):
+            stop_now = True if(early_stop_it is not None and \
+                self.glob_it - self.max_val_it > early_stop_it) else False
+            if ((self.glob_it in iter_save_list) or stop_now):
                 save_dict = {'iteration': self.glob_it,
                              'valid_pred': valid_scalars['avg_dice'],
                              'model_state_dict': self.net.module.state_dict() \
                                  if len(device_ids) > 1 else self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
-                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, self.glob_it)
+                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, self.glob_it)
                 torch.save(save_dict, save_name) 
-                txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefx), 'wt')
+                txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefix), 'wt')
                 txt_file.write(str(self.glob_it))
                 txt_file.close()
+            if(stop_now):
+                logging.info("The training is early stopped")
+                break
         # save the best performing checkpoint
         save_dict = {'iteration': self.max_val_it,
                     'valid_pred': self.max_val_dice,
                     'model_state_dict': self.best_model_wts,
                     'optimizer_state_dict': self.optimizer.state_dict()}
-        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefx, self.max_val_it)
+        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, self.max_val_it)
         torch.save(save_dict, save_name) 
-        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefx), 'wt')
+        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefix), 'wt')
         txt_file.write(str(self.max_val_it))
         txt_file.close()
         logging.info('The best performing iter is {0:}, valid dice {1:}'.format(\
@@ -394,6 +417,9 @@ class SegmentationAgent(NetRunAgent):
             infer_cfg = self.config['testing']
             infer_cfg['class_num'] = self.config['network']['class_num']
             self.inferer = Inferer(infer_cfg)
+        postpro_name = self.config['testing'].get('post_process', None)
+        if(self.postprocessor is None and postpro_name is not None):
+            self.postprocessor = PostProcessDict[postpro_name](self.config['testing'])
         infer_time_list = []
         with torch.no_grad():
             for data in self.test_loader:
@@ -428,7 +454,7 @@ class SegmentationAgent(NetRunAgent):
                 self.save_ouputs(data)
         infer_time_list = np.asarray(infer_time_list)
         time_avg, time_std = infer_time_list.mean(), infer_time_list.std()
-        print("testing time {0:} +/- {1:}".format(time_avg, time_std))
+        logging.info("testing time {0:} +/- {1:}".format(time_avg, time_std))
 
     def infer_with_multiple_checkpoints(self):
         """
@@ -482,7 +508,7 @@ class SegmentationAgent(NetRunAgent):
                 self.save_ouputs(data)
         infer_time_list = np.asarray(infer_time_list)
         time_avg, time_std = infer_time_list.mean(), infer_time_list.std()
-        print("testing time {0:} +/- {1:}".format(time_avg, time_std))
+        logging.info("testing time {0:} +/- {1:}".format(time_avg, time_std))
 
     def save_ouputs(self, data):
         output_dir = self.config['testing']['output_dir']
@@ -493,7 +519,7 @@ class SegmentationAgent(NetRunAgent):
         filename_replace_source = self.config['testing'].get('filename_replace_source', None)
         filename_replace_target = self.config['testing'].get('filename_replace_target', None)
         if(not os.path.exists(output_dir)):
-            os.mkdir(output_dir)
+            os.makedirs(output_dir, exist_ok=True)
 
         names, pred = data['names'], data['predict']
         if(isinstance(pred, (list, tuple))):
@@ -502,6 +528,9 @@ class SegmentationAgent(NetRunAgent):
         output = np.asarray(np.argmax(prob,  axis = 1), np.uint8)
         if((label_source is not None) and (label_target is not None)):
             output = convert_label(output, label_source, label_target)
+        if(self.postprocessor is not None):
+            for i in range(len(names)):
+                output[i] = self.postprocessor(output[i])
         # save the output and (optionally) probability predictions
         root_dir  = self.config['dataset']['root_dir']
         for i in range(len(names)):

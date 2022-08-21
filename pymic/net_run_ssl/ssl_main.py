@@ -8,14 +8,17 @@ from pymic.util.parse_config import *
 from pymic.net_run_ssl.ssl_em import SSLEntropyMinimization
 from pymic.net_run_ssl.ssl_mt import SSLMeanTeacher
 from pymic.net_run_ssl.ssl_uamt import SSLUncertaintyAwareMeanTeacher
+from pymic.net_run_ssl.ssl_cct import SSLCCT
+from pymic.net_run_ssl.ssl_cps import SSLCPS
 from pymic.net_run_ssl.ssl_urpc import SSLURPC
-from pymic.net_run_ssl.ssl_cps import SSLCrossPseudoSupervision
+
 
 SSLMethodDict = {'EntropyMinimization': SSLEntropyMinimization,
     'MeanTeacher': SSLMeanTeacher,
     'UAMT': SSLUncertaintyAwareMeanTeacher,
-    'URPC': SSLURPC,
-    'CPS': SSLCrossPseudoSupervision}
+    'CCT': SSLCCT,
+    'CPS': SSLCPS,
+    'URPC': SSLURPC}
 
 def main():
     if(len(sys.argv) < 3):
@@ -29,7 +32,7 @@ def main():
     log_dir  = config['training']['ckpt_save_dir']
     if(not os.path.exists(log_dir)):
         os.mkdir(log_dir)
-    logging.basicConfig(filename=log_dir+"/log.txt", level=logging.INFO,
+    logging.basicConfig(filename=log_dir+"/log_{0:}.txt".format(stage), level=logging.INFO,
                         format='%(message)s')
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging_config(config)

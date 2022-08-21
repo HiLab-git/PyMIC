@@ -79,10 +79,10 @@ class UNet2D_ScSE(nn.Module):
         self.down2  = DownBlock(self.ft_chns[1], self.ft_chns[2], self.dropout[2])
         self.down3  = DownBlock(self.ft_chns[2], self.ft_chns[3], self.dropout[3])
         self.down4  = DownBlock(self.ft_chns[3], self.ft_chns[4], self.dropout[4])
-        self.up1 = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], dropout_p = 0.0) 
-        self.up2 = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], dropout_p = 0.0) 
-        self.up3 = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], dropout_p = 0.0) 
-        self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], dropout_p = 0.0) 
+        self.up1 = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], dropout_p = self.dropout[3]) 
+        self.up2 = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], dropout_p = self.dropout[2]) 
+        self.up3 = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], dropout_p = self.dropout[1]) 
+        self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], dropout_p = self.dropout[0]) 
     
         self.out_conv = nn.Conv2d(self.ft_chns[0], self.n_class,  
             kernel_size = 3, padding = 1)

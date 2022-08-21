@@ -74,7 +74,7 @@ def get_edge_points(img):
     return edge 
 
 
-def binary_hausdorff95(s, g, spacing = None):
+def binary_hd95(s, g, spacing = None):
     """
     get the hausdorff distance between a binary segmentation and the ground truth
     inputs:
@@ -165,8 +165,8 @@ def get_binary_evaluation_score(s_volume, g_volume, spacing, metric):
     elif(metric_lower == 'assd'):
         score = binary_assd(s_volume, g_volume, spacing)
 
-    elif(metric_lower == "hausdorff95"):
-        score = binary_hausdorff95(s_volume, g_volume, spacing)
+    elif(metric_lower == "hd95"):
+        score = binary_hd95(s_volume, g_volume, spacing)
 
     elif(metric_lower == "rve"):
         score = binary_relative_volume_error(s_volume, g_volume)

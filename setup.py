@@ -3,7 +3,7 @@ import setuptools
 
 # Get the summary
 description = 'An open-source deep learning platform' + \
-              ' for medical image computing'
+              ' for annotation-efficient medical image computing'
 
 # Get the long description
 with open('README.md', encoding='utf-8') as f:
@@ -11,7 +11,7 @@ with open('README.md', encoding='utf-8') as f:
 
 setuptools.setup(
     name    = 'PYMIC',
-    version = "0.2.5",
+    version = "0.3.0",
     author  ='PyMIC Consortium',
     author_email = 'wguotai@gmail.com',
     description  = description,
@@ -31,6 +31,8 @@ setuptools.setup(
         'console_scripts': [
             'pymic_run  = pymic.net_run.net_run:main',
             'pymic_ssl  = pymic.net_run_ssl.ssl_main:main',
+            'pymic_wsl  = pymic.net_run_wsl.wsl_main:main',
+            'pymic_nll  = pymic.net_run_nll.nll_main:main',
             'pymic_eval_cls = pymic.util.evaluation_cls:main',
             'pymic_eval_seg = pymic.util.evaluation_seg:main'
         ],

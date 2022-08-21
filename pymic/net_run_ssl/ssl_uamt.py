@@ -3,11 +3,12 @@ from __future__ import print_function, division
 import logging
 import torch
 import numpy as np
+from torch.optim import lr_scheduler
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.util.ramps import sigmoid_rampup
 from pymic.net_run_ssl.ssl_mt import SSLMeanTeacher
+from pymic.util.ramps import get_rampup_ratio
 
 class SSLUncertaintyAwareMeanTeacher(SSLMeanTeacher):
     """
@@ -21,6 +22,9 @@ class SSLUncertaintyAwareMeanTeacher(SSLMeanTeacher):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
         ssl_cfg     = self.config['semi_supervised_learning']
+        iter_max     = self.config['training']['iter_max']
+        rampup_start = ssl_cfg.get('rampup_start', 0)
+        rampup_end   = ssl_cfg.get('rampup_end', iter_max)
         train_loss  = 0
         train_loss_sup = 0
         train_loss_reg = 0
@@ -80,24 +84,21 @@ class SSLUncertaintyAwareMeanTeacher(SSLMeanTeacher):
             uncertainty = -1.0 * torch.sum(preds*torch.log(preds + 1e-6),
                  dim=1, keepdim=True)
             
-            iter_max = self.config['training']['iter_max']
-            ramp_up_length = ssl_cfg.get('ramp_up_length', iter_max)
-            threshold_ramp = sigmoid_rampup(self.glob_it, iter_max)
+            rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end, "sigmoid")
             class_num = list(y0.shape)[1]
-            threshold = (0.75+0.25*threshold_ramp)*np.log(class_num)
+            threshold = (0.75+0.25*rampup_ratio)*np.log(class_num)
             mask      = (uncertainty < threshold).float()
             loss_reg  = torch.sum(mask*square_error)/(2*torch.sum(mask)+1e-16)
 
-            regular_w = 0.0
-            if(self.glob_it > ssl_cfg.get('iter_sup', 0)):
-                regular_w = ssl_cfg.get('regularize_w', 0.1)
-                if(ramp_up_length is not None and self.glob_it < ramp_up_length):
-                    regular_w = regular_w * sigmoid_rampup(self.glob_it, ramp_up_length)
+            regular_w = ssl_cfg.get('regularize_w', 0.1) * rampup_ratio
             loss = loss_sup + regular_w*loss_reg
 
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
+            if(self.scheduler is not None and \
+                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
+                self.scheduler.step()
+
 
             # update EMA
             alpha = ssl_cfg.get('ema_decay', 0.99)
