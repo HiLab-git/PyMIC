@@ -46,8 +46,8 @@ such as dataset, network structure, loss function, optimizer, learning rate
 scheduler and post processing methods, etc. 
 
 .. tip::
-Genreally, the configuration file have four sections: ``dataset``, ``network``, 
-``training`` and ``testing``. 
+   Genreally, the configuration file have four sections: ``dataset``, ``network``, 
+   ``training`` and ``testing``. 
 
 The following is an example configuration
 file used for segmentation of lung from radiograph, which can be find in 
