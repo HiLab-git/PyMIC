@@ -96,7 +96,6 @@ class UNet3D(nn.Module):
         self.n_class   = self.params['class_num']
         self.trilinear = self.params['trilinear']
         self.deep_sup  = self.params['deep_supervise']
-        self.stage     = self.params['stage']
         assert(len(self.ft_chns) == 5 or len(self.ft_chns) == 4)
 
         self.in_conv= ConvBlock(self.in_chns, self.ft_chns[0], self.dropout[0])
@@ -106,13 +105,13 @@ class UNet3D(nn.Module):
         if(len(self.ft_chns) == 5):
           self.down4  = DownBlock(self.ft_chns[3], self.ft_chns[4], self.dropout[4])
           self.up1 = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], 
-               dropout_p = 0.0, trilinear=self.trilinear) 
+               dropout_p = self.dropout[3], trilinear=self.trilinear) 
         self.up2 = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], 
-               dropout_p = 0.0, trilinear=self.trilinear) 
+               dropout_p = self.dropout[2], trilinear=self.trilinear) 
         self.up3 = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], 
-               dropout_p = 0.0, trilinear=self.trilinear) 
+               dropout_p = self.dropout[1], trilinear=self.trilinear) 
         self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], 
-               dropout_p = 0.0, trilinear=self.trilinear) 
+               dropout_p = self.dropout[0], trilinear=self.trilinear) 
     
         self.out_conv = nn.Conv3d(self.ft_chns[0], self.n_class, kernel_size = 1)
         if(self.deep_sup):
@@ -134,7 +133,7 @@ class UNet3D(nn.Module):
         x_d1 = self.up3(x_d2, x1)
         x_d0 = self.up4(x_d1, x0)
         output = self.out_conv(x_d0)
-        if(self.deep_sup and self.stage == "train"):
+        if(self.deep_sup):
             out_shape = list(output.shape)[2:]
             output1 = self.out_conv1(x_d1)
             output1 = interpolate(output1, out_shape, mode = 'trilinear')

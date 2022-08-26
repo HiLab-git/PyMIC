@@ -10,24 +10,21 @@ ramp length (maximal step or epoch), and returns a multiplier between
 0 and 1.
 """
 
-def sigmoid_rampup(i, length):
-    """Exponential rampup from https://arxiv.org/abs/1610.02242"""
-    if length == 0:
-        return 1.0
-    else:
-        i = np.clip(i, 0.0, length)
-        phase = 1.0 - (i + 0.0) / length
-        return float(np.exp(-5.0 * phase * phase))
+
+def get_rampup_ratio(i, start, end, mode = "linear"):
+    if( i < start):
+        rampup = 0.0
+    elif(i > end):
+        rampup = 1.0
+    elif(mode == "linear"):
+        rampup = (i - start) / (end - start)
+    elif(mode == "sigmoid"):
+        phase  = 1.0 - (i - start) / (end - start)
+        rampup = float(np.exp(-5.0 * phase * phase))
+    return rampup
 
 
-def linear_rampup(i, length):
-    """Linear rampup"""
-    assert i >= 0 and length >= 0
-    i = np.clip(i, 0.0, length)
-    return (i + 0.0) / length
-
-
-def cosine_rampdown(i, length):
+def cosine_rampdown(i, start, end):
     """Cosine rampdown from https://arxiv.org/abs/1608.03983"""
     i = np.clip(i, 0.0, length)
     return float(.5 * (np.cos(np.pi * i / length) + 1))

@@ -14,6 +14,7 @@ import scipy
 import sys
 import torch
 import numpy as np 
+import pandas as pd
 import torch.nn as nn
 import torchvision.transforms as transforms
 from PIL import Image
@@ -45,9 +46,9 @@ def get_confident_map(gt, pred, CL_type = 'both'):
         noise = cleanlab.pruning.get_noise_indices(gt, prob, prune_method=CL_type, n_jobs=1)
     return noise
 
-class SegmentationAgentwithCL(SegmentationAgent):
+class NLLConfidentLearn(SegmentationAgent):
     def __init__(self, config, stage = 'test'):
-        super(SegmentationAgentwithCL, self).__init__(config, stage)
+        super(NLLConfidentLearn, self).__init__(config, stage)
 
     def infer_with_cl(self):
         device_ids = self.config['testing']['gpus']
@@ -93,16 +94,6 @@ class SegmentationAgentwithCL(SegmentationAgent):
                 filename_list.append(names)
                 images = images.to(device)
     
-                # for debug
-                # for i in range(images.shape[0]):
-                #     image_i = images[i][0]
-                #     label_i = images[i][0]
-                #     image_name = "temp/{0:}_image.nii.gz".format(names[0])
-                #     label_name = "temp/{0:}_label.nii.gz".format(names[0])
-                #     save_nd_array_as_image(image_i, image_name, reference_name = None)
-                #     save_nd_array_as_image(label_i, label_name, reference_name = None)
-                # continue
-                
                 pred = self.inferer.run(self.net, images)
                 # convert tensor to numpy
                 if(isinstance(pred, (tuple, list))):
@@ -142,15 +133,10 @@ class SegmentationAgentwithCL(SegmentationAgent):
             dst_path = os.path.join(save_dir, filename)
             conf_map.save(dst_path)
 
-    def run(self):
-        self.create_dataset()
-        self.create_network()
-        self.infer_with_cl()
-
-def main():
+def get_confidence_map():
     if(len(sys.argv) < 2):
         print('Number of arguments should be 3. e.g.')
-        print('   python cl.py config.cfg')
+        print('   python nll_cl.py config.cfg')
         exit()
     cfg_file = str(sys.argv[1])
     config   = parse_config(cfg_file)
@@ -172,17 +158,35 @@ def main():
             transform_list.append(one_transform)
         data_transform = transforms.Compose(transform_list)
     print('transform list', transform_list)
-    csv_file = config['dataset']['train_csv']
+    csv_file  = config['dataset']['train_csv']
+    modal_num = config['dataset'].get('modal_num', 1)
     dataset  = NiftyDataset(root_dir  = config['dataset']['root_dir'],
                             csv_file  = csv_file,
-                            modal_num = config['dataset']['modal_num'],
+                            modal_num = modal_num,
                             with_label= True,
                             transform = data_transform )
 
-    agent = SegmentationAgentwithCL(config, 'test')
+    agent = NLLConfidentLearn(config, 'test')
     agent.set_datasets(None, None, dataset)
     agent.transform_list = transform_list
-    agent.run()
+    agent.create_dataset()
+    agent.create_network()
+    agent.infer_with_cl()
+
+    # create training csv for confidence learning
+    df_train = pd.read_csv(csv_file)
+    pixel_weight = []
+    weight_dir   = config['testing']['output_dir'] + "_conf"
+    for i in range(len(df_train["label"])):
+        lab_name = df_train["label"][i].split('/')[-1]
+        weight_name = "../" + weight_dir + '/' + lab_name
+        pixel_weight.append(weight_name)
+    train_cl_dict = {"image": df_train["image"],
+                   "pixel_weight": pixel_weight,
+                   "label": df_train["label"]}
+    train_cl_csv = csv_file.replace(".csv", "_cl.csv")
+    df_cl = pd.DataFrame.from_dict(train_cl_dict)
+    df_cl.to_csv(train_cl_csv, index = False)
 
 if __name__ == "__main__":
-    main()
+    get_confidence_map()
