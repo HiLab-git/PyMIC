@@ -17,3 +17,26 @@ Contents
 .. toctree::
    usage
    api
+
+
+Citation
+--------
+If you use PyMIC for your research, please acknowledge it accordingly by citing our paper:
+
+`G. Wang, X. Luo, R. Gu, S. Yang, Y. Qu, S. Zhai, Q. Zhao, K. Li, S. Zhang. (2022). 
+PyMIC: A deep learning toolkit for annotation-efficient medical image segmentation.
+arXiv, 2208.09350. <http://arxiv.org/abs/2208.09350>`_
+
+
+BibTeX entry:
+
+.. code-block:: none
+
+    @article{Wang2022pymic,
+    author = {Guotai Wang and Xiangde Luo and Ran Gu and Shuojue Yang and Yijie Qu and Shuwei Zhai and Qianfei Zhao and Kang Li and Shaoting Zhang},
+    title = {{PyMIC: A deep learning toolkit for annotation-efficient medical image segmentation}},
+    year = {2022},
+    url = {http://arxiv.org/abs/2208.09350},
+    journal = {arXiv},
+    pages = {1-10},
+    }
