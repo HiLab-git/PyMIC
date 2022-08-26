@@ -3,8 +3,9 @@
 .. role:: bash(code)
    :language: bash
 
-Install with ``pip`` 
-----------------------
+
+Installation
+------------
 
 Install PyMIC using pip (e.g., within a `Python virtual environment <https://www.geeksforgeeks.org/python-virtual-environment/>`_):
 
@@ -12,8 +13,6 @@ Install PyMIC using pip (e.g., within a `Python virtual environment <https://www
 
     pip install PYMIC
 
-Install with source code
-------------------------
 
 Alternatively, you can download or clone the code from `GitHub <https://github.com/HiLab-git/PyMIC>`_ and install PyMIC by
 
@@ -23,8 +22,7 @@ Alternatively, you can download or clone the code from `GitHub <https://github.c
     cd PyMIC
     python setup.py install
 
-Dependencies
-------------
+
 PyMIC requires Python 3.6 (or higher) and depends on the following packages:
 
  - `pandas <https://pandas.pydata.org/>`_

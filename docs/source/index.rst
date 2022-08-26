@@ -12,14 +12,9 @@ how to :ref:`installation` the project.
    This project is under active development. It will be updated later.
 
 
-Getting Started
----------------
-
-If you are new to PyMIC, here are some guides for learning to use it quickly. 
-
 .. toctree::
     :maxdepth: 2
-    :caption: Getting started
+    :caption: Getting Started
 
     installation
     usage
