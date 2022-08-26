@@ -43,22 +43,26 @@ PyMIC uses configuration files to specify the setting and parameters of a deep
 learning pipeline, so that users can reuse the code and minimize their workload.
 Users can use configuration files to config almost all the componets involved, 
 such as dataset, network structure, loss function, optimizer, learning rate 
-scheduler and post processing methods, etc.  The following is an example configuration
+scheduler and post processing methods, etc. 
+
+.. tip::
+Genreally, the configuration file have four sections: ``dataset``, ``network``, 
+``training`` and ``testing``. 
+
+The following is an example configuration
 file used for segmentation of lung from radiograph, which can be find in 
 `PyMIC_examples/segmentation/JSRT. <https://github.com/HiLab-git/PyMIC_examples/tree/main/segmentation/JSRT>`_
 
 .. code-block:: none
-   
+
    [dataset]
    # tensor type (float or double)
    tensor_type = float
-
    task_type = seg
    root_dir  = ../../PyMIC_data/JSRT
    train_csv = config/jsrt_train.csv
    valid_csv = config/jsrt_valid.csv
    test_csv  = config/jsrt_test.csv
-
    train_batch_size = 4
 
    # data transforms
@@ -73,10 +77,8 @@ file used for segmentation of lung from radiograph, which can be find in
    LabelConvert_target_list = [0, 1]
 
    [network]
-   # type of network
    net_type = UNet2D
-
-   # number of class, required for segmentation task
+   # Parameters for UNet2D
    class_num     = 2
    in_chns       = 1
    feature_chns  = [16, 32, 64, 128, 256]
@@ -100,8 +102,8 @@ file used for segmentation of lung from radiograph, which can be find in
    lr_gamma      = 0.5
    lr_milestones = [2000, 4000, 6000]
 
-   ckpt_save_dir    = model/unet_dice_loss
-   ckpt_prefix = unet
+   ckpt_save_dir = model/unet_dice_loss
+   ckpt_prefix   = unet
 
    # start iter
    iter_start = 0
@@ -113,10 +115,15 @@ file used for segmentation of lung from radiograph, which can be find in
    # list of gpus
    gpus       = [0]
    # checkpoint mode can be [0-latest, 1-best, 2-specified]
-   ckpt_mode         = 0
-   output_dir        = result
+   ckpt_mode  = 0
+   output_dir = result
 
    # convert the label of prediction output
    label_source = [0, 1]
    label_target = [0, 255]
 
+
+SegmentationAgent
+-----------------
+
+SegmentationAgent 
