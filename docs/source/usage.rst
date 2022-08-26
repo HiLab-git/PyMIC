@@ -37,10 +37,9 @@ After training, run the following command for testing:
     pymic_run test myconfig.cfg
 
 .. tip::
-   
-   We provide several examples in `PyMIC_examples
-    <https://github.com/HiLab-git/PyMIC_examples/>`_. Please run these examples to 
-    quickly start with using PyMIC. 
+
+   We provide several examples in `PyMIC_examples. <https://github.com/HiLab-git/PyMIC_examples/>`_
+   Please run these examples to quickly start with using PyMIC. 
    
 Configuration File
 ------------------
