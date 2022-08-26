@@ -8,10 +8,8 @@ the PyMIC pipeline, you can define your customized modules
 and reuse the remaining parts of the pipeline, with minimized
 workload. 
 
-
 .. toctree::
     :maxdepth: 2
-    :caption: 
 
     usage.quickstart
     usage.fsl
