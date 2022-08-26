@@ -6,29 +6,33 @@ Usage
 Installation
 ------------
 
-To use Lumache, first install it using pip:
+Install PyMIC using pip (e.g., within a `Python virtual environment <https://www.geeksforgeeks.org/python-virtual-environment/>`_):
 
-.. code-block:: console
+.. code-block:: bash
 
-   (.venv) $ pip install lumache
+    pip install PYMIC
 
-Creating recipes
-----------------
+Alternatively, you can download or clone the code from `GitHub <https://github.com/HiLab-git/PyMIC>`_ and install PyMIC by
 
-To retrieve a list of random ingredients,
-you can use the ``lumache.get_random_ingredients()`` function:
+.. code-block:: bash
 
-.. autofunction:: lumache.get_random_ingredients
+    git clone https://github.com/HiLab-git/PyMIC
+    cd PyMIC
+    python setup.py install
 
-The ``kind`` parameter should be either ``"meat"``, ``"fish"``,
-or ``"veggies"``. Otherwise, :py:func:`lumache.get_random_ingredients`
-will raise an exception.
+Train and Test
+------------
 
-.. autoexception:: lumache.InvalidKindError
+PyMIC accepts a configuration file for runing. For example, to train a network
+for segmentation with full supervision, run the fullowing command:
 
-For example:
+.. code-block:: bash
 
->>> import lumache
->>> lumache.get_random_ingredients()
-['shells', 'gorgonzola', 'parsley']
+    pymic_run train myconfig.cfg 
+
+After training, run the following command for testing:
+
+.. code-block:: bash
+
+    pymic_run test myconfig.cfg
 
