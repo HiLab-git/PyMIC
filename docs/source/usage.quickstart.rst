@@ -114,3 +114,4 @@ file used for segmentation of lung from radiograph, which can be find in
    # convert the label of prediction output
    label_source = [0, 1]
    label_target = [0, 255]
+

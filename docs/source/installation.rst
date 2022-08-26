@@ -1,11 +1,5 @@
-.. _installation:
-
-.. role:: bash(code)
-   :language: bash
-
-
 Installation
-------------
+============
 
 Install PyMIC using pip (e.g., within a `Python virtual environment <https://www.geeksforgeeks.org/python-virtual-environment/>`_):
 

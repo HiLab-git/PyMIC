@@ -11,7 +11,7 @@ from scipy import ndimage
 from torch.utils.data import Dataset
 from torch.utils.data.sampler import Sampler
 
-class H5DataSets(Dataset):
+class H5DataSet(Dataset):
     """
     Dataset for loading images stored in h5 format. It generates 
     4D tensors with dimention order [C, D, H, W] for 3D images, and 
@@ -90,7 +90,7 @@ def grouper(iterable, n):
 if __name__ == "__main__":
     root_dir = "/home/guotai/disk2t/projects/semi_supervise/SSL4MIS/data/ACDC/data/slices"
     file_name = "/home/guotai/disk2t/projects/semi_supervise/slices.txt"
-    dataset = H5DataSets(root_dir, file_name)
+    dataset = H5DataSet(root_dir, file_name)
     train_loader = torch.utils.data.DataLoader(dataset, 
                 batch_size = 4, shuffle=True, num_workers= 1)
     for sample in train_loader:
