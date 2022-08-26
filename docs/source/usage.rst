@@ -46,6 +46,7 @@ such as dataset, network structure, loss function, optimizer, learning rate
 scheduler and post processing methods, etc. 
 
 .. tip::
+
    Genreally, the configuration file have four sections: ``dataset``, ``network``, 
    ``training`` and ``testing``. 
 
@@ -131,6 +132,7 @@ and inference of deep learning models. You just need to specify a configuration 
 initialize an instance of that class. An example code to use it is:
 
 .. code-block:: none
+
    from pymic.util.parse_config import *
 
    config_name = "a_config_file.cfg"
@@ -140,3 +142,13 @@ initialize an instance of that class. An example code to use it is:
    agent    = SegmentationAgent(config, stage)
    agent.run()
 
+The above code will use the dataset, network and loss function, etc specifcied in the 
+configuration file for running. 
+
+.. tip::
+
+   If you use the built-in modules such as ``UNet`` and ``Dice`` + ``CrossEntropy`` loss 
+   for segmentation, you don't need to write the above code. Just just use the `pymic_run`
+   command. 
+
+ 
