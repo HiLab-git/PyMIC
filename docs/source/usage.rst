@@ -126,4 +126,17 @@ file used for segmentation of lung from radiograph, which can be find in
 SegmentationAgent
 -----------------
 
-SegmentationAgent 
+:mod:`pymic.net_run.agent_seg.SegmentationAgent` is the general class used for training 
+and inference of deep learning models. You just need to specify a configuration file to 
+initialize an instance of that class. An example code to use it is:
+
+.. code-block:: none
+   from pymic.util.parse_config import *
+
+   config_name = "a_config_file.cfg"
+   config   = parse_config(config_name)
+   config   = synchronize_config(config)
+   stage    = "train"  # or "test"
+   agent    = SegmentationAgent(config, stage)
+   agent.run()
+
