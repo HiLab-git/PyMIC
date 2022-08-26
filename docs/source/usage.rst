@@ -35,6 +35,12 @@ After training, run the following command for testing:
 .. code-block:: bash
 
     pymic_run test myconfig.cfg
+
+.. tip::
+   
+   We provide several examples in `PyMIC_examples
+    <https://github.com/HiLab-git/PyMIC_examples/>`_. Please run these examples to 
+    quickly start with using PyMIC. 
    
 Configuration File
 ------------------
@@ -45,7 +51,7 @@ Users can use configuration files to config almost all the componets involved,
 such as dataset, network structure, loss function, optimizer, learning rate 
 scheduler and post processing methods, etc. 
 
-.. tip::
+.. note::
 
    Genreally, the configuration file have four sections: ``dataset``, ``network``, 
    ``training`` and ``testing``. 
