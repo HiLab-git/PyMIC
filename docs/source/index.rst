@@ -11,20 +11,19 @@ how to :ref:`installation` the project.
 
    This project is under active development. It will be updated later.
 
+
+Getting Started
+---------------
+
+If you are new to PyMIC, here are some guides for learning to use it quickly. 
+
 .. toctree::
-    :maxdepth: 1
-    :hidden:
+    :maxdepth: 2
     :caption: Getting started
 
     installation
     usage
     api
-
-* :doc:`installation` helps you installing PyMIC quickly.
-
-* :doc:`usage` give you an overview of how to use PyMIC.
-
-* :doc:`api`.
 
 Citation
 --------
