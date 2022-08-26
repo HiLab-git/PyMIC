@@ -1,24 +1,13 @@
 Usage
 =====
 
-.. _installation:
+.. toctree::
+    :maxdepth: 2
+    :caption: Getting started
 
-Installation
-------------
-
-Install PyMIC using pip (e.g., within a `Python virtual environment <https://www.geeksforgeeks.org/python-virtual-environment/>`_):
-
-.. code-block:: bash
-
-    pip install PYMIC
-
-Alternatively, you can download or clone the code from `GitHub <https://github.com/HiLab-git/PyMIC>`_ and install PyMIC by
-
-.. code-block:: bash
-
-    git clone https://github.com/HiLab-git/PyMIC
-    cd PyMIC
-    python setup.py install
+    traintest
+    configuration
+    fully_supervised_learning
 
 .. _traintest:
 
