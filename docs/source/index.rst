@@ -11,16 +11,24 @@ how to :ref:`installation` the project.
 
    This project is under active development. It will be updated later.
 
-Contents
---------
-
 .. toctree::
-   usage
-   api
+    :maxdepth: 1
+    :hidden:
+    :caption: Getting started
 
+    installation
+    usage
+    api
+
+* :doc:`installation` helps you installing PyMIC quickly.
+
+* :doc:`usage` give you an overview of how to use PyMIC.
+
+* :doc:`api`.
 
 Citation
 --------
+
 If you use PyMIC for your research, please acknowledge it accordingly by citing our paper:
 
 `G. Wang, X. Luo, R. Gu, S. Yang, Y. Qu, S. Zhai, Q. Zhao, K. Li, S. Zhang. (2022). 
