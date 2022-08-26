@@ -40,7 +40,7 @@ Configuration File
 ------------------
 
 PyMIC uses configuration files to specify the setting and parameters of a deep 
-learning pipeline, so that users can reuse the code and minimizing their workload.
+learning pipeline, so that users can reuse the code and minimize their workload.
 Users can use configuration files to config almost all the componets involved, 
 such as dataset, network structure, loss function, optimizer, learning rate 
 scheduler and post processing methods, etc.  The following is an example configuration
@@ -48,6 +48,7 @@ file used for segmentation of lung from radiograph, which can be find in
 `PyMIC_examples/segmentation/JSRT. <https://github.com/HiLab-git/PyMIC_examples/tree/main/segmentation/JSRT>`_
 
 .. code-block:: none
+   
    [dataset]
    # tensor type (float or double)
    tensor_type = float
