@@ -78,7 +78,7 @@ to set the customized datasets. For example:
       # define your custom dataset here
    
    trainset, valset, testset = MyDataset(...), MyDataset(...), MyDataset(...)
-   agent    = SegmentationAgent(config, stage)
+   agent = SegmentationAgent(config, stage)
    agent.set_datasets(trainset, valset, testset)
    agent.run()
 
@@ -101,9 +101,10 @@ should also be provided, such as following:
    valid_transform = [NormalizeWithMeanStd, Pad, LabelToProbability]
    test_transform  = [NormalizeWithMeanStd, Pad]
 
+   # the inverse transform will be enabled during testing
    Pad_output_size = [8, 256, 256]
    Pad_ceil_mode   = False
-   Pad_inverse     = True    # the inverse transform will be enabled during testing
+   Pad_inverse     = True    
 
    RandomRotate_angle_range_d = [-90, 90]
    RandomRotate_angle_range_h = None
@@ -131,7 +132,35 @@ should also be provided, such as following:
 
 For spatial transforms, you can specify whether an inverse transform is enabled
 or not. Setting the inverse flag as True will transform the prediction output 
-inversely during testing, which is useful in testing time augmentation. If you 
-want to make images with different shapes to have the same shape before testing,
-then the the correspoinding transform's inverse flag can also be set as True, so 
+inversely during testing, such as ``Pad_inverse = True`` shown above. 
+If you want to make images with different shapes to have the same shape before testing,
+then the correspoinding transform's inverse flag can be set as True, so 
 that the prediction output will be transformed back to the original image space. 
+This is also useful for test time augmentation. 
+
+You can also define your own transform operations. To integrate your customized 
+transform to the PyMIC pipeline, just add it to the ``TransformDict``, and you can 
+also specify the parameters via configuration file for the customized transform. 
+The following is some example code for this:
+
+.. code-block:: none
+   from pymic.transform.trans_dict import TransformDict 
+   from pymic.transform.abstract_transform import AbstractTransform
+
+   # customized transform 
+   class MyTransform(AbstractTransform):
+      def __init__(self, params):
+         super(MyTransform, self).__init__(params)
+         ...
+
+      def __call__(self, sample):
+         ...
+
+      def  inverse_transform_for_prediction(self, sample):
+         ...
+
+   my_trans_dict = TransformDict
+   my_trans_dict["MyTransform"] = MyTransform
+   agent = SegmentationAgent(config, stage)
+   agent.set_transform_dict(my_trans_dict)
+   agent.run()
