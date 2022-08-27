@@ -140,10 +140,11 @@ This is also useful for test time augmentation.
 
 You can also define your own transform operations. To integrate your customized 
 transform to the PyMIC pipeline, just add it to the ``TransformDict``, and you can 
-also specify the parameters via configuration file for the customized transform. 
+also specify the parameters via a configuration file for the customized transform. 
 The following is some example code for this:
 
 .. code-block:: none
+
    from pymic.transform.trans_dict import TransformDict 
    from pymic.transform.abstract_transform import AbstractTransform
 
