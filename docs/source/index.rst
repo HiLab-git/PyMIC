@@ -5,9 +5,9 @@ PyMIC is a pytorch-based toolkit for medical image computing with annotation-eff
 deep learning. PyMIC is developed to support learning with imperfect labels, including 
 semi-supervised and weakly supervised learning, and learning with noisy annotations.
 
-Check out the :doc:`Installation` section for install PyMIC, and go to the :doc:`Usage`
+Check out the :doc:`installation` section for install PyMIC, and go to the :doc:`usage`
 section for understanding modules for the segmentation pipeline designed in PyMIC. 
-Please follow `PyMIC_examples. <https://github.com/HiLab-git/PyMIC_examples/>`_
+Please follow `PyMIC_examples <https://github.com/HiLab-git/PyMIC_examples/>`_
 to quickly start with using PyMIC. 
 
 .. note::

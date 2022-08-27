@@ -91,7 +91,8 @@ before sending it to the network. The ``TransformDict`` in
 in PyMIC. 
 
 
-Subject-wise results...
-Transform    Comments  
-ChannelWiseThreshold  GREYMATTER 
-ChannelWiseThresholdWithNormalize  GREYMATTER
+
+|Transform|Comments|
+|---|---|  
+|ChannelWiseThreshold | GREYMATTER |
+|ChannelWiseThresholdWithNormalize | GREYMATTER |
