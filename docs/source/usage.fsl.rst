@@ -212,3 +212,52 @@ The following is some example code for this:
    agent = SegmentationAgent(config, stage)
    agent.set_network(net)
    agent.run()
+
+Loss Functions
+--------------
+
+The setting of loss function is in the ``training`` section of the configuration file,
+where the loss function name and hyper-parameters should be provided.
+The ``SegLossDict`` in :mod:`pymic.loss.loss_dict_seg` lists all the built-in loss 
+functions currently implemented in PyMIC. 
+
+The following is an example of the setting of loss:
+
+.. code-block:: none
+
+   loss_type = DiceLoss
+   loss_softmax = True 
+
+Note that PyMIC supports using a combination of loss functions. Just set ``loss_type`` 
+as a list of loss functions, and use ``loss_weight`` to specify the weight of each
+loss, such as the following:
+
+.. code-block:: none
+
+   loss_type     = [DiceLoss, CrossEntropyLoss]
+   loss_weight   = [0.5, 0.5]
+
+You can also define your own loss functions. To integrate your customized 
+loss function to the PyMIC pipeline, just add it to the ``SegLossDict``, and you can 
+also specify the parameters via a configuration file for the customized loss. 
+The following is some example code for this:
+
+.. code-block:: none
+
+   from pymic.loss.loss_dict_seg import SegLossDict 
+   from pymic.net_run.agent_seg import SegmentationAgent
+
+   # customized loss 
+   class MyLoss(nn.Module):
+      def __init__(self, params = None):
+         super(MyLoss, self).__init__()
+         ...
+
+      def forward(self, loss_input_dict):
+         ...
+
+   my_loss_dict = SegLossDict
+   my_loss_dict["MyLoss"] = MyLoss
+   agent = SegmentationAgent(config, stage)
+   agent.set_loss_dict(my_loss_dict)
+   agent.run()
