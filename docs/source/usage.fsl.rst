@@ -13,6 +13,7 @@ initialize an instance of that class. An example code to use it is:
 .. code-block:: none
 
    from pymic.util.parse_config import *
+   from pymic.net_run.agent_seg import SegmentationAgent
 
    config_name = "a_config_file.cfg"
    config   = parse_config(config_name)
@@ -72,6 +73,7 @@ to set the customized datasets. For example:
 .. code-block:: none
 
    from torch.utils.data import Dataset 
+   from pymic.net_run.agent_seg import SegmentationAgent
 
    class MyDataset(Dataset):
       ...
@@ -147,6 +149,7 @@ The following is some example code for this:
 
    from pymic.transform.trans_dict import TransformDict 
    from pymic.transform.abstract_transform import AbstractTransform
+   from pymic.net_run.agent_seg import SegmentationAgent
 
    # customized transform 
    class MyTransform(AbstractTransform):
@@ -194,7 +197,7 @@ The following is some example code for this:
 .. code-block:: none
 
    import torch.nn as nn
-   from pymic.net.net_dict_seg import SegNetDict 
+   from pymic.net_run.agent_seg import SegmentationAgent
    
    # customized network 
    class MyNetwork(nn.Module):
@@ -202,7 +205,7 @@ The following is some example code for this:
          super(MyNetwork, self).__init__()
          ...
 
-    def forward(self, x):
+      def forward(self, x):
          ...
 
    net = MyNetwork(params)
