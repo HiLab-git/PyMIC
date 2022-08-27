@@ -87,7 +87,7 @@ Transforms
 
 Several transforms are defined in PyMIC to preprocess or augment the data 
 before sending it to the network. The ``TransformDict`` in 
-:mod:`pymic.transform.trans_dict` lists all the built in transforms supported 
+:mod:`pymic.transform.trans_dict` lists all the built-in transforms supported 
 in PyMIC. 
 
 In the configuration file, users can specify the transforms required for training, 
@@ -164,4 +164,48 @@ The following is some example code for this:
    my_trans_dict["MyTransform"] = MyTransform
    agent = SegmentationAgent(config, stage)
    agent.set_transform_dict(my_trans_dict)
+   agent.run()
+
+Networks
+--------
+
+The configuration file has a ``network`` section to specify the network's type and  
+hyper-parameters. For example, the following is a configuration for using ``2DUNet``:
+
+.. code-block:: none
+
+   [network]
+   net_type = UNet2D
+   # Parameters for UNet2D
+   class_num     = 2
+   in_chns       = 1
+   feature_chns  = [16, 32, 64, 128, 256]
+   dropout       = [0,  0,  0.3, 0.4, 0.5]
+   bilinear      = False
+   deep_supervise= False
+
+The ``SegNetDict`` in :mod:`pymic.net.neg_dict_seg` lists all the built-in network 
+structures currently implemented in PyMIC. 
+
+You can also define your own networks. To integrate your customized 
+network to the PyMIC pipeline, just call ``set_network()`` of ``SegmentationAgent``. 
+The following is some example code for this:
+
+.. code-block:: none
+
+   import torch.nn as nn
+   from pymic.net.net_dict_seg import SegNetDict 
+   
+   # customized network 
+   class MyNetwork(nn.Module):
+      def __init__(self, params):
+         super(MyNetwork, self).__init__()
+         ...
+
+    def forward(self, x):
+         ...
+
+   net = MyNetwork(params)
+   agent = SegmentationAgent(config, stage)
+   agent.set_network(net)
    agent.run()
