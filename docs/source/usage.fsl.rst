@@ -261,3 +261,23 @@ The following is some example code for this:
    agent = SegmentationAgent(config, stage)
    agent.set_loss_dict(my_loss_dict)
    agent.run()
+
+
+Training Options
+----------------
+
+In addition to the loss fuction, users can specify several training 
+options in the ``training`` section of the configuration file. 
+
+Optimizer
+^^^^^^^^^
+
+For optimizer, users need to set ``optimizer``, ``learning_rate``,
+``momentum`` and ``weight_decay``.
+
+
+Learning Rate Scheduler
+^^^^^^^^^^^^^^^^^^^^^^^
+
+The current supported learning rate schedulers are ``ReduceLROnPlateau`` 
+and ``MultiStepLR``.
