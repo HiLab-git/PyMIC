@@ -1,6 +1,7 @@
 # pretrained models from pytorch: https://pytorch.org/vision/0.8/models.html
 from __future__ import print_function, division
 
+import itertools
 import torch
 import torch.nn as nn
 import torchvision.models as models
@@ -25,7 +26,7 @@ class ResNet18(nn.Module):
         super(ResNet18, self).__init__()
         self.params    = params
         cls_num  = params['class_num']
-        in_chns  = params.get('input_chns', 3)
+        self.in_chns  = params.get('input_chns', 3)
         self.pretrain = params.get('pretrain', True)
         self.update_layers = params.get('update_layers', 0)
         self.net = models.resnet18(pretrained = self.pretrain)
@@ -33,6 +34,11 @@ class ResNet18(nn.Module):
         # replace the last layer 
         num_ftrs = self.net.fc.in_features
         self.net.fc = nn.Linear(num_ftrs, cls_num)
+
+        # replace the first layer when in_chns is not 3
+        if(self.in_chns != 3):
+            self.net.conv1 = nn.Conv2d(self.in_chns, 64, kernel_size=(7, 7), 
+                stride=(2, 2), padding=(3, 3), bias=False)
     
     def forward(self, x):
         return self.net(x)
@@ -41,7 +47,14 @@ class ResNet18(nn.Module):
         if(self.pretrain == False or self.update_layers == 0):
             return self.net.parameters()
         elif(self.update_layers == -1):
-            return self.net.fc.parameters()
+            params = self.net.fc.parameters()
+            if(self.in_chns !=3):
+                # combining the two iterables into a single one 
+                # see: https://dzone.com/articles/python-joining-multiple
+                params = itertools.chain()
+                for pram in [self.net.fc.parameters(), self.net.conv1.parameters()]:
+                    params = itertools.chain(params, pram)
+            return  params
         else:
             raise(ValueError("update_layers can only be 0 (all layers) " +
                 "or -1 (the last layer)"))
@@ -51,7 +64,7 @@ class VGG16(nn.Module):
         super(VGG16, self).__init__()
         self.params    = params
         cls_num  = params['class_num']
-        in_chns  = params.get('input_chns', 3)
+        self.in_chns  = params.get('input_chns', 3)
         self.pretrain = params.get('pretrain', True)
         self.update_layers = params.get('update_layers', 0)
         self.net = models.vgg16(pretrained = self.pretrain)
@@ -59,6 +72,11 @@ class VGG16(nn.Module):
         # replace the last layer 
         num_ftrs = self.net.classifier[-1].in_features
         self.net.classifier[-1] = nn.Linear(num_ftrs, cls_num)
+
+        # replace the first layer when in_chns is not 3
+        if(self.in_chns != 3):
+            self.net.conv1 = nn.Conv2d(self.in_chns, 64, kernel_size=(7, 7), 
+                stride=(2, 2), padding=(3, 3), bias=False)
     
     def forward(self, x):
         return self.net(x)
@@ -67,7 +85,14 @@ class VGG16(nn.Module):
         if(self.pretrain == False or self.update_layers == 0):
             return self.net.parameters()
         elif(self.update_layers == -1):
-            return self.net.classifier[-1].parameters()
+            params = self.net.classifier[-1].parameters()
+            if(self.in_chns !=3):
+                # combining the two iterables into a single one 
+                # see: https://dzone.com/articles/python-joining-multiple
+                params = itertools.chain()
+                for pram in [self.net.classifier[-1].parameters(), self.net.conv1.parameters()]:
+                    params = itertools.chain(params, pram)
+            return  params
         else:
             raise(ValueError("update_layers can only be 0 (all layers) " +
                 "or -1 (the last layer)"))
@@ -85,6 +110,11 @@ class MobileNetV2(nn.Module):
         # replace the last layer 
         num_ftrs = self.net.last_channel
         self.net.classifier[-1] = nn.Linear(num_ftrs, cls_num)
+
+        # replace the first layer when in_chns is not 3
+        if(self.in_chns != 3):
+            self.net.conv1 = nn.Conv2d(self.in_chns, 64, kernel_size=(7, 7), 
+                stride=(2, 2), padding=(3, 3), bias=False)
     
     def forward(self, x):
         return self.net(x)
@@ -93,7 +123,14 @@ class MobileNetV2(nn.Module):
         if(self.pretrain == False or self.update_layers == 0):
             return self.net.parameters()
         elif(self.update_layers == -1):
-            return self.net.classifier[-1].parameters()
+            params = self.net.classifier[-1].parameters()
+            if(self.in_chns !=3):
+                # combining the two iterables into a single one 
+                # see: https://dzone.com/articles/python-joining-multiple
+                params = itertools.chain()
+                for pram in [self.net.classifier[-1].parameters(), self.net.conv1.parameters()]:
+                    params = itertools.chain(params, pram)
+            return  params
         else:
             raise(ValueError("update_layers can only be 0 (all layers) " +
                 "or -1 (the last layer)"))
