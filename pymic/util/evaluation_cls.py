@@ -62,7 +62,7 @@ def binary_evaluation(config):
     for i in range(len(gt_items)):
         assert(gt_items.iloc[i, 0] == prob_items.iloc[i, 0])
     
-    gt_data  = np.asarray(gt_items.iloc[:, 1])
+    gt_data   = np.asarray(gt_items.iloc[:, -1])
     prob_data = np.asarray(prob_items.iloc[:, 1:])
     score_list = []
     for metric in metric_list:

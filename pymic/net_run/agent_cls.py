@@ -308,7 +308,7 @@ class ClassificationAgent(NetRunAgent):
             csv_writer = csv.writer(csv_file, delimiter=',', 
                                 quotechar='"',quoting=csv.QUOTE_MINIMAL)
             head = ['image', 'label']
-            if(len(out_lab_list[0]) > 1):
+            if(len(out_lab_list[0]) > 2):
                 head = ['image'] + ['label{0:}'.format(i) for i in range(class_num)]
             csv_writer.writerow(head)
             for item in out_lab_list:
