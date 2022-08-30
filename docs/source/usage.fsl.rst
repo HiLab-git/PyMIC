@@ -342,17 +342,17 @@ test-time augmentation, etc. The following is a list of options availble for inf
 ``ckpt_mode`` (integer): which checkpoint is used. 0--the last checkpoint; 1--the checkpoint
 with the best performance on the validation set; 2--a specified checkpoint. 
 
-``ckpt_name`` (string): the full path to the checkpoint if ``ckpt_mode = 2``.
+``ckpt_name`` (string, optinal): the full path to the checkpoint if ckpt_mode = 2.
 
 ``post_process`` (string, default is None): the post process method after inference. 
-The current available post processing is ``PostKeepLargestComponent``. Uses can also 
+The current available post processing is :mod:`PostKeepLargestComponent`. Uses can also 
 specify customized post process methods via :mod:`SegmentationAgent.set_postprocessor()`.
 
 ``sliding_window_enable`` (bool, default is False): use sliding window for inference or not.
 
-``sliding_window_size``: a list for sliding window size when ``sliding_window_enable = True``.
+``sliding_window_size`` (optinal): a list for sliding window size when sliding_window_enable = True.
 
-``sliding_window_stride``: a list for sliding window stride when ``sliding_window_enable = True``.
+``sliding_window_stride`` (optinal): a list for sliding window stride when sliding_window_enable = True.
 
 ``tta_mode`` (integer, default is 0): the mode for Test Time Augmentation (TTA). 0--not using TTA; 1--using 
 TTA based on horizontal and vertical flipping.  
@@ -365,11 +365,11 @@ with `_` in the output file name.
 ``save_probability`` (boold, default is False): save the output probability for each class. 
 
 ``label_source`` (list, default is None): a list of label to be converted after prediction. For example,
-``label_source = [0, 1]`` and ``label_target = [0, 255]`` will convert label value from 1 to 255. 
+:mod:`label_source`` = [0, 1] and :mod:`label_target`` = [0, 255] will convert label value from 1 to 255. 
 
-``label_target`` (list, default is None): a list of label after conversion. Use this with ``label_source``.
+``label_target`` (list, default is None): a list of label after conversion. Use this with :mod:`label_source`.
 
 ``filename_replace_source`` (string, default is None): the substring in the filename will be replaced with 
-a new substring specified by ``filename_replace_target``.
+a new substring specified by :mod:`filename_replace_target`.
 
-``filename_replace_target`` (string, default is None): work with ``filename_replace_source``.
+``filename_replace_target`` (string, default is None): work with :mod:`filename_replace_source`.
