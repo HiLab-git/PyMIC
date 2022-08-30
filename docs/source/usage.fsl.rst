@@ -391,7 +391,7 @@ with `_` in the output file name.
 ``save_probability`` (boold, default is False): save the output probability for each class. 
 
 ``label_source`` (list, default is None): a list of label to be converted after prediction. For example,
-:mod:`label_source`` = [0, 1] and :mod:`label_target`` = [0, 255] will convert label value from 1 to 255. 
+:mod:`label_source` = [0, 1] and :mod:`label_target` = [0, 255] will convert label value from 1 to 255. 
 
 ``label_target`` (list, default is None): a list of label after conversion. Use this with :mod:`label_source`.
 
