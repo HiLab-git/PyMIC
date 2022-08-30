@@ -312,3 +312,15 @@ Parameters related to  ``ReduceLROnPlateau`` include ``lr_gamma``.
 Parameters related to  ``MultiStepLR`` include ``lr_gamma`` and ``lr_milestones``. 
 
 You can also use customized lr schedulers via :mod:`SegmentationAgent.set_scheduler()`.
+
+Other Options
+^^^^^^^^^^^^^
+
+Other options for training include:
+
+``gpus``: a list of GPU index for training the model. If the length is larger than 
+one (such as [0, 1]), it means the model will be trained on multiple GPUs parallelly. 
+
+``ckpt_save_dir``: the path to the folder for saving the trained models. 
+
+``ckpt_prefix``: the prefix of the name to save the checkpoints. 
