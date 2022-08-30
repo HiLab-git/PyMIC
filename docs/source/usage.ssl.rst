@@ -29,13 +29,13 @@ supervised learning, there are some items specified for semi-supervised learning
 Users should provide values for the following items in ``dataset`` section of 
 the configuration file:
 
-``train_csv_unlab`` (string): the csv file for unlabeled dataset. Note that ``train_csv`` 
-is only used for labeled dataset.  
+* ``train_csv_unlab`` (string): the csv file for unlabeled dataset. 
+  Note that ``train_csv`` is only used for labeled dataset.  
 
-``train_batch_size_unlab`` (int): the batch size for unlabeled dataset. Note that 
-``train_batch_size`` means the batch size for the labeled dataset. 
+* ``train_batch_size_unlab`` (int): the batch size for unlabeled dataset. 
+  Note that ``train_batch_size`` means the batch size for the labeled dataset. 
 
-``train_transform_unlab`` (list): a list of transforms used for unlabeled data. 
+* ``train_transform_unlab`` (list): a list of transforms used for unlabeled data. 
 
 
 The following is an example of the ``dataset`` section for semi-supervised learning:
@@ -82,7 +82,7 @@ SSL Methods
 -----------
 
 :mod:`pymic.net_run_ssl.ssl_abstract.SSLSegAgent` is the abstract class used for 
-semi-supervised learning. The built-in SLL methods are child classes of  SSLSegAgent.
+semi-supervised learning. The built-in SLL methods are child classes of  :mod:`SSLSegAgent`.
 Currently, the following SLL methods are implemented in PyMIC:
 
 |PyMIC Method|Reference|Remarks|
