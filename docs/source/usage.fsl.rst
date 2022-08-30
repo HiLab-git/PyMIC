@@ -42,7 +42,35 @@ hdf5 data that are more efficient to load.
 
 To use ``NiftyDataset``, users need to specify the root path 
 of the dataset and the csv file storing the image and label 
-file names. Note that three csv files are needed, and they are
+file names. The configurations include the following items:
+
+``tensor_type``: data type for tensors. Should be :mod:`float`` or :mod:`double`.
+
+``task_type``: should be :mod:`seg` for segmentation tasks. 
+
+``root_dir`` (string): the root dir of dataset. 
+
+``modal_num`` (int, default is 1): modalities number. For images with N modalities,
+each modality should be saved in an indepdent file. 
+
+``train_csv`` (string): the path of csv files for training set. 
+
+``valid_csv`` (string): the path of csv files for validation set. 
+
+``test_csv`` (string): the path of csv files for testing set. 
+
+``train_batch_size`` (int): the batch size for training set. 
+
+``valid_batch_size`` (int, optional): the batch size for validation set. The defualt value 
+is set as :mod:`train_batch_size`.
+
+``test_batch_size`` (int, optional): the batch size for testing set. The defualt value 
+is 1.
+
+
+
+
+Note that three csv files are needed, and they are
 for training, validation and testing, respectively. For example:
 
 .. code-block:: none
@@ -320,6 +348,10 @@ Other options for training include:
 
 ``gpus``: a list of GPU index for training the model. If the length is larger than 
 one (such as [0, 1]), it means the model will be trained on multiple GPUs parallelly. 
+
+``deterministic`` (bool, default is True): set the training deterministic or not. 
+
+``random_seed`` (int, optioinal): the random seed customized by user. Default value is 1.
 
 ``ckpt_save_dir``: the path to the folder for saving the trained models. 
 
