@@ -297,7 +297,7 @@ Optimizer
 For optimizer, users need to set ``optimizer``, ``learning_rate``,
 ``momentum`` and ``weight_decay``. The built-in optimizers include ``SGD``,
 ``Adam``, ``SparseAdam``, ``Adadelta``, ``Adagrad``, ``Adamax``, ``ASGD``,
-``LBFGS``, ``RMSprop``, ``Rprop`` that are implemented in :mod:`torch.optim`. 
+``LBFGS``, ``RMSprop`` and ``Rprop`` that are implemented in :mod:`torch.optim`. 
 
 You can also use customized optimizers via :mod:`SegmentationAgent.set_optimizer()`.
 
@@ -324,3 +324,52 @@ one (such as [0, 1]), it means the model will be trained on multiple GPUs parall
 ``ckpt_save_dir``: the path to the folder for saving the trained models. 
 
 ``ckpt_prefix``: the prefix of the name to save the checkpoints. 
+
+
+Inference Options
+-----------------
+
+There are several options for inference after training the model. You can also select 
+the GPUs for testing, enable sliding window inference or inference with 
+test-time augmentation, etc. The following is a list of options availble for inference:
+
+``gpus``: a list of GPU index. Atually, only the first GPU in the list is used. 
+
+``evaluation_mode`` (bool, default is True): set the model to evaluation mode or not. 
+
+``test_time_dropout`` (bool, default is False): use test-time dropout or not. 
+
+``ckpt_mode`` (integer): which checkpoint is used. 0--the last checkpoint; 1--the checkpoint
+with the best performance on the validation set; 2--a specified checkpoint. 
+
+``ckpt_name`` (string): the full path to the checkpoint if ``ckpt_mode = 2``.
+
+``post_process`` (string, default is None): the post process method after inference. 
+The current available post processing is ``PostKeepLargestComponent``. Uses can also 
+specify customized post process methods via :mod:`SegmentationAgent.set_postprocessor()`.
+
+``sliding_window_enable`` (bool, default is False): use sliding window for inference or not.
+
+``sliding_window_size``: a list for sliding window size when ``sliding_window_enable = True``.
+
+``sliding_window_stride``: a list for sliding window stride when ``sliding_window_enable = True``.
+
+``tta_mode`` (integer, default is 0): the mode for Test Time Augmentation (TTA). 0--not using TTA; 1--using 
+TTA based on horizontal and vertical flipping.  
+
+``output_dir`` (string): the dir to save the prediction output. 
+
+``ignore_dir`` (bool, default is True): if the input image name has a `/`, it will be replaced
+with `_` in the output file name. 
+
+``save_probability`` (boold, default is False): save the output probability for each class. 
+
+``label_source`` (list, default is None): a list of label to be converted after prediction. For example,
+``label_source = [0, 1]`` and ``label_target = [0, 255]`` will convert label value from 1 to 255. 
+
+``label_target`` (list, default is None): a list of label after conversion. Use this with ``label_source``.
+
+``filename_replace_source`` (string, default is None): the substring in the filename will be replaced with 
+a new substring specified by ``filename_replace_target``.
+
+``filename_replace_target`` (string, default is None): work with ``filename_replace_source``.
