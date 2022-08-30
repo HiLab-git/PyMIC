@@ -84,12 +84,3 @@ SSL Methods
 :mod:`pymic.net_run_ssl.ssl_abstract.SSLSegAgent` is the abstract class used for 
 semi-supervised learning. The built-in SLL methods are child classes of  :mod:`SSLSegAgent`.
 Currently, the following SLL methods are implemented in PyMIC:
-
-|PyMIC Method|Reference|Remarks|
-|---|---|---|
-|SSLEntropyMinimization|[Grandvalet et al.][em_paper], NeurIPS 2005| Oringinally proposed for classification|
-|SSLMeanTeacher| [Tarvainen et al.][mt_paper], NeurIPS 2017| Oringinally proposed for classification|
-|SSLUAMT| [Yu et al.][uamt_paper], MICCAI 2019| Uncertainty-aware mean teacher|
-|SSLURPC| [Luo et al.][urpc_paper], MedIA 2022| Uncertainty rectified pyramid consistency|
-|SSLCCT| [Ouali et al.][cct_paper], CVPR 2020| Cross-pseudo supervision|
-|SSLCPS| [Chen et al.][cps_paper], CVPR 2021| Cross-consistency training|

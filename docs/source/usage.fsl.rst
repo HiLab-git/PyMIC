@@ -366,13 +366,13 @@ test-time augmentation, etc. The following is a list of options availble for inf
 * ``test_time_dropout`` (bool, default is False): use test-time dropout or not. 
 
 * ``ckpt_mode`` (int): which checkpoint is used. 0--the last checkpoint; 1--the checkpoint
-with the best performance on the validation set; 2--a specified checkpoint. 
+  with the best performance on the validation set; 2--a specified checkpoint. 
 
 * ``ckpt_name`` (string, optinal): the full path to the checkpoint if ckpt_mode = 2.
 
 * ``post_process`` (string, default is None): the post process method after inference. 
-The current available post processing is :mod:`PostKeepLargestComponent`. Uses can also 
-specify customized post process methods via :mod:`SegmentationAgent.set_postprocessor()`.
+  The current available post processing is :mod:`PostKeepLargestComponent`. Uses can also 
+  specify customized post process methods via :mod:`SegmentationAgent.set_postprocessor()`.
 
 * ``sliding_window_enable`` (bool, default is False): use sliding window for inference or not.
 
