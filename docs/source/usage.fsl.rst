@@ -365,7 +365,7 @@ test-time augmentation, etc. The following is a list of options availble for inf
 
 ``test_time_dropout`` (bool, default is False): use test-time dropout or not. 
 
-``ckpt_mode`` (integer): which checkpoint is used. 0--the last checkpoint; 1--the checkpoint
+``ckpt_mode`` (int): which checkpoint is used. 0--the last checkpoint; 1--the checkpoint
 with the best performance on the validation set; 2--a specified checkpoint. 
 
 ``ckpt_name`` (string, optinal): the full path to the checkpoint if ckpt_mode = 2.
@@ -380,7 +380,7 @@ specify customized post process methods via :mod:`SegmentationAgent.set_postproc
 
 ``sliding_window_stride`` (optinal): a list for sliding window stride when sliding_window_enable = True.
 
-``tta_mode`` (integer, default is 0): the mode for Test Time Augmentation (TTA). 0--not using TTA; 1--using 
+``tta_mode`` (int, default is 0): the mode for Test Time Augmentation (TTA). 0--not using TTA; 1--using 
 TTA based on horizontal and vertical flipping.  
 
 ``output_dir`` (string): the dir to save the prediction output. 
