@@ -275,18 +275,20 @@ Itreations
 For training iterations, the following parameters need to be specified in 
 the configuration file:
 
-* iter_start: the start iteration, by default is 0. None zero value means the
+``iter_start``: the start iteration, by default is 0. None zero value means the
 iteration where a pre-trained model stopped for continuing with the trainnig.
 
-* iter_max: the maximal allowed iteration for training. 
+``iter_max``: the maximal allowed iteration for training. 
 
-* iter_valid: if the value is K, it means evaluating the performance on the 
+``iter_valid``: if the value is K, it means evaluating the performance on the 
 validaiton set for every K steps. 
 
-* iter_save: The iteations for saving the model. If the value is k, it means 
-the model will be savled every k iterations. It can also be a list of integer numbers, 
+``iter_save``: The iteations for saving the model. If the value is k, it means 
+the model will be saved every k iterations. It can also be a list of integer numbers, 
 which specifies the iterations to save the model.
 
+``early_stop_patience``: if the value is k, it means the training will stop when 
+the performance on the validation set does not improve for k iteations. 
 
 
 Optimizer
