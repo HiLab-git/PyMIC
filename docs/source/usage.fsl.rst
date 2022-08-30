@@ -295,12 +295,20 @@ Optimizer
 ^^^^^^^^^
 
 For optimizer, users need to set ``optimizer``, ``learning_rate``,
-``momentum`` and ``weight_decay``.
+``momentum`` and ``weight_decay``. The built-in optimizers include ``SGD``,
+``Adam``, ``SparseAdam``, ``Adadelta``, ``Adagrad``, ``Adamax``, ``ASGD``,
+``LBFGS``, ``RMSprop``, ``Rprop`` that are implemented in :mod:`torch.optim`. 
 
+You can also use customized optimizers via :mod:`SegmentationAgent.set_optimizer()`.
 
 Learning Rate Scheduler
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-The current supported learning rate schedulers are ``ReduceLROnPlateau`` 
+The current built-in learning rate schedulers are ``ReduceLROnPlateau`` 
 and ``MultiStepLR``, which can be specified in ``lr_scheduler`` in 
-the configuration file.  Parameters related to  ``ReduceLROnPlateau`` 
+the configuration file.  
+
+Parameters related to  ``ReduceLROnPlateau`` include ``lr_gamma``.  
+Parameters related to  ``MultiStepLR`` include ``lr_gamma`` and ``lr_milestones``. 
+
+You can also use customized lr schedulers via :mod:`SegmentationAgent.set_scheduler()`.
