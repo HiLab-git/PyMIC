@@ -44,7 +44,7 @@ To use ``NiftyDataset``, users need to specify the root path
 of the dataset and the csv file storing the image and label 
 file names. The configurations include the following items:
 
-``tensor_type``: data type for tensors. Should be :mod:`float`` or :mod:`double`.
+``tensor_type``: data type for tensors. Should be :mod:`float` or :mod:`double`.
 
 ``task_type``: should be :mod:`seg` for segmentation tasks. 
 
@@ -53,11 +53,11 @@ file names. The configurations include the following items:
 ``modal_num`` (int, default is 1): modalities number. For images with N modalities,
 each modality should be saved in an indepdent file. 
 
-``train_csv`` (string): the path of csv files for training set. 
+``train_csv`` (string): the path of csv file for training set. 
 
-``valid_csv`` (string): the path of csv files for validation set. 
+``valid_csv`` (string): the path of csv file for validation set. 
 
-``test_csv`` (string): the path of csv files for testing set. 
+``test_csv`` (string): the path of csv file for testing set. 
 
 ``train_batch_size`` (int): the batch size for training set. 
 
@@ -67,11 +67,12 @@ is set as :mod:`train_batch_size`.
 ``test_batch_size`` (int, optional): the batch size for testing set. The defualt value 
 is 1.
 
-
-
-
-Note that three csv files are needed, and they are
-for training, validation and testing, respectively. For example:
+The csv file should have at least two columns (fields),
+one for ``image`` and the other for ``label``. If the input image 
+have multiple modalities with each modality saved in a single 
+file, then the csv file should have N + 1 columns, where the 
+first N columns are for the N modalities, and the last column  
+is for the label. The following is an example for configuration of dataset. 
 
 .. code-block:: none
 
@@ -85,13 +86,6 @@ for training, validation and testing, respectively. For example:
    test_csv  = config/jsrt_test.csv
    train_batch_size = 4
 
-By default, the ``valid_batch_size`` is set to the same as the ``train_batch_size``,
-and the ``test_batch_size`` is 1. The csv file should have at least two columns (fields),
-one for ``image`` and the other for ``label``. If the input image 
-have multiple modalities with each modality saved in a single 
-file, then the csv file should have N + 1 columnes, where the 
-first N columns are for the N modalities, and the last column  
-is for the label.
 
 To use your own dataset, you can define a dataset as a child class 
 of ``NiftyDataset``, ``H5DataSet``, :mod:`or torch.utils.data.Dataset`
