@@ -269,6 +269,24 @@ Training Options
 In addition to the loss fuction, users can specify several training 
 options in the ``training`` section of the configuration file. 
 
+Itreations
+^^^^^^^^^^
+
+For training iterations, the following parameters need to be specified in 
+the configuration file:
+
+* iter_start: the start iteration, by default is 0. You can also set it to the
+itheration where a pre-trained model stopped for continuing with the trainnig.
+
+* iter_max: the maximal allowed iteration for training. 
+
+* iter_valid: the iterations needed before evaluating the performance on the 
+validaiton set. 
+
+* iter_save: The inverse_transform_for_prediction
+
+
+
 Optimizer
 ^^^^^^^^^
 
@@ -280,4 +298,5 @@ Learning Rate Scheduler
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 The current supported learning rate schedulers are ``ReduceLROnPlateau`` 
-and ``MultiStepLR``.
+and ``MultiStepLR``, which can be specified in ``lr_scheduler`` in 
+the configuration file.  Parameters related to  ``ReduceLROnPlateau`` 
