@@ -44,28 +44,28 @@ To use ``NiftyDataset``, users need to specify the root path
 of the dataset and the csv file storing the image and label 
 file names. The configurations include the following items:
 
-``tensor_type``: data type for tensors. Should be :mod:`float` or :mod:`double`.
+* ``tensor_type``: data type for tensors. Should be :mod:`float` or :mod:`double`.
 
-``task_type``: should be :mod:`seg` for segmentation tasks. 
+* ``task_type``: should be :mod:`seg` for segmentation tasks. 
 
-``root_dir`` (string): the root dir of dataset. 
+* ``root_dir`` (string): the root dir of dataset. 
 
-``modal_num`` (int, default is 1): modalities number. For images with N modalities,
-each modality should be saved in an indepdent file. 
+* ``modal_num`` (int, default is 1): modalities number. For images with N modalities,
+  each modality should be saved in an indepdent file. 
 
-``train_csv`` (string): the path of csv file for training set. 
+* ``train_csv`` (string): the path of csv file for training set. 
 
-``valid_csv`` (string): the path of csv file for validation set. 
+* ``valid_csv`` (string): the path of csv file for validation set. 
 
-``test_csv`` (string): the path of csv file for testing set. 
+* ``test_csv`` (string): the path of csv file for testing set. 
 
-``train_batch_size`` (int): the batch size for training set. 
+* ``train_batch_size`` (int): the batch size for training set. 
 
-``valid_batch_size`` (int, optional): the batch size for validation set. The defualt value 
-is set as :mod:`train_batch_size`.
+* ``valid_batch_size`` (int, optional): the batch size for validation set. 
+  The defualt value is set as :mod:`train_batch_size`.
 
-``test_batch_size`` (int, optional): the batch size for testing set. The defualt value 
-is 1.
+* ``test_batch_size`` (int, optional): the batch size for testing set. 
+  The defualt value is 1.
 
 The csv file should have at least two columns (fields),
 one for ``image`` and the other for ``label``. If the input image 
@@ -297,20 +297,20 @@ Itreations
 For training iterations, the following parameters need to be specified in 
 the configuration file:
 
-``iter_start``: the start iteration, by default is 0. None zero value means the
-iteration where a pre-trained model stopped for continuing with the trainnig.
+* ``iter_start``: the start iteration, by default is 0. None zero value means the
+  iteration where a pre-trained model stopped for continuing with the trainnig.
 
-``iter_max``: the maximal allowed iteration for training. 
+* ``iter_max``: the maximal allowed iteration for training. 
 
-``iter_valid``: if the value is K, it means evaluating the performance on the 
-validaiton set for every K steps. 
+* ``iter_valid``: if the value is K, it means evaluating the performance on the 
+  validaiton set for every K steps. 
 
-``iter_save``: The iteations for saving the model. If the value is k, it means 
-the model will be saved every k iterations. It can also be a list of integer numbers, 
-which specifies the iterations to save the model.
+* ``iter_save``: The iteations for saving the model. If the value is k, it means 
+  the model will be saved every k iterations. It can also be a list of integer numbers, 
+  which specifies the iterations to save the model.
 
-``early_stop_patience``: if the value is k, it means the training will stop when 
-the performance on the validation set does not improve for k iteations. 
+* ``early_stop_patience``: if the value is k, it means the training will stop when 
+  the performance on the validation set does not improve for k iteations. 
 
 
 Optimizer
@@ -340,16 +340,16 @@ Other Options
 
 Other options for training include:
 
-``gpus``: a list of GPU index for training the model. If the length is larger than 
-one (such as [0, 1]), it means the model will be trained on multiple GPUs parallelly. 
+* ``gpus``: a list of GPU index for training the model. If the length is larger than 
+  one (such as [0, 1]), it means the model will be trained on multiple GPUs parallelly. 
 
-``deterministic`` (bool, default is True): set the training deterministic or not. 
+* ``deterministic`` (bool, default is True): set the training deterministic or not. 
 
-``random_seed`` (int, optioinal): the random seed customized by user. Default value is 1.
+* ``random_seed`` (int, optioinal): the random seed customized by user. Default value is 1.
 
-``ckpt_save_dir``: the path to the folder for saving the trained models. 
+* ``ckpt_save_dir``: the path to the folder for saving the trained models. 
 
-``ckpt_prefix``: the prefix of the name to save the checkpoints. 
+* ``ckpt_prefix``: the prefix of the name to save the checkpoints. 
 
 
 Inference Options
@@ -359,43 +359,43 @@ There are several options for inference after training the model. You can also s
 the GPUs for testing, enable sliding window inference or inference with 
 test-time augmentation, etc. The following is a list of options availble for inference:
 
-``gpus``: a list of GPU index. Atually, only the first GPU in the list is used. 
+* ``gpus``: a list of GPU index. Atually, only the first GPU in the list is used. 
 
-``evaluation_mode`` (bool, default is True): set the model to evaluation mode or not. 
+* ``evaluation_mode`` (bool, default is True): set the model to evaluation mode or not. 
 
-``test_time_dropout`` (bool, default is False): use test-time dropout or not. 
+* ``test_time_dropout`` (bool, default is False): use test-time dropout or not. 
 
-``ckpt_mode`` (int): which checkpoint is used. 0--the last checkpoint; 1--the checkpoint
+* ``ckpt_mode`` (int): which checkpoint is used. 0--the last checkpoint; 1--the checkpoint
 with the best performance on the validation set; 2--a specified checkpoint. 
 
-``ckpt_name`` (string, optinal): the full path to the checkpoint if ckpt_mode = 2.
+* ``ckpt_name`` (string, optinal): the full path to the checkpoint if ckpt_mode = 2.
 
-``post_process`` (string, default is None): the post process method after inference. 
+* ``post_process`` (string, default is None): the post process method after inference. 
 The current available post processing is :mod:`PostKeepLargestComponent`. Uses can also 
 specify customized post process methods via :mod:`SegmentationAgent.set_postprocessor()`.
 
-``sliding_window_enable`` (bool, default is False): use sliding window for inference or not.
+* ``sliding_window_enable`` (bool, default is False): use sliding window for inference or not.
 
-``sliding_window_size`` (optinal): a list for sliding window size when sliding_window_enable = True.
+* ``sliding_window_size`` (optinal): a list for sliding window size when sliding_window_enable = True.
 
-``sliding_window_stride`` (optinal): a list for sliding window stride when sliding_window_enable = True.
+* ``sliding_window_stride`` (optinal): a list for sliding window stride when sliding_window_enable = True.
 
-``tta_mode`` (int, default is 0): the mode for Test Time Augmentation (TTA). 0--not using TTA; 1--using 
-TTA based on horizontal and vertical flipping.  
+* ``tta_mode`` (int, default is 0): the mode for Test Time Augmentation (TTA). 0--not using TTA; 1--using 
+  TTA based on horizontal and vertical flipping.  
 
-``output_dir`` (string): the dir to save the prediction output. 
+* ``output_dir`` (string): the dir to save the prediction output. 
 
-``ignore_dir`` (bool, default is True): if the input image name has a `/`, it will be replaced
-with `_` in the output file name. 
+* ``ignore_dir`` (bool, default is True): if the input image name has a `/`, it will be replaced
+  with `_` in the output file name. 
 
-``save_probability`` (boold, default is False): save the output probability for each class. 
+* ``save_probability`` (boold, default is False): save the output probability for each class. 
 
-``label_source`` (list, default is None): a list of label to be converted after prediction. For example,
-:mod:`label_source` = [0, 1] and :mod:`label_target` = [0, 255] will convert label value from 1 to 255. 
+* ``label_source`` (list, default is None): a list of label to be converted after prediction. For example,
+  :mod:`label_source` = [0, 1] and :mod:`label_target` = [0, 255] will convert label value from 1 to 255. 
 
-``label_target`` (list, default is None): a list of label after conversion. Use this with :mod:`label_source`.
+* ``label_target`` (list, default is None): a list of label after conversion. Use this with :mod:`label_source`.
 
-``filename_replace_source`` (string, default is None): the substring in the filename will be replaced with 
-a new substring specified by :mod:`filename_replace_target`.
+* ``filename_replace_source`` (string, default is None): the substring in the filename will be replaced with 
+  a new substring specified by :mod:`filename_replace_target`.
 
-``filename_replace_target`` (string, default is None): work with :mod:`filename_replace_source`.
+* ``filename_replace_target`` (string, default is None): work with :mod:`filename_replace_source`.
