@@ -78,8 +78,8 @@ related to the SSL method. For example, the correspoinding configuration for CPS
    The configuration items vary with different SLL methods. Please refer to the API 
    of each built-in SLL method for details of the correspoinding configuration.  
 
-SSL Methods
------------
+Built-in SSL Methods
+--------------------
 
 :mod:`pymic.net_run_ssl.ssl_abstract.SSLSegAgent` is the abstract class used for 
 semi-supervised learning. The built-in SLL methods are child classes of  :mod:`SSLSegAgent`.
@@ -99,3 +99,28 @@ and they are:
 * ``CPS``: (`CVPR 2021 <https://arxiv.org/abs/2106.01226>`_) Cross-pseudo supervision.
 
 * ``URPC``: (`MIA 2022 <https://doi.org/10.1016/j.media.2022.102517>`_) Uncertainty rectified pyramid consistency.
+
+Customized SSL Methods
+----------------------
+
+PyMIC alo supports customizing SSL methods by inheriting the :mod:`SSLSegAgent` class. 
+You may only need to rewrite the :mod:`training()` method and reuse most part of the 
+existing pipeline, such as data loading, validation and inference methods. For example:
+
+.. code-block:: none
+
+    from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
+
+    class MySSLMethod(SSLSegAgent):
+      def __init__(self, config, stage = 'train'):
+          super(MySSLMethod, self).__init__(config, stage)
+          ...
+        
+      def training(self):
+          ...
+    
+    agent = MySSLMethod(config, stage)
+    agent.run()
+
+You may need to check the source code of built-in SLL methods to be more familar with 
+how to implement your own SLL method. 
