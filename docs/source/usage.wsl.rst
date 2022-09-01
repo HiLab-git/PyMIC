@@ -94,46 +94,50 @@ related to the WSL method. For example, the correspoinding configuration for Gat
 Built-in WSL Methods
 --------------------
 
-:mod:`pymic.net_run_ssl.ssl_abstract.SSLSegAgent` is the abstract class used for 
-semi-supervised learning. The built-in SLL methods are child classes of  :mod:`SSLSegAgent`.
-The available SSL methods implemnted in PyMIC are listed in :mod:`pymic.net_run_ssl.ssl_main.SSLMethodDict`, 
+:mod:`pymic.net_run_wsl.wsl_abstract.WSLSegAgent` is the abstract class used for 
+weakly-supervised learning. The built-in SLL methods are child classes of  :mod:`WSLSegAgent`.
+The available WSL methods implemnted in PyMIC are listed in :mod:`pymic.net_run_wsl.wsl_main.WSLMethodDict`, 
 and they are:
 
 * ``EntropyMinimization``: (`NeurIPS 2005 <https://papers.nips.cc/paper/2004/file/96f2b50b5d3613adf9c27049b2a888c7-Paper.pdf>`_)
-  Using entorpy minimization to regularize unannotated samples.
+  Using entorpy minimization to regularize unannotated pixels.
 
-* ``MeanTeacher``: (`NeurIPS 2017 <https://arxiv.org/abs/1703.01780>`_) Use self-ensembling mean teacher to supervise the student model on
-  unannotated samples. 
+* ``GatedCRF``: (`arXiv 2019 <http://arxiv.org/abs/1906.04651>`_) 
+  Use gated CRF to regularize unannotated pixels. 
 
-* ``UAMT``: (`MICCAI 2019 <https://arxiv.org/abs/1907.07034>`_) Uncertainty aware mean teacher. 
+* ``TotalVariation``: (`arXiv 2022 <https://arxiv.org/abs/2111.02403>`_) 
+  Use Total Variation to regularize unannotated pixels. 
 
-* ``CCT``: (`CVPR 2020 <https://arxiv.org/abs/2003.09005>`_) Cross-consistency training.
+* ``MumfordShah``: (`TIP 2020 <https://doi.org/10.1109/TIP.2019.2941265>`_) 
+  Use Mumford Shah loss to regularize unannotated pixels. 
 
-* ``CPS``: (`CVPR 2021 <https://arxiv.org/abs/2106.01226>`_) Cross-pseudo supervision.
+* ``USTM``: (`PR 2022 <https://doi.org/10.1016/j.patcog.2021.108341>`_) 
+  Adapt USTM with transform-consistency regularization.
 
-* ``URPC``: (`MIA 2022 <https://doi.org/10.1016/j.media.2022.102517>`_) Uncertainty rectified pyramid consistency.
+* ``DMPLS``: (`MICCAI 2022 <https://arxiv.org/abs/2203.02106>`_) 
+  Dynamically mixed pseudo label supervision
 
 Customized WSL Methods
 ----------------------
 
-PyMIC alo supports customizing SSL methods by inheriting the :mod:`SSLSegAgent` class. 
+PyMIC alo supports customizing WSL methods by inheriting the :mod:`WSLSegAgent` class. 
 You may only need to rewrite the :mod:`training()` method and reuse most part of the 
 existing pipeline, such as data loading, validation and inference methods. For example:
 
 .. code-block:: none
 
-    from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
+    from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
 
-    class MySSLMethod(SSLSegAgent):
+    class MyWSLMethod(WSLSegAgent):
       def __init__(self, config, stage = 'train'):
-          super(MySSLMethod, self).__init__(config, stage)
+          super(MyWSLMethod, self).__init__(config, stage)
           ...
         
       def training(self):
           ...
     
-    agent = MySSLMethod(config, stage)
+    agent = MyWSLMethod(config, stage)
     agent.run()
 
-You may need to check the source code of built-in SLL methods to be more familar with 
-how to implement your own SLL method. 
+You may need to check the source code of built-in WSL methods to be more familar with 
+how to implement your own WSL method. 

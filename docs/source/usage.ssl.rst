@@ -75,14 +75,14 @@ related to the SSL method. For example, the correspoinding configuration for CPS
 
 .. note::
 
-   The configuration items vary with different SLL methods. Please refer to the API 
-   of each built-in SLL method for details of the correspoinding configuration.  
+   The configuration items vary with different SSL methods. Please refer to the API 
+   of each built-in SSL method for details of the correspoinding configuration.  
 
 Built-in SSL Methods
 --------------------
 
 :mod:`pymic.net_run_ssl.ssl_abstract.SSLSegAgent` is the abstract class used for 
-semi-supervised learning. The built-in SLL methods are child classes of  :mod:`SSLSegAgent`.
+semi-supervised learning. The built-in SSL methods are child classes of  :mod:`SSLSegAgent`.
 The available SSL methods implemnted in PyMIC are listed in :mod:`pymic.net_run_ssl.ssl_main.SSLMethodDict`, 
 and they are:
 
@@ -122,5 +122,5 @@ existing pipeline, such as data loading, validation and inference methods. For e
     agent = MySSLMethod(config, stage)
     agent.run()
 
-You may need to check the source code of built-in SLL methods to be more familar with 
-how to implement your own SLL method. 
+You may need to check the source code of built-in SSL methods to be more familar with 
+how to implement your own SSL method. 
