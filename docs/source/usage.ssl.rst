@@ -83,4 +83,19 @@ SSL Methods
 
 :mod:`pymic.net_run_ssl.ssl_abstract.SSLSegAgent` is the abstract class used for 
 semi-supervised learning. The built-in SLL methods are child classes of  :mod:`SSLSegAgent`.
-Currently, the following SLL methods are implemented in PyMIC:
+The available SSL methods implemnted in PyMIC are listed in :mod:`pymic.net_run_ssl.ssl_main.SSLMethodDict`, 
+and they are:
+
+* ``EntropyMinimization``: (`NeurIPS 2005 <https://papers.nips.cc/paper/2004/file/96f2b50b5d3613adf9c27049b2a888c7-Paper.pdf>`_)
+  Using entorpy minimization to regularize unannotated samples.
+
+* ``MeanTeacher``: (`NeurIPS 2017 <https://arxiv.org/abs/1703.01780>`_) Use self-ensembling mean teacher to supervise the student model on
+  unannotated samples. 
+
+* ``UAMT``: (`MICCAI 2019 <https://arxiv.org/abs/1907.07034>`_) Uncertainty aware mean teacher. 
+
+* ``CCT``: (`CVPR 2020 <https://arxiv.org/abs/2003.09005>`_) Cross-consistency training.
+
+* ``CPS``: (`CVPR 2021 <https://arxiv.org/abs/2106.01226>`_) Cross-pseudo supervision.
+
+* ``URPC``: (`MIA 2022 <https://doi.org/10.1016/j.media.2022.102517>`_) Uncertainty rectified pyramid consistency.
