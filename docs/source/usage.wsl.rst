@@ -34,51 +34,56 @@ WSL Configurations
 In the configuration file for ``pymic_wsl``, in addition to those used in fully 
 supervised learning, there are some items specified for weakly-supervised learning.
 
-Users should provide values for the following items in ``dataset`` section of 
-the configuration file:
+First, in the :mod:`train_transform` list, a special transform named :mod:`PartialLabelToProbability`
+should be used to transform patial labels into a one-hot probability map and a weighting 
+map of pixels (i.e., the weight of a pixel is 1 if labeled and 0 otherwise). The patial
+cross entropy loss on labeled pixels is actually implemented by a weighted cross entropy loss.
+The loss setting is `loss_type = CrossEntropyLoss`.
 
-* ``train_csv_unlab`` (string): the csv file for unlabeled dataset. 
-  Note that ``train_csv`` is only used for labeled dataset.  
-
-* ``train_batch_size_unlab`` (int): the batch size for unlabeled dataset. 
-  Note that ``train_batch_size`` means the batch size for the labeled dataset. 
-
-* ``train_transform_unlab`` (list): a list of transforms used for unlabeled data. 
+Second, there is a ``weakly_supervised_learning`` section that is specifically designed
+for WSL methods. In that section, users need to specify the ``wsl_method`` and configurations
+related to the WSL method. For example, the correspoinding configuration for GatedCRF is:
 
 
-The following is an example of the ``dataset`` section for semi-supervised learning:
 
 .. code-block:: none
 
+    [dataset]
     ...
-    root_dir  =../../PyMIC_data/ACDC/preprocess/
-    train_csv = config/data/image_train_r10_lab.csv
-    train_csv_unlab = config/data/image_train_r10_unlab.csv
+    root_dir  = ../../PyMIC_data/ACDC/preprocess
+    train_csv = config/data/image_train.csv
     valid_csv = config/data/image_valid.csv
     test_csv  = config/data/image_test.csv
 
     train_batch_size = 4
-    train_batch_size_unlab = 4
 
     # data transforms
-    train_transform = [Pad, RandomRotate, RandomCrop, RandomFlip, NormalizeWithMeanStd, GammaCorrection, GaussianNoise, LabelToProbability]
-    train_transform_unlab = [Pad, RandomRotate, RandomCrop, RandomFlip, NormalizeWithMeanStd, GammaCorrection, GaussianNoise]
-    valid_transform       = [NormalizeWithMeanStd, Pad, LabelToProbability]
-    test_transform        = [NormalizeWithMeanStd, Pad]
+    train_transform = [Pad, RandomCrop, RandomFlip, NormalizeWithMeanStd, PartialLabelToProbability]
+    valid_transform = [NormalizeWithMeanStd, Pad, LabelToProbability]
+    test_transform  = [NormalizeWithMeanStd, Pad]
     ...
 
-In addition, there is a ``semi_supervised_learning`` section that is specifically designed
-for SSL methods. In that section, users need to specify the ``ssl_method`` and configurations
-related to the SSL method. For example, the correspoinding configuration for CPS is:
-
-.. code-block:: none
-
+    [network]
     ...
-    [semi_supervised_learning]
-    ssl_method     = CPS
+
+    [training]
+    ...
+    loss_type     = CrossEntropyLoss
+    ...
+
+    [weakly_supervised_learning]
+    wsl_method     = GatedCRF
     regularize_w   = 0.1
-    rampup_start   = 1000
-    rampup_end     = 20000
+    rampup_start   = 2000
+    rampup_end     = 15000
+    GatedCRFLoss_W0     = 1.0
+    GatedCRFLoss_XY0    = 5
+    GatedCRFLoss_rgb    = 0.1
+    GatedCRFLoss_W1     = 1.0
+    GatedCRFLoss_XY1    = 3
+    GatedCRFLoss_Radius = 5
+
+    [testing]
     ...
 
 .. note::
