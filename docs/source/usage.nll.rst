@@ -118,4 +118,4 @@ You may need to check the source code of built-in NLL methods to be more familar
 how to implement your own NLL method. 
 
 In addition, if you want to design a new noise-robust loss fucntion, 
-just follow :doc:`_fsl_loss` to impelement and use the customized loss. 
+just follow :doc:`usage.fsl` to impelement and use the customized loss. 
