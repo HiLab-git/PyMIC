@@ -235,6 +235,8 @@ The following is some example code for this:
    agent.set_network(net)
    agent.run()
 
+.. _fsl_loss:
+
 Loss Functions
 --------------
 

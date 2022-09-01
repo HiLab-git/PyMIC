@@ -95,7 +95,7 @@ Built-in WSL Methods
 --------------------
 
 :mod:`pymic.net_run_wsl.wsl_abstract.WSLSegAgent` is the abstract class used for 
-weakly-supervised learning. The built-in SLL methods are child classes of  :mod:`WSLSegAgent`.
+weakly-supervised learning. The built-in WSL methods are child classes of  :mod:`WSLSegAgent`.
 The available WSL methods implemnted in PyMIC are listed in :mod:`pymic.net_run_wsl.wsl_main.WSLMethodDict`, 
 and they are:
 
