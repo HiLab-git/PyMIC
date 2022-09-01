@@ -32,7 +32,7 @@ WSL Configurations
 ------------------
 
 In the configuration file for ``pymic_wsl``, in addition to those used in fully 
-supervised learning, there are some items specified for weakly-supervised learning.
+supervised learning, there are some items specificalized for weakly-supervised learning.
 
 First, in the :mod:`train_transform` list, a special transform named :mod:`PartialLabelToProbability`
 should be used to transform patial labels into a one-hot probability map and a weighting 
@@ -88,8 +88,8 @@ related to the WSL method. For example, the correspoinding configuration for Gat
 
 .. note::
 
-   The configuration items vary with different SLL methods. Please refer to the API 
-   of each built-in SLL method for details of the correspoinding configuration.  
+   The configuration items vary with different WSL methods. Please refer to the API 
+   of each built-in WSL method for details of the correspoinding configuration.  
 
 Built-in WSL Methods
 --------------------

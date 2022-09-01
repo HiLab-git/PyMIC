@@ -24,7 +24,7 @@ SSL Configurations
 ------------------
 
 In the configuration file for ``pymic_ssl``, in addition to those used in fully 
-supervised learning, there are some items specified for semi-supervised learning.
+supervised learning, there are some items specificalized for semi-supervised learning.
 
 Users should provide values for the following items in ``dataset`` section of 
 the configuration file:
