@@ -135,6 +135,9 @@ class Decoder(nn.Module):
 
 class UNet2D(nn.Module):
     def __init__(self, params):
+        """
+        2D UNet
+        """
         super(UNet2D, self).__init__()
         self.params    = params
         self.in_chns   = self.params['in_chns']
