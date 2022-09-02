@@ -1,7 +1,9 @@
 API
 ===
 
-.. autosummary::
-   :toctree: generated
+UNet2D
+------
 
-   lumache
+.. automodule:: pymic.net.net2d.unet2d
+    :members:
+    :show-inheritance:
