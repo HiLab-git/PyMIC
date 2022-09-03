@@ -13,12 +13,20 @@ from pymic.util.ramps import get_rampup_ratio
 
 class WSLGatedCRF(WSLSegAgent):
     """
-    Implementation of the Gated CRF Loss for Weakly Supervised Semantic Image Segmentation.
-        Anton Obukhov, Stamatios Georgoulis, Dengxin Dai, Luc Van Gool:
-        Gated CRF Loss for Weakly Supervised Semantic Image Segmentation.
-        CoRR, abs/1906.04651, 2019
-        http://arxiv.org/abs/1906.04651
-    }
+    Implementation of the Gated CRF loss for weakly supervised segmentation.
+        
+    * Reference: Anton Obukhov, Stamatios Georgoulis, Dengxin Dai, Luc Van Gool:
+      Gated CRF Loss for Weakly Supervised Semantic Image Segmentation.
+      `CoRR <http://arxiv.org/abs/1906.04651>`_, abs/1906.04651, 2019.
+        
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `weakly_supervised_learning` is needed. See :doc:`usage.wsl` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(WSLGatedCRF, self).__init__(config, stage)

@@ -20,9 +20,12 @@ WSLMethodDict = {'EntropyMinimization': WSLEntropyMinimization,
     'DMPLS': WSLDMPLS}
 
 def main():
+    """
+    The main function for training and inference of weakly supervised segmentation. 
+    """
     if(len(sys.argv) < 3):
         print('Number of arguments should be 3. e.g.')
-        print('   pymic_ssl train config.cfg')
+        print('   pymic_wsl train config.cfg')
         exit()
     stage    = str(sys.argv[1])
     cfg_file = str(sys.argv[2])

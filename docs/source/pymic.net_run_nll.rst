@@ -4,14 +4,6 @@ pymic.net\_run\_nll package
 Submodules
 ----------
 
-pymic.net\_run\_nll.nll\_cl module
-----------------------------------
-
-.. automodule:: pymic.net_run_nll.nll_cl
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 pymic.net\_run\_nll.nll\_clslsr module
 --------------------------------------
 

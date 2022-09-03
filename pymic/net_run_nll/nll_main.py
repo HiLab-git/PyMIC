@@ -14,6 +14,9 @@ NLLMethodDict = {'CoTeaching': NLLCoTeaching,
     "DAST": NLLDAST}
 
 def main():
+    """
+    The main function for noisy label learning methods.
+    """
     if(len(sys.argv) < 3):
         print('Number of arguments should be 3. e.g.')
         print('   pymic_nll train config.cfg')
