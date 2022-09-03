@@ -20,6 +20,18 @@ import warnings
 warnings.filterwarnings('ignore', '.*output shape of zoom.*')
 
 class ClassificationAgent(NetRunAgent):
+    """
+    The agent for image classificaiton tasks.
+
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        The config dictionary should have at least four sections: `dataset`,
+        `network`, `training` and `inference`. See :doc:`usage.quickstart` and
+        :doc:`usage.fsl` for example.
+    """
     def __init__(self, config, stage = 'train'):
         super(ClassificationAgent, self).__init__(config, stage)
         self.transform_dict  = TransformDict
@@ -87,14 +99,20 @@ class ClassificationAgent(NetRunAgent):
         else:
             raise ValueError("Undefined loss function {0:}".format(loss_name))
 
-    def get_loss_value(self, data, inputs, outputs, labels):
+    def get_loss_value(self, data, pred, gt, param = None):
         loss_input_dict = {}
-        loss_input_dict['prediction'] = outputs
-        loss_input_dict['ground_truth'] = labels
+        loss_input_dict['prediction'] = pred
+        loss_input_dict['ground_truth'] = gt
         loss_value = self.loss_calculater(loss_input_dict)
         return loss_value
         
     def get_evaluation_score(self, outputs, labels):
+        """
+        Get evaluation score for a prediction.
+
+        :param outputs: (tensor) Prediction obtained by a network. 
+        :param labels: (tensor) The ground truth.
+        """
         metrics = self.config['training'].get("evaluation_metric", "accuracy")
         if(metrics != "accuracy"): # default classification accuracy
             raise ValueError("Not implemeted for metric {0:}".format(metrics))
@@ -170,12 +188,13 @@ class ClassificationAgent(NetRunAgent):
         valid_scalers = {'loss': avg_loss, metrics: avg_score}
         return valid_scalers
 
-    def write_scalars(self, train_scalars, valid_scalars, glob_it):
+    def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         metrics =self.config['training'].get("evaluation_metric", "accuracy")
         loss_scalar ={'train':train_scalars['loss'], 'valid':valid_scalars['loss']}
         acc_scalar  ={'train':train_scalars[metrics],'valid':valid_scalars[metrics]}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars(metrics, acc_scalar, glob_it)
+        self.summ_writer.add_scalars('lr', {"lr": lr_value}, glob_it)
         
         logging.info("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
         logging.info('train loss {0:.4f}, avg {1:} {2:.4f}'.format(

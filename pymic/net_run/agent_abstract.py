@@ -11,6 +11,11 @@ from abc import ABCMeta, abstractmethod
 from pymic.net_run.get_optimizer import get_lr_scheduler, get_optimizer
 
 def seed_torch(seed=1):
+    """
+    Set random seed.
+
+    :param seed: (int) the seed for random. 
+    """
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
@@ -47,6 +52,7 @@ class NetRunAgent(object):
         self.net       = None
         self.optimizer = None
         self.scheduler = None 
+        self.net_dict  = None
         self.loss_dict = None 
         self.transform_dict  = None
         self.inferer   = None
@@ -87,12 +93,19 @@ class NetRunAgent(object):
         """
         self.net = net 
 
+    def set_net_dict(self, net_dict):
+        """
+        Set the available networks, including customized networks.
+
+        :param net_dict: (dictionary) A dictionary of available networks.
+        """
+        self.net_dict = net_dict
+
     def set_loss_dict(self, loss_dict):
         """
         Set the available loss functions, including customized loss functions.
 
-        :param loss_dict: (dictionary) A dictionary of 
-          available loss functions.
+        :param loss_dict: (dictionary) A dictionary of available loss functions.
         """
         self.loss_dict = loss_dict
 
@@ -121,6 +134,9 @@ class NetRunAgent(object):
         self.inferer = inferer
 
     def get_checkpoint_name(self):
+        """
+        Get the checkpoint name for inference based on config['testing']['ckpt_mode']. 
+        """
         ckpt_mode = self.config['testing']['ckpt_mode']
         if(ckpt_mode == 0 or ckpt_mode == 1):
             ckpt_dir    = self.config['training']['ckpt_save_dir']
@@ -138,33 +154,94 @@ class NetRunAgent(object):
 
     @abstractmethod    
     def get_stage_dataset_from_config(self, stage):
+        """
+        Create dataset based on training, validation or inference stage. 
+
+        :param stage: (str) `train`, `valid` or `test`.
+        """
         raise(ValueError("not implemented"))
 
     @abstractmethod
     def get_parameters_to_update(self):
+        """
+        Get parameters for update. 
+        """
+        raise(ValueError("not implemented"))
+
+    @abstractmethod
+    def get_loss_value(self, data, pred, gt, param = None):
+        """
+        Get the loss value.  Assume `pred` and `gt` has been sent to self.device.
+        `data` is obtained by dataloader, and is a dictionary containing extra 
+        information, such as pixel-level weight. By default, such information 
+        is not used by standard loss functions such as Dice loss and cross entropy loss.  
+
+
+        :param data: (dictionary) A data dictionary obtained by dataloader.
+        :param pred: (tensor) Prediction result by the network. 
+        :param gt: (tensor) Ground truth.
+        :param param: (dictionary) Other parameters if needed.
+        """
         raise(ValueError("not implemented"))
 
     @abstractmethod
     def create_network(self):
+        """
+        Create network based on configuration.
+        """
+        raise(ValueError("not implemented"))
+
+    @abstractmethod
+    def create_loss_calculator(self):
+        """
+        Create loss function object.
+        """
         raise(ValueError("not implemented"))
 
     @abstractmethod
     def training(self):
+        """
+        Train the network
+        """
         raise(ValueError("not implemented"))
         
     @abstractmethod
     def validation(self):
+        """
+        Evaluate the performance on the validation set.
+        """
         raise(ValueError("not implemented"))
 
     @abstractmethod
     def train_valid(self):
+        """
+        Train and valid. 
+        """
         raise(ValueError("not implemented"))
     
     @abstractmethod
     def infer(self):
+        """
+        Inference on testing set. 
+        """
+        raise(ValueError("not implemented"))
+
+    @abstractmethod
+    def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
+        """
+        Write scalars using SummaryWriter.
+
+        :param train_scalars: (dictionary) Scalars for training set. 
+        :param valid_scalars: (dictionary) Scalars for validation set. 
+        :param lr_value: (float) Current learning rate.
+        :param glob_it: (int) Current iteration number.
+        """
         raise(ValueError("not implemented"))
 
     def create_dataset(self):
+        """
+        Create datasets for training, validation or testing based on configuraiton.  
+        """
         if(self.stage == 'train'):
             if(self.train_set is None):
                 self.train_set = self.get_stage_dataset_from_config('train')
@@ -200,6 +277,12 @@ class NetRunAgent(object):
                 batch_size = bn_test, shuffle=False, num_workers= bn_test)
        
     def create_optimizer(self, params):
+        """
+        Create optimizer based on configuration. 
+
+        :param params: network parameters for optimization. Usually it is obtained by 
+            `self.get_parameters_to_update()`.
+        """
         opt_params = self.config['training']
         if(self.optimizer is None):
             self.optimizer = get_optimizer(opt_params['optimizer'],
@@ -213,12 +296,18 @@ class NetRunAgent(object):
             self.scheduler = get_lr_scheduler(self.optimizer, opt_params)
 
     def convert_tensor_type(self, input_tensor):
+        """
+        Convert the type of an input tensor to float or double based on configuration. 
+        """
         if(self.tensor_type == 'float'):
             return input_tensor.float()
         else:
             return input_tensor.double()
 
     def run(self):
+        """
+        Run the training or inference code according to configuration.
+        """
         self.create_dataset()
         self.create_network()
         if(self.stage == 'train'):

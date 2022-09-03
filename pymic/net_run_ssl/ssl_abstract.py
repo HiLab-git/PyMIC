@@ -15,10 +15,16 @@ from pymic.transform.trans_dict import TransformDict
 
 class SSLSegAgent(SegmentationAgent):
     """
-    Implementation of the following paper:
-    Yves Grandvalet and Yoshua Bengio, 
-    Semi-supervised Learningby Entropy Minimization.
-    NeurIPS, 2005. 
+    Abstract class for semi-supervised segmentation.
+
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `semi_supervised_learning` is needed. See :doc:`usage.ssl` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(SSLSegAgent, self).__init__(config, stage)
@@ -26,6 +32,9 @@ class SSLSegAgent(SegmentationAgent):
         self.train_set_unlab = None 
 
     def get_unlabeled_dataset_from_config(self):
+        """
+        Create a dataset for the unlabeled images based on configuration.
+        """
         root_dir  = self.config['dataset']['root_dir']
         modal_num = self.config['dataset'].get('modal_num', 1)
         transform_names = self.config['dataset']['train_transform_unlab']

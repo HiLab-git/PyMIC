@@ -33,6 +33,7 @@ class SegmentationAgent(NetRunAgent):
     def __init__(self, config, stage = 'train'):
         super(SegmentationAgent, self).__init__(config, stage)
         self.transform_dict   = TransformDict
+        self.net_dict         = SegNetDict
         self.postprocess_dict = PostProcessDict
         self.postprocessor    = None
         
@@ -70,9 +71,9 @@ class SegmentationAgent(NetRunAgent):
     def create_network(self):
         if(self.net is None):
             net_name = self.config['network']['net_type']
-            if(net_name not in SegNetDict):
+            if(net_name not in self.net_dict):
                 raise ValueError("Undefined network {0:}".format(net_name))
-            self.net = SegNetDict[net_name](self.config['network'])
+            self.net = self.net_dict[net_name](self.config['network'])
         if(self.tensor_type == 'float'):
             self.net.float()
         else:
@@ -82,50 +83,6 @@ class SegmentationAgent(NetRunAgent):
 
     def get_parameters_to_update(self):
         return self.net.parameters()
-
-    def get_class_level_weight(self):
-        class_num   = self.config['network']['class_num']
-        class_weight= self.config['training'].get('loss_class_weight', None)
-        if(class_weight is None):
-            class_weight = torch.ones(class_num)
-        else:
-            assert(len(class_weight) == class_num)
-            class_weight = torch.from_numpy(np.asarray(class_weight))
-        class_weight = self.convert_tensor_type(class_weight)
-        return class_weight
-
-    def get_image_level_weight(self, data):
-        imageweight_enb = self.config['training'].get('loss_with_image_weight', False)
-        img_w = None 
-        if(imageweight_enb):
-            if(self.net.training):
-                if('image_weight' not in data):
-                    raise ValueError("image weight is enabled not not provided")
-                img_w = data['image_weight']
-            else:
-                img_w = data.get('image_weight', None)
-        if(img_w is None):        
-            batch_size = data['image'].shape[0]
-            img_w = torch.ones(batch_size)
-        img_w = self.convert_tensor_type(img_w)
-        return img_w 
-
-    def get_pixel_level_weight(self, data):
-        pixelweight_enb = self.config['training'].get('loss_with_pixel_weight', False)
-        pix_w = None
-        if(pixelweight_enb):
-            if(self.net.training):
-                if('pixel_weight' not in data):
-                    raise ValueError("pixel weight is enabled but not provided")
-                pix_w = data['pixel_weight']
-            else:
-                pix_w = data.get('pixel_weight', None)
-        if(pix_w is None):
-            pix_w_shape = list(data['label_prob'].shape)
-            pix_w_shape[1] = 1
-            pix_w = torch.ones(pix_w_shape)
-        pix_w = self.convert_tensor_type(pix_w)
-        return pix_w
 
     def create_loss_calculator(self):
         if(self.loss_dict is None):
@@ -145,13 +102,6 @@ class SegmentationAgent(NetRunAgent):
             self.loss_calculator = base_loss
                 
     def get_loss_value(self, data, pred, gt, param = None):
-        """
-        Assume pred and gt has been sent to self.device
-        data is obtained by dataloaderis  and is dictionary containing extra 
-        information, such as pixel-level weight, class-level weight.
-        By default, such information is not used by standard loss functions 
-        such as Dice loss and cross entropy loss.  
-        """
         loss_input_dict = {'prediction':pred, 'ground_truth': gt}
         if data.get('pixel_weight', None) is not None:
             loss_input_dict['pixel_weight'] = data['pixel_weight'].to(pred.device)
@@ -159,6 +109,12 @@ class SegmentationAgent(NetRunAgent):
         return loss_value
     
     def set_postprocessor(self, postprocessor):
+        """
+        Set post processor after prediction. 
+
+        :param postprocessor: post processor, such as an instance of 
+            `pymic.util.post_process.PostProcess`.
+        """
         self.postprocessor = postprocessor
 
     def training(self):
@@ -451,14 +407,14 @@ class SegmentationAgent(NetRunAgent):
 
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
-                self.save_ouputs(data)
+                self.save_outputs(data)
         infer_time_list = np.asarray(infer_time_list)
         time_avg, time_std = infer_time_list.mean(), infer_time_list.std()
         logging.info("testing time {0:} +/- {1:}".format(time_avg, time_std))
 
     def infer_with_multiple_checkpoints(self):
         """
-        inference with ensemble of multilple check points
+        Inference with ensemble of multilple check points.
         """
         device_ids = self.config['testing']['gpus']
         device = torch.device("cuda:{0:}".format(device_ids[0]))
@@ -505,12 +461,18 @@ class SegmentationAgent(NetRunAgent):
                 
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
-                self.save_ouputs(data)
+                self.save_outputs(data)
         infer_time_list = np.asarray(infer_time_list)
         time_avg, time_std = infer_time_list.mean(), infer_time_list.std()
         logging.info("testing time {0:} +/- {1:}".format(time_avg, time_std))
 
-    def save_ouputs(self, data):
+    def save_outputs(self, data):
+        """
+        Save prediction output. 
+
+        :param data: (dictionary) A data dictionary with prediciton result and other 
+            information such as input image name. 
+        """
         output_dir = self.config['testing']['output_dir']
         ignore_dir = self.config['testing'].get('filename_ignore_dir', True)
         save_prob  = self.config['testing'].get('save_probability', False)
