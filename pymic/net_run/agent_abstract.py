@@ -21,6 +21,19 @@ def seed_torch(seed=1):
     torch.backends.cudnn.deterministic = True
 
 class NetRunAgent(object):
+    """
+    The abstract class for medical image segmentation.
+
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        The config dictionary should have at least four sections: `dataset`,
+        `network`, `training` and `inference`. See :doc:`usage.quickstart` and
+        :doc:`usage.fsl` for example.
+
+    """
     __metaclass__ = ABCMeta
     def __init__(self, config, stage = 'train'):
         assert(stage in ['train', 'inference', 'test'])
@@ -46,26 +59,65 @@ class NetRunAgent(object):
             logging.info("deterministric is true")
         
     def set_datasets(self, train_set, valid_set, test_set):
+        """
+        Set customized datasets for training and inference.
+        
+        :param train_set: (torch.utils.data.Dataset) The training set.
+        :param valid_set: (torch.utils.data.Dataset) The validation set.
+        :param test_set: (torch.utils.data.Dataset) The testing set.
+        """
         self.train_set = train_set
         self.valid_set = valid_set
         self.test_set  = test_set
 
     def set_transform_dict(self, custom_transform_dict):
+        """
+        Set the available Transforms, including customized Transforms.
+
+        :param custom_transform_dict: (dictionary) A dictionary of 
+          available Transforms.
+        """
         self.transform_dict = custom_transform_dict
 
     def set_network(self, net):
+        """
+        Set the network.
+
+        :param net: (nn.Module) A deep learning network.
+        """
         self.net = net 
 
     def set_loss_dict(self, loss_dict):
+        """
+        Set the available loss functions, including customized loss functions.
+
+        :param loss_dict: (dictionary) A dictionary of 
+          available loss functions.
+        """
         self.loss_dict = loss_dict
 
     def set_optimizer(self, optimizer):
+        """
+        Set the optimizer.
+
+        :param optimizer: An optimizer.
+        """        
         self.optimizer = optimizer
     
     def set_scheduler(self, scheduler):
+        """
+        Set the learning rate scheduler.
+
+        :param scheduler: A learning rate scheduler.
+        """
         self.scheduler = scheduler
     
     def set_inferer(self, inferer):
+        """
+        Set the inferer.
+
+        :param inferer: An inferer object.
+        """
         self.inferer = inferer
 
     def get_checkpoint_name(self):
