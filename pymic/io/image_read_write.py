@@ -158,10 +158,10 @@ def rotate_nifty_volume_to_LPS(filename_or_image_dict, origin = None, direction 
     Rotate the axis of a 3D volume to LPS
 
     Args:
-        filename_or_image_dict (str or dict): filename of the nifty file (str) or image dictionary 
-            returned by load_nifty_volume_as_4d_array. If supplied with the former, 
-            the flipped image data will be saved to override the original file. 
-            If supplied with the later, only flipped image data will be returned.
+        filename_or_image_dict (str): filename of the nifty file (str) or image dictionary 
+        returned by load_nifty_volume_as_4d_array. If supplied with the former, 
+        the flipped image data will be saved to override the original file. 
+        If supplied with the later, only flipped image data will be returned.
         origin (list or tuple): the origin of the image.
         direction (list or tuple): the direction of the image.
     '''
