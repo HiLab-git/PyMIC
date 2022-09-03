@@ -6,6 +6,14 @@ import torch.nn as nn
 from pymic.loss.seg.util import reshape_tensor_to_2D
 
 class CrossEntropyLoss(nn.Module):
+    """
+    Cross entropy loss for segmentation tasks.
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    Args:
+        `loss_softmax` (bool): Apply softmax to the prediction of network or not. \n
+    """
     def __init__(self, params = None):
         super(CrossEntropyLoss, self).__init__()
         if(params is None):
@@ -14,6 +22,22 @@ class CrossEntropyLoss(nn.Module):
             self.softmax = params.get('loss_softmax', True)
     
     def forward(self, loss_input_dict):
+        """
+        Forward pass for calculating the loss.
+        The arguments should be written in the `loss_input_dict` dictionary, 
+        and it has the following fields:
+
+        Args:
+            `prediction` (tensor): prediction of a network, with the 
+            shape of [N, C, D, H, W] or [N, C, H, W]. \n
+            `ground_truth` (tensor): ground truth, with the 
+            shape of [N, C, D, H, W] or [N, C, H, W]. \n
+            `pixel_weight` (tensor or None): pixel weight map, with the 
+            shape of [N, D, H, W] or [N, H, W]. \n
+        
+        Returns:
+            tensor: the loss value. 
+        """
         predict = loss_input_dict['prediction']
         soft_y  = loss_input_dict['ground_truth']
         pix_w   = loss_input_dict.get('pixel_weight', None)
@@ -36,39 +60,23 @@ class CrossEntropyLoss(nn.Module):
             ce = torch.sum(pix_w * ce) / (pix_w.sum() + 1e-5) 
         return ce
 
-class PartialCrossEntropyLoss(nn.Module):
-    def __init__(self, params):
-        super(CrossEntropyLoss, self).__init__()
-        self.softmax = params.get('loss_softmax', True)
-    
-    def forward(self, loss_input_dict):
-        predict = loss_input_dict['prediction']
-        soft_y  = loss_input_dict['ground_truth']
-
-        if(isinstance(predict, (list, tuple))):
-            predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
-        predict = reshape_tensor_to_2D(predict)
-        soft_y  = reshape_tensor_to_2D(soft_y)
-
-        # for numeric stability
-        predict = predict * 0.999 + 5e-4
-        ce = - soft_y* torch.log(predict)
-        ce = torch.sum(ce, dim = 1) # shape is [N]
-        ce = torch.mean(ce)  
-        return ce
-
 class GeneralizedCELoss(nn.Module):
     """
     Generalized cross entropy loss to deal with noisy labels. 
-        Z. Zhang et al. Generalized Cross Entropy Loss for Training Deep Neural Networks 
-        with Noisy Labels, NeurIPS 2018.
+
+    Reference: Z. Zhang et al. Generalized Cross Entropy Loss for Training Deep Neural Networks 
+    with Noisy Labels, NeurIPS 2018.
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    Args:
+        `GeneralizedCELoss_Enable_Pixel_Weight` (bool): Use pixel weighting or not. \n
+        `GeneralizedCELoss_Enable_Class_Weight` (bool): Use class weighting or not. \n
+        `GeneralizedCELoss_q` (float): hyper-parameter in the range of (0, 1). \n
+        `loss_softmax` (bool): Apply softmax to the network's prediction or not.
     """
     def __init__(self, params):
-        """
-        q: in (0, 1), becmomes MAE when q = 1
-        """
         super(GeneralizedCELoss, self).__init__()
         self.enable_pix_weight = params.get('GeneralizedCELoss_Enable_Pixel_Weight', False)
         self.enable_cls_weight = params.get('GeneralizedCELoss_Enable_Class_Weight', False)
@@ -76,6 +84,23 @@ class GeneralizedCELoss(nn.Module):
         self.softmax = params.get('loss_softmax', True)
 
     def forward(self, loss_input_dict):
+        '''
+        Forward pass for calculating the loss.
+        The arguments should be written in the `loss_input_dict` dictionary, 
+        and it has the following fields:
+
+        Args:
+            `prediction` (tensor): prediction of a network, with the 
+            shape of [N, C, D, H, W] or [N, C, H, W]. \n
+            `ground_truth` (tensor): ground truth, with the 
+            shape of [N, C, D, H, W] or [N, C, H, W]. \n
+            `pixel_weight` (tensor or None): pixel weight map, with the 
+            shape of [N, D, H, W] or [N, H, W]. \n
+            `class_weight` (tensor or None): class weight map.
+        
+        Returns:
+            tensor: the loss value. 
+        '''
         predict = loss_input_dict['prediction']
         soft_y  = loss_input_dict['ground_truth']        
 

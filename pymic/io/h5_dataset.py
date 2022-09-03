@@ -16,6 +16,11 @@ class H5DataSet(Dataset):
     Dataset for loading images stored in h5 format. It generates 
     4D tensors with dimention order [C, D, H, W] for 3D images, and 
     3D tensors with dimention order [C, H, W] for 2D images
+
+    Args:
+        root_dir (str): thr root dir of images. \n
+        sample_list_name (str): a file name for sample list. \n
+        tranform (list): A list of transform objects applied on a sample.
     """
     def __init__(self, root_dir, sample_list_name, transform = None):
         self.root_dir = root_dir 
