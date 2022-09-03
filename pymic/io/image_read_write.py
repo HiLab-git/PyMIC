@@ -9,10 +9,10 @@ from PIL import Image
 def load_nifty_volume_as_4d_array(filename):
     """
     Read a nifty image and return a dictionay storing data array, origin, 
-    spacing and direction.
-    output['data_array'] 4d array with shape [C, D, H, W]
-    output['spacing']    a list of spacing in z, y, x axis 
-    output['direction']  a 3x3 matrix for direction
+    spacing and direction.\n
+    output['data_array'] 4d array with shape [C, D, H, W];\n
+    output['spacing']    a list of spacing in z, y, x axis;\n
+    output['direction']  a 3x3 matrix for direction.
 
     Args:
         filename (str): the input file name
@@ -42,10 +42,10 @@ def load_nifty_volume_as_4d_array(filename):
 def load_rgb_image_as_3d_array(filename):
     """
     Read an RGB image and return a dictionay storing data array, origin, 
-    spacing and direction.
-    output['data_array'] 3d array with shape [D, H, W]
-    output['spacing']    a list of spacing in z, y, x axis 
-    output['direction']  a 3x3 matrix for direction
+    spacing and direction. \n
+    output['data_array'] 3d array with shape [D, H, W]; \n
+    output['spacing']    a list of spacing in z, y, x axis;  \n
+    output['direction']  a 3x3 matrix for direction.
 
     Args:
         filename (str): the input file name
