@@ -98,10 +98,10 @@ def save_array_as_nifty_volume(data, image_name, reference_name = None):
     Save a numpy array as nifty image
 
     Args:
-        data(numpy.ndarray): a numpy array with shape [Depth, Height, Width]
-        image_name (str): the ouput file name
+        data (numpy.ndarray): a numpy array with shape [Depth, Height, Width].\n
+        image_name (str): the ouput file name.\n
         reference_name (str): file name of the reference image of which 
-            meta information is used
+        meta information is used.
     """
     img = sitk.GetImageFromArray(data)
     if(reference_name is not None):
@@ -117,8 +117,9 @@ def save_array_as_rgb_image(data, image_name):
     Save a numpy array as rgb image
 
     Args:
-        data (numpy.ndarray): a numpy array with shape [3, H, W] or [H, W, 3] or [H, W]
-        image_name (str): the output file name
+        data (numpy.ndarray): a numpy array with shape [3, H, W] or
+        [H, W, 3] or [H, W]. \n
+        image_name (str): the output file name.
     """
     data_dim = len(data.shape)
     if(data_dim == 3):
@@ -133,10 +134,10 @@ def save_nd_array_as_image(data, image_name, reference_name = None):
     Save a 3D or 2D numpy array as medical image or RGB image
     
     Args:
-        data (numpy.ndarray): a numpy array with shape [D, H, W] or [C, H, W]
-        image_name (str): the output file name 
+        data (numpy.ndarray): a numpy array with shape [D, H, W] or [C, H, W]. \n
+        image_name (str): the output file name. \n 
         reference_name (str): file name of the reference image of which 
-            meta information is used
+        meta information is used.
     """
     data_dim = len(data.shape)
     assert(data_dim == 2 or data_dim == 3)
@@ -161,9 +162,13 @@ def rotate_nifty_volume_to_LPS(filename_or_image_dict, origin = None, direction 
         filename_or_image_dict (str): filename of the nifty file (str) or image dictionary 
         returned by load_nifty_volume_as_4d_array. If supplied with the former, 
         the flipped image data will be saved to override the original file. 
-        If supplied with the later, only flipped image data will be returned.
-        origin (list or tuple): the origin of the image.
+        If supplied with the later, only flipped image data will be returned.\n
+        origin (list or tuple): the origin of the image.\n
         direction (list or tuple): the direction of the image.
+
+    Returns:
+        dict: a dictionary for image data and meta info, with ``data_array``,
+        ``origin``, ``direction`` and ``spacing``.
     '''
 
     if type(filename_or_image_dict) == str:
