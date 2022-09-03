@@ -1,14 +1,5 @@
-API
-===
-
-Module contents
----------------
-
-.. automodule:: pymic
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
+pymic package
+=============
 
 Subpackages
 -----------
@@ -26,3 +17,11 @@ Subpackages
    pymic.net_run_wsl
    pymic.transform
    pymic.util
+
+Module contents
+---------------
+
+.. automodule:: pymic
+   :members:
+   :undoc-members:
+   :show-inheritance:
