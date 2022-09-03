@@ -8,10 +8,17 @@ from PIL import Image
 
 def load_nifty_volume_as_4d_array(filename):
     """
-    Read a nifty image and return a dictionay storing data array, spacing and direction
+    Read a nifty image and return a dictionay storing data array, origin, 
+    spacing and direction.
     output['data_array'] 4d array with shape [C, D, H, W]
     output['spacing']    a list of spacing in z, y, x axis 
     output['direction']  a 3x3 matrix for direction
+
+    Args:
+        filename (str): the input file name
+    
+    Returns:
+        dict: a dictionay storing data array, origin, spacing and direction.
     """
     img_obj    = sitk.ReadImage(filename)
     data_array = sitk.GetArrayFromImage(img_obj)
@@ -33,6 +40,19 @@ def load_nifty_volume_as_4d_array(filename):
     return output
 
 def load_rgb_image_as_3d_array(filename):
+    """
+    Read an RGB image and return a dictionay storing data array, origin, 
+    spacing and direction.
+    output['data_array'] 3d array with shape [D, H, W]
+    output['spacing']    a list of spacing in z, y, x axis 
+    output['direction']  a 3x3 matrix for direction
+
+    Args:
+        filename (str): the input file name
+    
+    Returns:
+        dict: a dictionay storing data array, origin, spacing and direction.
+    """
     image = np.asarray(Image.open(filename))
     image_shape = image.shape
     image_dim   = len(image_shape)
@@ -58,7 +78,10 @@ def load_image_as_nd_array(image_name):
     or 3D array with shape [C, H, W].
 
     Args:
-        image_name (string): the image name.
+        image_name (str): the image name.
+
+    Returns:
+        dict: a dictionay storing data array, origin, spacing and direction.
     """
     if (image_name.endswith(".nii.gz") or image_name.endswith(".nii") or
         image_name.endswith(".mha")):
@@ -75,11 +98,10 @@ def save_array_as_nifty_volume(data, image_name, reference_name = None):
     Save a numpy array as nifty image
 
     Args:
-        data: a numpy array with shape [Depth, Height, Width]
-        image_name: the ouput file name
-        reference_name: file name of the reference image of which 
-        meta information is used
-    outputs: None
+        data(numpy.ndarray): a numpy array with shape [Depth, Height, Width]
+        image_name (str): the ouput file name
+        reference_name (str): file name of the reference image of which 
+            meta information is used
     """
     img = sitk.GetImageFromArray(data)
     if(reference_name is not None):
@@ -92,11 +114,11 @@ def save_array_as_nifty_volume(data, image_name, reference_name = None):
 
 def save_array_as_rgb_image(data, image_name):
     """
-    save a numpy array as rgb image
-    inputs:
-        data: a numpy array with shape [3, H, W] or [H, W, 3] or [H, W]
-        image_name: the output file name
-    outputs: None
+    Save a numpy array as rgb image
+
+    Args:
+        data (numpy.ndarray): a numpy array with shape [3, H, W] or [H, W, 3] or [H, W]
+        image_name (str): the output file name
     """
     data_dim = len(data.shape)
     if(data_dim == 3):
@@ -108,11 +130,13 @@ def save_array_as_rgb_image(data, image_name):
 
 def save_nd_array_as_image(data, image_name, reference_name = None):
     """
-    save a 3D or 2D numpy array as medical image or RGB image
-    inputs:
-        data: a numpy array with shape [D, H, W] or [C, H, W]
-        image_name: the output file name 
-    outputs: None
+    Save a 3D or 2D numpy array as medical image or RGB image
+    
+    Args:
+        data (numpy.ndarray): a numpy array with shape [D, H, W] or [C, H, W]
+        image_name (str): the output file name 
+        reference_name (str): file name of the reference image of which 
+            meta information is used
     """
     data_dim = len(data.shape)
     assert(data_dim == 2 or data_dim == 3)
@@ -131,10 +155,15 @@ def save_nd_array_as_image(data, image_name, reference_name = None):
 
 def rotate_nifty_volume_to_LPS(filename_or_image_dict, origin = None, direction = None):
     '''
-    filename_or_image_dict: filename of the nifty file (str) or image dictionary 
-        returned by load_nifty_volume_as_4d_array. If supplied with the former, 
-        the flipped image data will be saved to override the original file. 
-        If supplied with the later, only flipped image data will be returned.
+    Rotate the axis of a 3D volume to LPS
+
+    Args:
+        filename_or_image_dict (str or dict): filename of the nifty file (str) or image dictionary 
+            returned by load_nifty_volume_as_4d_array. If supplied with the former, 
+            the flipped image data will be saved to override the original file. 
+            If supplied with the later, only flipped image data will be returned.
+        origin (list or tuple): the origin of the image.
+        direction (list or tuple): the direction of the image.
     '''
 
     if type(filename_or_image_dict) == str:
