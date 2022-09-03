@@ -3,8 +3,18 @@ from __future__ import print_function, division
 
 import torch
 import torch.nn as nn
+from pymic.loss.seg.abstract import AbstractSegLoss
 
-class CombinedLoss(nn.Module):
+class CombinedLoss(AbstractSegLoss):
+    '''
+    A combination of a list of loss functions. 
+    Arguments should be saved in the `params` dictionary. 
+
+    :param `loss_type`: (list) A list of loss function name.
+    :param `loss_weight`: (list) A list of weights for each loss fucntion. 
+    :param loss_dict: (dictionary) A dictionary of avaiable loss functions.
+
+    '''
     def __init__(self, params, loss_dict):
         super(CombinedLoss, self).__init__()
         loss_names  = params['loss_type']

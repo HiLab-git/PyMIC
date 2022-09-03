@@ -9,8 +9,16 @@ from pymic.loss.seg.util import reshape_tensor_to_2D, get_classwise_dice
 class ExpLogLoss(nn.Module):
     """
     The exponential logarithmic loss in this paper: 
-        K. Wong et al.: 3D Segmentation with Exponential Logarithmic Loss for Highly 
-        Unbalanced Object Sizes. MICCAI 2018.
+        
+    * K. Wong et al.: 3D Segmentation with Exponential Logarithmic Loss for Highly 
+      Unbalanced Object Sizes. MICCAI 2018.
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not.
+    :param `ExpLogLoss_w_dice`:  (float) Weight of ExpLog Dice loss in the range of [0, 1].
+    :param `ExpLogLoss_gamma`: (float) Hyper-parameter gamma. 
     """
     def __init__(self, params):
         super(ExpLogLoss, self).__init__()
@@ -19,6 +27,18 @@ class ExpLogLoss(nn.Module):
         self.gamma  = params['ExpLogLoss_gamma'.lower()]
 
     def forward(self, loss_input_dict):
+        """
+        Forward pass for calculating the loss.
+        The arguments should be written in the `loss_input_dict` dictionary, 
+        and it has the following fields:
+
+        :param `prediction`: (tensor) Prediction of a network, with the 
+            shape of [N, C, D, H, W] or [N, C, H, W].
+        :param `ground_truth`: (tensor) Ground truth, with the 
+            shape of [N, C, D, H, W] or [N, C, H, W]. 
+        
+        :return: Loss function value.
+        """
         predict = loss_input_dict['prediction']
         soft_y  = loss_input_dict['ground_truth']
         

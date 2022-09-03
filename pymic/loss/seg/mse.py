@@ -1,7 +1,15 @@
 import torch
 import torch.nn as nn
+from pymic.loss.seg.abstract import AbstractSegLoss
 
-class MSELoss(nn.Module):
+class MSELoss(AbstractSegLoss):
+    """
+    Mean Sequare Loss for segmentation tasks.
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not. 
+    """
     def __init__(self, params):
         super(MSELoss, self).__init__()
         if(params is None):
@@ -22,7 +30,14 @@ class MSELoss(nn.Module):
         return mse 
     
     
-class MAELoss(nn.MSELoss):
+class MAELoss(AbstractSegLoss):
+    """
+    Mean Absolute Loss for segmentation tasks.
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not. 
+    """
     def __init__(self, params):
         super(MAELoss, self).__init__(params)
         if(params is None):
@@ -30,7 +45,7 @@ class MAELoss(nn.MSELoss):
         else:
             self.softmax = params.get('loss_softmax', True)
     
-    def get_prediction_error(self, loss_input_dict):
+    def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
         soft_y  = loss_input_dict['ground_truth']
         

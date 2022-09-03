@@ -52,14 +52,6 @@ pymic.loss.seg.gatedcrf module
    :undoc-members:
    :show-inheritance:
 
-pymic.loss.seg.gatedcrf\_backup module
---------------------------------------
-
-.. automodule:: pymic.loss.seg.gatedcrf_backup
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 pymic.loss.seg.mse module
 -------------------------
 

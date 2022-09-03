@@ -1,19 +1,30 @@
 # -*- coding: utf-8 -*-
-"""
-Spatial Label Smoothing Regularization (SLSR) loss for learning from
-noisy annotatins according to the following paper:
-    Minqing Zhang, Jiantao Gao et al.:
-    Characterizing Label Errors: Confident Learning for Noisy-Labeled Image 
-    Segmentation, MICCAI 2020.
-    https://link.springer.com/chapter/10.1007/978-3-030-59710-8_70 
-"""
+
 from __future__ import print_function, division
 
 import torch
 import torch.nn as nn
+from pymic.loss.seg.abstract import AbstractSegLoss
 from pymic.loss.seg.util import reshape_tensor_to_2D
 
-class SLSRLoss(nn.Module):
+class SLSRLoss(AbstractSegLoss):
+    """
+    Spatial Label Smoothing Regularization (SLSR) loss for learning from
+    noisy annotatins. This loss requires pixel weighting, please make sure
+    that a `pixel_weight` field is provided for the csv file of the training images.
+
+    The pixel wight here is actually the confidence mask, i.e., if the value is one, 
+    it means the label of corresponding pixel is noisy and should be smoothed.
+
+    * Reference: Minqing Zhang, Jiantao Gao et al.: Characterizing Label Errors: Confident Learning for Noisy-Labeled Image 
+      Segmentation, `MICCAI 2020. <https://link.springer.com/chapter/10.1007/978-3-030-59710-8_70>`_ 
+    
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not. 
+    :param `slsrloss_epsilon`: (optional, float) Hyper-parameter epsilon. Default is 0.25.
+    """
     def __init__(self, params):
         super(SLSRLoss, self).__init__()
         if(params is None):
@@ -25,9 +36,6 @@ class SLSRLoss(nn.Module):
         predict = loss_input_dict['prediction']
         soft_y  = loss_input_dict['ground_truth']
         pix_w   = loss_input_dict.get('pixel_weight', None)
-        # the pixel wight here is actually the confidence mask
-        # i.e., if the value is one, it means the label of corresponding 
-        # pixel is noisy and should be replaced with smoothed label.
 
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]

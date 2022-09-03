@@ -3,16 +3,16 @@ from __future__ import print_function, division
 
 import torch
 import torch.nn as nn
+from pymic.loss.seg.abstract import AbstractSegLoss
 from pymic.loss.seg.util import reshape_tensor_to_2D
 
-class CrossEntropyLoss(nn.Module):
+class CrossEntropyLoss(AbstractSegLoss):
     """
     Cross entropy loss for segmentation tasks.
     The arguments should be written in the `params` dictionary, and it has the
     following fields:
 
-    Args:
-        `loss_softmax` (bool): Apply softmax to the prediction of network or not. \n
+    :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not. 
     """
     def __init__(self, params = None):
         super(CrossEntropyLoss, self).__init__()
@@ -22,22 +22,6 @@ class CrossEntropyLoss(nn.Module):
             self.softmax = params.get('loss_softmax', True)
     
     def forward(self, loss_input_dict):
-        """
-        Forward pass for calculating the loss.
-        The arguments should be written in the `loss_input_dict` dictionary, 
-        and it has the following fields:
-
-        Args:
-            `prediction` (tensor): prediction of a network, with the 
-            shape of [N, C, D, H, W] or [N, C, H, W]. \n
-            `ground_truth` (tensor): ground truth, with the 
-            shape of [N, C, D, H, W] or [N, C, H, W]. \n
-            `pixel_weight` (tensor or None): pixel weight map, with the 
-            shape of [N, D, H, W] or [N, H, W]. \n
-        
-        Returns:
-            tensor: the loss value. 
-        """
         predict = loss_input_dict['prediction']
         soft_y  = loss_input_dict['ground_truth']
         pix_w   = loss_input_dict.get('pixel_weight', None)
@@ -60,7 +44,7 @@ class CrossEntropyLoss(nn.Module):
             ce = torch.sum(pix_w * ce) / (pix_w.sum() + 1e-5) 
         return ce
 
-class GeneralizedCELoss(nn.Module):
+class GeneralizedCELoss(AbstractSegLoss):
     """
     Generalized cross entropy loss to deal with noisy labels. 
 
@@ -70,37 +54,20 @@ class GeneralizedCELoss(nn.Module):
     The arguments should be written in the `params` dictionary, and it has the
     following fields:
 
-    Args:
-        `GeneralizedCELoss_Enable_Pixel_Weight` (bool): Use pixel weighting or not. \n
-        `GeneralizedCELoss_Enable_Class_Weight` (bool): Use class weighting or not. \n
-        `GeneralizedCELoss_q` (float): hyper-parameter in the range of (0, 1). \n
-        `loss_softmax` (bool): Apply softmax to the network's prediction or not.
+    :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not.
+    :param `loss_gce_q`: (float): hyper-parameter in the range of (0, 1).  
+    :param `loss_with_pixel_weight`: (optional, bool): Use pixel weighting or not. 
+    :param `loss_class_weight`: (optional, list or none): If not none, a list of weight for each class.
+         
     """
     def __init__(self, params):
         super(GeneralizedCELoss, self).__init__()
-        self.enable_pix_weight = params.get('GeneralizedCELoss_Enable_Pixel_Weight', False)
-        self.enable_cls_weight = params.get('GeneralizedCELoss_Enable_Class_Weight', False)
-        self.q = params.get('GeneralizedCELoss_q', 0.5)
         self.softmax = params.get('loss_softmax', True)
-
-    def forward(self, loss_input_dict):
-        '''
-        Forward pass for calculating the loss.
-        The arguments should be written in the `loss_input_dict` dictionary, 
-        and it has the following fields:
-
-        Args:
-            `prediction` (tensor): prediction of a network, with the 
-            shape of [N, C, D, H, W] or [N, C, H, W]. \n
-            `ground_truth` (tensor): ground truth, with the 
-            shape of [N, C, D, H, W] or [N, C, H, W]. \n
-            `pixel_weight` (tensor or None): pixel weight map, with the 
-            shape of [N, D, H, W] or [N, H, W]. \n
-            `class_weight` (tensor or None): class weight map.
+        self.q = params.get('loss_gce_q', 0.5)
+        self.enable_pix_weight = params.get('loss_with_pixel_weight', False)
+        self.cls_weight = params.get('loss_class_weight', None)
         
-        Returns:
-            tensor: the loss value. 
-        '''
+    def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
         soft_y  = loss_input_dict['ground_truth']        
 
@@ -112,11 +79,8 @@ class GeneralizedCELoss(nn.Module):
         soft_y  = reshape_tensor_to_2D(soft_y)
         gce     = (1.0 - torch.pow(predict, self.q)) / self.q * soft_y
         
-        if(self.enable_cls_weight):
-            cls_w   = loss_input_dict.get('class_weight', None)
-            if(cls_w is None):
-                raise ValueError("Class weight is enabled but not defined")
-            gce = torch.sum(gce * cls_w, dim = 1)
+        if(self.cls_weight is not None):
+            gce = torch.sum(gce * self.cls_w, dim = 1)
         else:
             gce = torch.sum(gce, dim = 1)
         

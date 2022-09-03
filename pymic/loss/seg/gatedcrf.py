@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-the original implementation is from:
-https://github.com/LEONOB2014/GatedCRFLoss/blob/master/models/model_loss_semseg_gatedcrf.py
+The code is adapted from the original implementation at `Github. 
+<https://github.com/LEONOB2014/GatedCRFLoss/blob/master/models/model_loss_semseg_gatedcrf.py>`_
 """
 import torch
 import torch.nn.functional as F
@@ -9,17 +9,12 @@ import torch.nn.functional as F
 
 class ModelLossSemsegGatedCRF(torch.nn.Module):
     """
-    This module provides an implementation of the Gated CRF Loss for Weakly Supervised Semantic Image Segmentation.
+    Gated CRF Loss for Weakly Supervised Semantic Image Segmentation.
     This loss function promotes consistent label assignment guided by input features, such as RGBXY.
-    Please consider using the following bibtex for citation:
-    @article{obukhov2019gated,
-        author={Anton Obukhov and Stamatios Georgoulis and Dengxin Dai and Luc {Van Gool}},
-        title={Gated {CRF} Loss for Weakly Supervised Semantic Image Segmentation},
-        journal={CoRR},
-        volume={abs/1906.04651},
-        year={2019},
-        url={http://arxiv.org/abs/1906.04651},
-    }
+    
+    * Reference: Anton Obukhov, Stamatios Georgoulis, Dengxin Dai and Luc Van Gool: 
+      Gated CRF Loss for Weakly Supervised Semantic Image Segmentation. `CoRR 
+      <http://arxiv.org/abs/1906.04651>`_ 2019.
     """
     def forward(
             self, y_hat_softmax, kernels_desc, kernels_radius, sample, height_input, width_input,
@@ -27,18 +22,13 @@ class ModelLossSemsegGatedCRF(torch.nn.Module):
     ):
         """
         Performs the forward pass of the loss.
+
         :param y_hat_softmax: A tensor of predicted per-pixel class probabilities of size NxCxHxW
         :param kernels_desc: A list of dictionaries, each describing one Gaussian kernel composition from modalities.
             The final kernel is a weighted sum of individual kernels. Following example is a composition of
             RGBXY and XY kernels:
-            kernels_desc: [{
-                'weight': 0.9,          # Weight of RGBXY kernel
-                'xy': 6,                # Sigma for XY
-                'rgb': 0.1,             # Sigma for RGB
-            },{
-                'weight': 0.1,          # Weight of XY kernel
-                'xy': 6,                # Sigma for XY
-            }]
+            kernels_desc: [{'weight': 0.9,'xy': 6,'rgb': 0.1},{'weight': 0.1,'xy': 6}]
+
         :param kernels_radius: Defines size of bounding box region around each pixel in which the kernel is constructed.
         :param sample: A dictionary with modalities (except 'xy') used in kernels_desc parameter. Each of the provided
             modalities is allowed to be larger than the shape of y_hat_softmax, in such case downsampling will be
