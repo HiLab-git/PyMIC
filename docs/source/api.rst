@@ -1,18 +1,6 @@
 API
 ===
 
-Module contents
----------------
-
-.. automodule:: pymic
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-
-Subpackages
------------
-
 .. toctree::
    :maxdepth: 4
 

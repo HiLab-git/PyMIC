@@ -7,7 +7,8 @@ import SimpleITK as sitk
 from PIL import Image
 
 def load_nifty_volume_as_4d_array(filename):
-    """Read a nifty image and return a dictionay storing data array, spacing and direction
+    """
+    Read a nifty image and return a dictionay storing data array, spacing and direction
     output['data_array'] 4d array with shape [C, D, H, W]
     output['spacing']    a list of spacing in z, y, x axis 
     output['direction']  a 3x3 matrix for direction
@@ -53,7 +54,11 @@ def load_rgb_image_as_3d_array(filename):
 
 def load_image_as_nd_array(image_name):
     """
-    return a 4D array with shape [C, D, H, W], or 3D array with shape [C, H, W]
+    load an image and return a 4D array with shape [C, D, H, W], 
+    or 3D array with shape [C, H, W].
+
+    Args:
+        image_name (string): the image name.
     """
     if (image_name.endswith(".nii.gz") or image_name.endswith(".nii") or
         image_name.endswith(".mha")):
@@ -67,11 +72,13 @@ def load_image_as_nd_array(image_name):
 
 def save_array_as_nifty_volume(data, image_name, reference_name = None):
     """
-    save a numpy array as nifty image
-    inputs:
+    Save a numpy array as nifty image
+
+    Args:
         data: a numpy array with shape [Depth, Height, Width]
         image_name: the ouput file name
-        reference_name: file name of the reference image of which affine and header are used
+        reference_name: file name of the reference image of which 
+        meta information is used
     outputs: None
     """
     img = sitk.GetImageFromArray(data)
