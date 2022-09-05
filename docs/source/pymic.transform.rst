@@ -28,14 +28,6 @@ pymic.transform.flip module
    :undoc-members:
    :show-inheritance:
 
-pymic.transform.gray2rgb module
--------------------------------
-
-.. automodule:: pymic.transform.gray2rgb
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 pymic.transform.intensity module
 --------------------------------
 

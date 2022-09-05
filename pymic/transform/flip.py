@@ -12,13 +12,19 @@ from pymic.util.image_process import *
 
 
 class RandomFlip(AbstractTransform):
-    """ random flip the image (shape [C, D, H, W] or [C, H, W]) """
+    """ Random flip the image. The shape is [C, D, H, W] or [C, H, W].
+    
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `RandomFlip_flip_depth`: (bool) 
+        Random flip along depth axis or not, only used for 3D images.
+    :param `RandomFlip_flip_height`: (bool) Random flip along height axis or not.
+    :param `RandomFlip_flip_width`: (bool) Random flip along width axis or not.    
+    :param `RandomFlip_inverse`: (optional, bool) Is inverse transform needed for inference.
+        Default is `True`.
+    """
     def __init__(self, params):
-        """
-            flip_depth (bool) : random flip along depth axis or not, only used for 3D images
-            flip_height (bool): random flip along height axis or not
-            flip_width (bool) : random flip along width axis or not
-        """
         super(RandomFlip, self).__init__(params)
         self.flip_depth  = params['RandomFlip_flip_depth'.lower()]
         self.flip_height = params['RandomFlip_flip_height'.lower()]
@@ -54,8 +60,6 @@ class RandomFlip(AbstractTransform):
         return sample
 
     def  inverse_transform_for_prediction(self, sample):
-        ''' flip sample['predict'] (5D or 4D) to the original direction.
-        flip_axis is a list as saved in __call__().'''
         if(isinstance(sample['RandomFlip_Param'], list) or \
             isinstance(sample['RandomFlip_Param'], tuple)):
             flip_axis = json.loads(sample['RandomFlip_Param'][0]) 

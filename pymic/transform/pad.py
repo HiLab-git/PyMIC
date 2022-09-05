@@ -13,17 +13,25 @@ from pymic.util.image_process import *
 
 class Pad(AbstractTransform):
     """
-    Pad the image (shape [C, D, H, W] or [C, H, W]) to an new spatial shape, 
-    the real output size will be max(image_size, output_size)
+    Pad an image to an new spatial shape.
+    The image has a shape of [C, D, H, W] or [C, H, W]. 
+    The real output size will be max(image_size, output_size).
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `Pad_output_size`: (list/tuple) The output size along each spatial axis. 
+    :param `Pad_ceil_mode`: (optional, bool) If true (by default), the real output size will
+        be the minimal integer multiples of output_size higher than the input size.
+        For example, the input image has a shape of [3, 100, 100], `Pad_output_size` 
+        = [32, 32], and the real output size will be [3, 128, 128] if `Pad_ceil_mode` = True.
+    :param `Pad_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `True`.
     """
     def __init__(self, params):
-        """
-        :param output_size: (tuple/list) the size along each spatial axis. 
-        :param ceil_mode: (bool) if true, the real output size is integer multiples of output_size.
-        """
         super(Pad, self).__init__(params)
         self.output_size = params['Pad_output_size'.lower()]
-        self.ceil_mode   = params['Pad_ceil_mode'.lower()]
+        self.ceil_mode   = params.get('Pad_ceil_mode'.lower(), False)
         self.inverse = params.get('Pad_inverse'.lower(), True)
 
     def __call__(self, sample):
@@ -62,9 +70,6 @@ class Pad(AbstractTransform):
         return sample
     
     def inverse_transform_for_prediction(self, sample):
-        ''' crop sample['predict'] (5D or 4D) to the original spatial shape.
-        origin_shape is a 4D or 3D vector as saved in __call__().'''
-        # raise ValueError("not implemented")
         if(isinstance(sample['Pad_Param'], list) or isinstance(sample['Pad_Param'], tuple)):
             params = json.loads(sample['Pad_Param'][0]) 
         else:

@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 from pymic.transform.intensity import  *
-from pymic.transform.gray2rgb import GrayscaleToRGB
 from pymic.transform.flip import RandomFlip
-from pymic.transform.intensity import GaussianNoise
 from pymic.transform.pad import Pad
 from pymic.transform.rotate import RandomRotate
 from pymic.transform.rescale import Rescale, RandomRescale  

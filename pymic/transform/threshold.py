@@ -12,20 +12,29 @@ from pymic.util.image_process import *
 
 
 class ChannelWiseThreshold(AbstractTransform):
-    """Threshold the image (shape [C, D, H, W] or [C, H, W]) for each channel
+    """
+    Thresholding the image for given channels.
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `ChannelWiseThreshold_channels`: (list/tuple or None) 
+        A list of specified channels for thresholding. If None (by default), 
+        all the channels will be thresholded.
+    :param `ChannelWiseThreshold_threshold_lower`: (list/tuple or None) 
+        The lower threshold for the given channels.
+    :param `ChannelWiseThreshold_threshold_upper`: (list/tuple or None) 
+        The upper threshold for the given channels.  
+    :param `ChannelWiseThreshold_replace_lower`: (list/tuple or None) 
+        The output value for pixels with an input value lower than the threshold_lower.
+    :param `ChannelWiseThreshold_replace_upper`: (list/tuple or None) 
+        The output value for pixels with an input value higher than the threshold_upper.      
+    :param `ChannelWiseThreshold_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
     """
     def __init__(self, params):
-        """
-        channels (tuple/list/None): the list of specified channels for thresholding. Default value 
-            is all the channels.
-        threshold_lower (tuple/list/None): The lower threshold values for specified channels.
-        threshold_upper (tuple/list/None): The uppoer threshold values for specified channels.
-        replace_lower (tuple/list/None): new values for pixels with intensity smaller than 
-            threshold_lower. Default value is 
-        replace_upper (tuple/list/None): new values for pixels with intensity larger than threshold_upper.
-        """
         super(ChannelWiseThreshold, self).__init__(params)
-        self.channlels = params['ChannelWiseThreshold_channels'.lower()]
+        self.channels = params['ChannelWiseThreshold_channels'.lower()]
         self.threshold_lower = params['ChannelWiseThreshold_threshold_lower'.lower()]
         self.threshold_upper = params['ChannelWiseThreshold_threshold_upper'.lower()]
         self.replace_lower   = params['ChannelWiseThreshold_replace_lower'.lower()]
@@ -34,7 +43,7 @@ class ChannelWiseThreshold(AbstractTransform):
 
     def __call__(self, sample):
         image= sample['image']
-        channels = range(image.shape[0]) if self.channlels is None else self.channlels
+        channels = range(image.shape[0]) if self.channels is None else self.channels
         for i in range(len(channels)):
             chn = channels[i]
             if((self.threshold_lower is not None) and (self.threshold_lower[i] is not None)):
@@ -55,20 +64,32 @@ class ChannelWiseThreshold(AbstractTransform):
 
 class ChannelWiseThresholdWithNormalize(AbstractTransform):
     """
-    Note that this can be replaced by ChannelWiseThreshold + NormalizeWithMinMax
+    Apply thresholding and normalization for given channels. 
+    Pixel intensity will be truncated to the range of (lower, upper) and then 
+    normalized. If mean_std_mode is True, the mean and std values for pixel
+    in the target range is calculated for normalization, and input intensity 
+    outside that range will be replaced by random values. Otherwise, the intensity
+    will be normalized to [0, 1].
     
-    Threshold the image (shape [C, D, H, W] or [C, H, W]) for each channel
-       and then normalize the image based on remaining pixels
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `ChannelWiseThresholdWithNormalize_channels`: (list/tuple or None) 
+        A list of specified channels for thresholding. If None (by default), 
+        all the channels will be affected by this transform.
+    :param `ChannelWiseThresholdWithNormalize_threshold_lower`: (list/tuple or None) 
+        The lower threshold for the given channels.
+    :param `ChannelWiseThresholdWithNormalize_threshold_upper`: (list/tuple or None) 
+        The upper threshold for the given channels.  
+    :param `ChannelWiseThresholdWithNormalize_mean_std_mode`: (bool) 
+        If True, using mean and std for normalization. If False, using min and max 
+        values for normalization.      
+    :param `ChannelWiseThresholdWithNormalize_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
     """
     def __init__(self, params):
-        """
-        :param threshold_lower: (tuple/list/None) The lower threshold value along each channel.
-        :param threshold_upper: (typle/list/None) The upper threshold value along each channel.
-        :param mean_std_mode: (bool) If true, nomalize the image based on mean and std values,
-            and pixels values outside the threshold value are replaced random number.
-            If false, use the min and max values for normalization.
-        """
         super(ChannelWiseThresholdWithNormalize, self).__init__(params)
+        self.channels = params['ChannelWiseThresholdWithNormalize_channels'.lower()]
         self.threshold_lower = params['ChannelWiseThresholdWithNormalize_threshold_lower'.lower()]
         self.threshold_upper = params['ChannelWiseThresholdWithNormalize_threshold_upper'.lower()]
         self.mean_std_mode   = params['ChannelWiseThresholdWithNormalize_mean_std_mode'.lower()]
@@ -76,7 +97,8 @@ class ChannelWiseThresholdWithNormalize(AbstractTransform):
 
     def __call__(self, sample):
         image= sample['image']
-        for chn in range(image.shape[0]):
+        channels = range(image.shape[0]) if self.channels is None else self.channels
+        for chn in channels:
             v0 = self.threshold_lower[chn]
             v1 = self.threshold_upper[chn]
             if(self.mean_std_mode == True):

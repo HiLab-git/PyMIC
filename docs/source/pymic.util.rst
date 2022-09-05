@@ -4,14 +4,6 @@ pymic.util package
 Submodules
 ----------
 
-pymic.util.average\_model module
---------------------------------
-
-.. automodule:: pymic.util.average_model
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 pymic.util.evaluation\_cls module
 ---------------------------------
 
@@ -72,14 +64,6 @@ pymic.util.ramps module
 -----------------------
 
 .. automodule:: pymic.util.ramps
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-pymic.util.rename\_model module
--------------------------------
-
-.. automodule:: pymic.util.rename_model
    :members:
    :undoc-members:
    :show-inheritance:
