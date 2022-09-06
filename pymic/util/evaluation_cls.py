@@ -76,6 +76,8 @@ def binary_evaluation(config):
     It should have the following fields:
 
     :param metric_list: (list) A list of evaluation metrics.
+        The supported metrics are {`accuracy`, `recall`, `sensitivity`, `specificity`,
+        `precision`, `auc`}.
     :param ground_truth_csv: (str) The csv file for ground truth.
     :param predict_prob_csv: (str) The csv file for prediction probability.
     """
@@ -110,6 +112,8 @@ def nexcl_evaluation(config):
     It should have the following fields:
 
     :param metric_list: (list) A list of evaluation metrics.
+        The supported metrics are {`accuracy`, `recall`, `sensitivity`, `specificity`,
+        `precision`, `auc`}.
     :param ground_truth_csv: (str) The csv file for ground truth.
     :param predict_prob_csv: (str) The csv file for prediction probability.
     """
@@ -153,6 +157,24 @@ def nexcl_evaluation(config):
             csv_writer.writerow(item)
 
 def main():
+    """
+    Main function for evaluation of classification results. 
+    A configuration file is needed for runing. e.g., 
+    
+    .. code-block:: none
+
+        pymic_evaluate_cls config.cfg
+
+    The configuration file should have an `evaluation` section with
+    the following fields:
+
+    :param task_type: (str) `cls` or `cls_nexcl`.
+    :param metric_list: (list) A list of evaluation metrics.
+        The supported metrics are {`accuracy`, `recall`, `sensitivity`, `specificity`,
+        `precision`, `auc`}.
+    :param ground_truth_csv: (str) The csv file for ground truth.
+    :param predict_prob_csv: (str) The csv file for prediction probability.
+    """
     if(len(sys.argv) < 2):
         print('Number of arguments should be 2. e.g.')
         print('    pymic_evaluate_cls config.cfg')

@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+Evaluation module for segmenation tasks.
+"""
 from __future__ import absolute_import, print_function
 import csv
 import os
@@ -14,13 +17,18 @@ from pymic.io.image_read_write import *
 from pymic.util.image_process import *
 from pymic.util.parse_config import parse_config
 
-# Dice evaluation
+
 def binary_dice(s, g, resize = False):
     """
-    calculate the Dice score of two N-d volumes.
-    s: the segmentation volume of numpy array
-    g: the ground truth volume of numpy array
-    resize: if s and g have different shapes, resize s to match g.
+    Calculate the Dice score of two N-d volumes for binary segmentation.
+
+    :param s: The segmentation volume of numpy array.
+    :param g: the ground truth volume of numpy array.
+    :param resize: (optional, bool) 
+        If s and g have different shapes, resize s to match g.
+        Default is `True`.
+    
+    :return: The Dice value.
     """
     assert(len(s.shape)== len(g.shape))
     if(resize):
@@ -39,30 +47,43 @@ def binary_dice(s, g, resize = False):
     return dice
 
 def dice_of_images(s_name, g_name):
+    """
+    Calculate the Dice score given the image names of binary segmentation 
+    and ground truth, respectively.
+
+    :param s_name: (str) The filename of segmentation result. 
+    :param g_name: (str) The filename of ground truth.
+
+    :return: The Dice value. 
+    """
     s = load_image_as_nd_array(s_name)['data_array']
     g = load_image_as_nd_array(g_name)['data_array']
     dice = binary_dice(s, g)
     return dice
 
-# IOU evaluation
+
 def binary_iou(s,g):
+    """
+    Calculate the IoU score of two N-d volumes for binary segmentation.
+
+    :param s: The segmentation volume of numpy array.
+    :param g: the ground truth volume of numpy array.
+    
+    :return: The IoU value.
+    """
     assert(len(s.shape)== len(g.shape))
     intersecion = np.multiply(s, g)
     union = np.asarray(s + g >0, np.float32)
     iou = (intersecion.sum() + 1e-5)/(union.sum() + 1e-5)
     return iou
 
-def iou_of_images(s_name, g_name):
-    s = load_image_as_nd_array(s_name)['data_array']
-    g = load_image_as_nd_array(g_name)['data_array']
-    margin = (3, 8, 8)
-    g = get_detection_binary_bounding_box(g, margin)
-    return binary_iou(s, g)
-
 # Hausdorff and ASSD evaluation
 def get_edge_points(img):
     """
-    get edge points of a binary segmentation result
+    Get edge points of a binary segmentation result.
+
+    :param img: (numpy.array) a 2D or 3D array of binary segmentation.
+    :return: an edge map. 
     """
     dim = len(img.shape)
     if(dim == 2):
@@ -76,11 +97,14 @@ def get_edge_points(img):
 
 def binary_hd95(s, g, spacing = None):
     """
-    get the hausdorff distance between a binary segmentation and the ground truth
-    inputs:
-        s: a 3D or 2D binary image for segmentation
-        g: a 2D or 2D binary image for ground truth
-        spacing: a list for image spacing, length should be 3 or 2
+    Get the 95 percentile of hausdorff distance between a binary segmentation 
+    and the ground truth.
+
+    :param s: (numpy.array) a 2D or 3D binary image for segmentation.
+    :param g: (numpy.array) a 2D or 2D binary image for ground truth.
+    :param spacing: (list) A list for image spacing, length should be 2 or 3.
+    
+    :return: The HD95 value.
     """
     s_edge = get_edge_points(s)
     g_edge = get_edge_points(g)
@@ -109,11 +133,14 @@ def binary_hd95(s, g, spacing = None):
 
 def binary_assd(s, g, spacing = None):
     """
-    get the average symetric surface distance between a binary segmentation and the ground truth
-    inputs:
-        s: a 3D or 2D binary image for segmentation
-        g: a 2D or 2D binary image for ground truth
-        spacing: a list for image spacing, length should be 3 or 2
+    Get the Average Symetric Surface Distance (ASSD) between a binary segmentation 
+    and the ground truth.
+
+    :param s: (numpy.array) a 2D or 3D binary image for segmentation.
+    :param g: (numpy.array) a 2D or 2D binary image for ground truth.
+    :param spacing: (list) A list for image spacing, length should be 2 or 3.
+    
+    :return: The ASSD value.
     """
     s_edge = get_edge_points(s)
     g_edge = get_edge_points(g)
@@ -139,14 +166,34 @@ def binary_assd(s, g, spacing = None):
     return assd
 
 # relative volume error evaluation
-def binary_relative_volume_error(s_volume, g_volume):
-    s_v = float(s_volume.sum())
-    g_v = float(g_volume.sum())
+def binary_relative_volume_error(s, g):
+    """
+    Get the Relative Volume Error (RVE) between a binary segmentation 
+    and the ground truth.
+
+    :param s: (numpy.array) a 2D or 3D binary image for segmentation.
+    :param g: (numpy.array) a 2D or 2D binary image for ground truth.
+
+    :return: The RVE value.
+    """
+    s_v = float(s.sum())
+    g_v = float(g.sum())
     assert(g_v > 0)
     rve = abs(s_v - g_v)/g_v
     return rve
 
 def get_binary_evaluation_score(s_volume, g_volume, spacing, metric):
+    """
+    Evaluate the performance of binary segmentation using a specified metric. 
+    The metric options are {`dice`, `iou`, `assd`, `hd95`, `rve`, `volume`}. 
+
+    :param s_volume: (numpy.array) a 2D or 3D binary image for segmentation.
+    :param g_volume: (numpy.array) a 2D or 2D binary image for ground truth.
+    :param spacing: (list) A list for image spacing, length should be 2 or 3.
+    :param metric: (str) The metric name. 
+
+    :return: The metric value.
+    """
     if(len(s_volume.shape) == 4):
         assert(s_volume.shape[0] == 1 and g_volume.shape[0] == 1)
         s_volume = np.reshape(s_volume, s_volume.shape[1:])
@@ -158,19 +205,14 @@ def get_binary_evaluation_score(s_volume, g_volume, spacing, metric):
 
     if(metric_lower == "dice"):
         score = binary_dice(s_volume, g_volume)
-
     elif(metric_lower == "iou"):
         score = binary_iou(s_volume,g_volume)
-
     elif(metric_lower == 'assd'):
         score = binary_assd(s_volume, g_volume, spacing)
-
     elif(metric_lower == "hd95"):
         score = binary_hd95(s_volume, g_volume, spacing)
-
     elif(metric_lower == "rve"):
         score = binary_relative_volume_error(s_volume, g_volume)
-
     elif(metric_lower == "volume"):
         voxel_size = 1.0
         for dim in range(len(spacing)):
@@ -182,6 +224,21 @@ def get_binary_evaluation_score(s_volume, g_volume, spacing, metric):
     return score
 
 def get_multi_class_evaluation_score(s_volume, g_volume, label_list, fuse_label, spacing, metric):
+    """
+    Evaluate the segmentation performance  using a specified metric for a list of labels. 
+    The metric options are {`dice`, `iou`, `assd`, `hd95`, `rve`, `volume`}. 
+    If `fuse_label` is `True`, the labels in `label_list` will be merged as foreground
+    and other labels will be merged as background as a binary segmentation result. 
+
+    :param s_volume: (numpy.array) A 2D or 3D image for segmentation.
+    :param g_volume: (numpy.array) A 2D or 2D image for ground truth.
+    :param label_list: (list) A list of target labels. 
+    :param fuse_label: (bool) Fuse the labels in `label_list` or not.
+    :param spacing: (list) A list for image spacing, length should be 2 or 3.
+    :param metric: (str) The metric name. 
+
+    :return: The metric value list.
+    """
     if(fuse_label):
         s_volume_sub = np.zeros_like(s_volume)
         g_volume_sub = np.zeros_like(g_volume)
@@ -198,8 +255,31 @@ def get_multi_class_evaluation_score(s_volume, g_volume, label_list, fuse_label,
         score_list.append(temp_score)
     return score_list
 
-def evaluation(config_file):
-    config = parse_config(config_file)['evaluation']
+def evaluation(config):
+    """
+    Run evaluation of segmentation results based on a configuration dictionary `config`.
+    The following fields should be provided in `config`:
+
+    :param metric: (str) The metric for evaluation. 
+        The metric options are {`dice`, `iou`, `assd`, `hd95`, `rve`, `volume`}. 
+    :param label_list: (list) The list of labels for evaluation. 
+    :param label_fuse: (option, bool) If true, fuse the labels in the `label_list`
+        as the foreground, and other labels as the background. Default is False. 
+    :param organ_name: (str) The name of the organ for segmentation.
+    :param ground_truth_folder_root: (str) The root dir of ground truth images. 
+    :param segmentation_folder_root: (str) The root dir of segmentation images. 
+    :param evaluation_image_pair: (str) The csv file that provide the segmentation 
+        images and the corresponding ground truth images. 
+    :param ground_truth_label_convert_source: (optional, list) The list of source
+        labels for label conversion in the ground truth. 
+    :param ground_truth_label_convert_target: (optional, list) The list of target
+        labels for label conversion in the ground truth. 
+    :param segmentation_label_convert_source: (optional, list) The list of source
+        labels for label conversion in the segmentation. 
+    :param segmentation_label_convert_target: (optional, list) The list of target
+        labels for label conversion in the segmentation.     
+    """
+    
     metric = config['metric']
     label_list = config['label_list']
     label_fuse = config.get('label_fuse', False)
@@ -271,13 +351,25 @@ def evaluation(config_file):
         print("{0:} std  ".format(metric), score_std) 
 
 def main():
+    """
+    Main function for evaluation of segmentation results. 
+    A configuration file is needed for runing. e.g., 
+    
+    .. code-block:: none
+
+        pymic_evaluate_cls config.cfg
+
+    The configuration file should have an `evaluation` section.
+    See :mod:`pymic.util.evaluation_seg.evaluation` for details of the configuration required.
+    """
     if(len(sys.argv) < 2):
         print('Number of arguments should be 2. e.g.')
         print('    pymic_evaluate_seg config.cfg')
         exit()
     config_file = str(sys.argv[1])
     assert(os.path.isfile(config_file))
-    evaluation(config_file)
+    config = parse_config(config_file)['evaluation']
+    evaluation(config)
     
 if __name__ == '__main__':
     main()
