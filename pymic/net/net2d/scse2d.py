@@ -1,14 +1,11 @@
 """
-Squeeze hannel Squeeze and Excitation <https://arxiv.org/abs/1709.01507>`_
-    2. `Spatial Squeeze and Excitation <https://arxiv.org/abs/1803.02579>`_
-   and Excitation Module
-*****************************
+1. Channel Squeeze and Excitation
+2. Spatial Squeeze and Excitation
+3. Concurrent Spatial and Channel Squeeze & Excitation
 
-oringinal file: https://github.com/maodong2056/squeeze_and_excitation/blob/master/squeeze_and_excitation/squeeze_and_excitation.py
-Collection of squeeze and excitation classes where each can be inserted as a block into a neural network architechture
-    1. `C 3. `Channel and Spatial Squeeze and Excitation <https://arxiv.org/abs/1803.02579>`_
+Oringinal file is on `Github.
+<https://github.com/maodong2056/squeeze_and_excitation/blob/master/squeeze_and_excitation/squeeze_and_excitation.py>`_
 """
-
 from enum import Enum
 import torch
 import torch.nn as nn
@@ -16,15 +13,15 @@ import torch.nn.functional as F
 
 class ChannelSELayer(nn.Module):
     """
-    Re-implementation of Squeeze-and-Excitation (SE) block described in:
-        *Hu et al., Squeeze-and-Excitation Networks, arXiv:1709.01507*
+    Re-implementation of Squeeze-and-Excitation (SE) block.
+
+    * Reference: Jie Hu, Li Shen, Gang Sun: Squeeze-and-Excitation Networks.
+      `CVPR 2018. <https://ieeexplore.ieee.org/document/8578843>`_
+
+    :param num_channels: Number of input channels
+    :param reduction_ratio: By how much should the num_channels should be reduced.
     """
     def __init__(self, num_channels, reduction_ratio=2):
-
-        """
-        :param num_channels: No of input channels
-        :param reduction_ratio: By how much should the num_channels should be reduced
-        """
         super(ChannelSELayer, self).__init__()
         num_channels_reduced = num_channels // reduction_ratio
         self.reduction_ratio = reduction_ratio
@@ -53,14 +50,14 @@ class ChannelSELayer(nn.Module):
 
 class SpatialSELayer(nn.Module):
     """
-    Re-implementation of SE block -- squeezing spatially and exciting channel-wise described in:
+    Re-implementation of SE block -- squeezing spatially and exciting channel-wise.
 
-        *Roy et al., Concurrent Spatial and Channel Squeeze & Excitation in Fully Convolutional Networks, MICCAI 2018*
+    * Reference: Roy et al., Concurrent Spatial and Channel Squeeze & Excitation in 
+      Fully Convolutional Networks, MICCAI 2018.
+
+    :param num_channels: Number of input channels.
     """
     def __init__(self, num_channels):
-        """
-        :param num_channels: No of input channels
-        """
         super(SpatialSELayer, self).__init__()
         self.conv = nn.Conv2d(num_channels, 1, 1)
         self.sigmoid = nn.Sigmoid()
@@ -92,14 +89,15 @@ class SpatialSELayer(nn.Module):
 
 class ChannelSpatialSELayer(nn.Module):
     """
-    Re-implementation of concurrent spatial and channel squeeze & excitation:
-        *Roy et al., Concurrent Spatial and Channel Squeeze & Excitation in Fully Convolutional Networks, MICCAI 2018, arXiv:1803.02579*
+    Re-implementation of concurrent spatial and channel squeeze & excitation.
+
+    * Reference: Roy et al., Concurrent Spatial and Channel Squeeze & Excitation in 
+      Fully Convolutional Networks, MICCAI 2018.
+    
+    :param num_channels: Number of input channels.
+    :param reduction_ratio: By how much should the num_channels should be reduced.
     """
     def __init__(self, num_channels, reduction_ratio=2):
-        """
-        :param num_channels: No of input channels
-        :param reduction_ratio: By how much should the num_channels should be reduced
-        """
         super(ChannelSpatialSELayer, self).__init__()
         self.cSE = ChannelSELayer(num_channels, reduction_ratio)
         self.sSE = SpatialSELayer(num_channels)

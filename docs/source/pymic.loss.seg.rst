@@ -4,6 +4,14 @@ pymic.loss.seg package
 Submodules
 ----------
 
+pymic.loss.seg.abstract module
+------------------------
+
+.. automodule:: pymic.loss.seg.abstract
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   
 pymic.loss.seg.ce module
 ------------------------
 

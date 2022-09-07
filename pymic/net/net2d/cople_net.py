@@ -1,18 +1,12 @@
 # -*- coding: utf-8 -*-
-"""
-Author: Guotai Wang
-Date:   12 June, 2020
-Implementation of of COPLENet for COVID-19 pneumonia lesion segmentation from CT images.
-Reference: 
-    G. Wang et al. A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions 
-    from CT Images. IEEE Transactions on Medical Imaging, 39(8),2020:2653-2663. DOI:10.1109/TMI.2020.3000314.
-"""
-
 from __future__ import print_function, division
 import torch
 import torch.nn as nn
 
 class ConvLayer(nn.Module):
+    """
+    A combination of Conv2d, BatchNorm2d and LeakyReLU.
+    """
     def __init__(self, in_channels, out_channels, kernel_size = 1):
         super(ConvLayer, self).__init__()
         padding = int((kernel_size - 1) / 2)
@@ -26,6 +20,9 @@ class ConvLayer(nn.Module):
         return self.conv(x)
 
 class SEBlock(nn.Module):
+    """
+    A Modified Squeeze-and-Excitation block for spatial attention.
+    """   
     def __init__(self, in_channels, r):
         super(SEBlock, self).__init__()
 
@@ -42,6 +39,9 @@ class SEBlock(nn.Module):
         return f*x + x
 
 class ASPPBlock(nn.Module):
+    """
+    ASPP block.
+    """
     def __init__(self,in_channels, out_channels_list, kernel_size_list, dilation_list):
         super(ASPPBlock, self).__init__()
         self.conv_num = len(out_channels_list)
@@ -77,7 +77,10 @@ class ASPPBlock(nn.Module):
         return y
 
 class ConvBNActBlock(nn.Module):
-    """Two convolution layers with batch norm, leaky relu, dropout and SE block"""
+    """
+    Two convolution layers with batch norm, leaky relu, 
+    dropout and SE block.
+    """
     def __init__(self,in_channels, out_channels, dropout_p):
         super(ConvBNActBlock, self).__init__()
         self.conv_conv = nn.Sequential(
@@ -95,7 +98,9 @@ class ConvBNActBlock(nn.Module):
         return self.conv_conv(x)
 
 class DownBlock(nn.Module):
-    """Downsampling by a concantenation of max-pool and avg-pool, followed by ConvBNActBlock
+    """
+    Downsampling by a concantenation of max-pool and avg-pool, 
+    followed by ConvBNActBlock.
     """
     def __init__(self, in_channels, out_channels, dropout_p):
         super(DownBlock, self).__init__()
@@ -111,7 +116,9 @@ class DownBlock(nn.Module):
         return y + x_cat
 
 class UpBlock(nn.Module):
-    """Upssampling followed by ConvBNActBlock"""
+    """
+    Upssampling followed by ConvBNActBlock.
+    """
     def __init__(self, in_channels1, in_channels2, out_channels, 
                  bilinear=True, dropout_p = 0.5):
         super(UpBlock, self).__init__()
@@ -132,14 +139,33 @@ class UpBlock(nn.Module):
         return y + x_cat
 
 class COPLENet(nn.Module):
+    """
+    Implementation of of COPLENet for COVID-19 pneumonia lesion segmentation from CT images.
+    
+    * Reference: G. Wang et al. `A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions 
+      from CT Images <https://ieeexplore.ieee.org/document/9109297/>`_. 
+      IEEE Transactions on Medical Imaging, 39(8),2020:2653-2663. 
+    
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    :param class_num: (int) The class number for segmentation task. 
+    :param bilinear: (bool) Using bilinear for up-sampling or not. 
+        If False, deconvolution will be used for up-sampling.
+    """
     def __init__(self, params):
         super(COPLENet, self).__init__()
         self.params    = params
         self.in_chns   = self.params['in_chns']
         self.ft_chns   = self.params['feature_chns']
+        self.dropout   = self.params['dropout']
         self.n_class   = self.params['class_num']
         self.bilinear  = self.params['bilinear']
-        self.dropout   = self.params['dropout']
         assert(len(self.ft_chns) == 5)
 
         f0_half = int(self.ft_chns[0] / 2)

@@ -4,34 +4,10 @@ pymic.loss.cls package
 Submodules
 ----------
 
-pymic.loss.cls.ce module
+pymic.loss.cls.basic module
 ------------------------
 
-.. automodule:: pymic.loss.cls.ce
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-pymic.loss.cls.l1 module
-------------------------
-
-.. automodule:: pymic.loss.cls.l1
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-pymic.loss.cls.mse module
--------------------------
-
-.. automodule:: pymic.loss.cls.mse
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-pymic.loss.cls.nll module
--------------------------
-
-.. automodule:: pymic.loss.cls.nll
+.. automodule:: pymic.loss.cls.basic
    :members:
    :undoc-members:
    :show-inheritance:

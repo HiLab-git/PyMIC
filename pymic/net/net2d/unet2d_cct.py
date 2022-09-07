@@ -1,13 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-An modification the U-Net with auxiliary decoders according to 
-the CCT paper:
-    Yassine Ouali, Celine Hudelot and Myriam Tami:
-    Semi-Supervised Semantic Segmentation With Cross-Consistency Training. 
-    CVPR 2020.
-    https://arxiv.org/abs/2003.09005  
-Code adapted from: https://github.com/yassouali/CCT
-"""
 from __future__ import print_function, division
 
 import torch
@@ -18,14 +9,13 @@ from torch.distributions.uniform import Uniform
 from pymic.net.net2d.unet2d import Encoder, Decoder
 
 def _l2_normalize(d):
-    # Normalizing per batch axis
+    """Normalizing per batch axis"""
     d_reshaped = d.view(d.shape[0], -1, *(1 for _ in range(d.dim() - 2)))
     d /= torch.norm(d_reshaped, dim=1, keepdim=True) + 1e-8
     return d
 
 
-
-def get_r_adv(x_list, decoder, it=1, xi=1e-1, eps=10.0):
+def _get_r_adv(x_list, decoder, it=1, xi=1e-1, eps=10.0):
     """
     Virtual Adversarial Training according to
     https://arxiv.org/abs/1704.03976
@@ -53,6 +43,19 @@ def get_r_adv(x_list, decoder, it=1, xi=1e-1, eps=10.0):
     
 
 class AuxiliaryDecoder(nn.Module):
+    """
+    An Auxiliary Decoder.
+    `aux_type` should be one of {`DropOut`, `FeatureDrop`, `FeatureNoise` and `VAT`}.
+    Other parameters for the decoder are given in the `params` dictionary, 
+    see :mod:`pymic.net.net2d.unet2d.Decoder` for details. 
+    In addition, the following fields are needed for pertubation:
+
+    :param Uniform_range: (float) The range of noise. Only needed when `aux_type`=`FeatureNoise`.
+    :param VAT_it: (float) The iteration number of VAT. Only needed when `aux_type`=`VAT`.
+    :param VAT_xi: (float) The hyper-parameter xi of VAT. Only needed when `aux_type`=`VAT`.
+    :param VAT_eps: (float) The hyper-parameter eps of VAT. Only needed when `aux_type`=`VAT`.
+
+    """
     def __init__(self, params, aux_type):
         super(AuxiliaryDecoder, self).__init__()
         self.params   = params
@@ -85,7 +88,7 @@ class AuxiliaryDecoder(nn.Module):
             it = self.params.get("VAT_it".lower(), 2)
             xi = self.params.get("VAT_xi".lower(), 1e-6)
             eps= self.params.get("VAT_eps".lower(), 2.0)
-            x[-1] = get_r_adv(x, self.decoder, it, xi, eps)
+            x[-1] = _get_r_adv(x, self.decoder, it, xi, eps)
         else:
             raise ValueError("Undefined auxiliary decoder type {0:}".format(self.aux_type))
  
@@ -94,6 +97,28 @@ class AuxiliaryDecoder(nn.Module):
 
 
 class UNet2D_CCT(nn.Module):
+    """
+    An modification the U-Net with auxiliary decoders according to 
+    the CCT paper.
+
+    * Reference: Yassine Ouali, Celine Hudelot and Myriam Tami:
+      Semi-Supervised Semantic Segmentation With Cross-Consistency Training. 
+      `CVPR 2020. <https://arxiv.org/abs/2003.09005>`_
+         
+    Code adapted from `Github. <https://github.com/yassouali/CCT>`_
+
+    Parameter for the network backbone are given in the `params` dictionary, 
+    see :mod:`pymic.net.net2d.unet2d.UNet2D` for details. 
+    In addition, the following fields are needed for pertubation
+    in the auxiliary decoders:
+
+    :param CCT_aux_decoders: (list) A list of auxiliary decoder types. 
+      Supported values are {`DropOut`, `FeatureDrop`, `FeatureNoise` and `VAT`}.
+    
+    The parameters for different types of auxiliary decoders should also be
+    given in the `params` dictionary, 
+    see :mod:`pymic.net.net2d.unet2d_cct.AuxiliaryDecoder` for details. 
+    """
     def __init__(self, params):
         super(UNet2D_CCT, self).__init__()
         self.params    = params

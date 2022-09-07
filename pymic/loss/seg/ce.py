@@ -9,17 +9,16 @@ from pymic.loss.seg.util import reshape_tensor_to_2D
 class CrossEntropyLoss(AbstractSegLoss):
     """
     Cross entropy loss for segmentation tasks.
-    The arguments should be written in the `params` dictionary, and it has the
+
+    The parameters should be written in the `params` dictionary, and it has the
     following fields:
 
-    :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not. 
+    :param `loss_softmax`: (optional, bool) 
+        Apply softmax to the prediction of network or not. Default is True.
     """
     def __init__(self, params = None):
-        super(CrossEntropyLoss, self).__init__()
-        if(params is None):
-            self.softmax = True
-        else:
-            self.softmax = params.get('loss_softmax', True)
+        super(CrossEntropyLoss, self).__init__(params)
+        
     
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
@@ -48,10 +47,10 @@ class GeneralizedCELoss(AbstractSegLoss):
     """
     Generalized cross entropy loss to deal with noisy labels. 
 
-    Reference: Z. Zhang et al. Generalized Cross Entropy Loss for Training Deep Neural Networks 
-    with Noisy Labels, NeurIPS 2018.
+    * Reference: Z. Zhang et al. Generalized Cross Entropy Loss for Training Deep Neural Networks 
+      with Noisy Labels, NeurIPS 2018.
 
-    The arguments should be written in the `params` dictionary, and it has the
+    The parameters should be written in the `params` dictionary, and it has the
     following fields:
 
     :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not.
@@ -61,8 +60,7 @@ class GeneralizedCELoss(AbstractSegLoss):
          
     """
     def __init__(self, params):
-        super(GeneralizedCELoss, self).__init__()
-        self.softmax = params.get('loss_softmax', True)
+        super(GeneralizedCELoss, self).__init__(params)
         self.q = params.get('loss_gce_q', 0.5)
         self.enable_pix_weight = params.get('loss_with_pixel_weight', False)
         self.cls_weight = params.get('loss_class_weight', None)

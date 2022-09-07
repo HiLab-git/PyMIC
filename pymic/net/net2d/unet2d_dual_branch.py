@@ -1,12 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Extention of U-Net with two decoders. The network was introduced in
-the following paper:
-    Xiangde Luo, Minhao Hu, Wenjun Liao, Shuwei Zhai, Tao Song, Guotai Wang,
-    Shaoting Zhang. ScribblScribble-Supervised Medical Image Segmentation via 
-    Dual-Branch Network and Dynamically Mixed Pseudo Labels Supervision.
-    MICCAI 2022. 
-"""
 from __future__ import print_function, division
 
 import torch
@@ -14,6 +6,23 @@ import torch.nn as nn
 from pymic.net.net2d.unet2d import *
 
 class UNet2D_DualBranch(nn.Module):
+    """
+    A dual branch network using UNet2D as backbone.
+
+    * Reference: Xiangde Luo, Minhao Hu, Wenjun Liao, Shuwei Zhai, Tao Song, Guotai Wang,
+      Shaoting Zhang. ScribblScribble-Supervised Medical Image Segmentation via 
+      Dual-Branch Network and Dynamically Mixed Pseudo Labels Supervision.
+      `MICCAI 2022. <https://arxiv.org/abs/2203.02106>`_ 
+
+    The parameters for the backbone should be given in the `params` dictionary. 
+    See :mod:`pymic.net.net2d.unet2d.UNet2D` for details. 
+    In addition, the following field should be included:
+
+    :param output_mode: (str) How to obtain the result during the inference. 
+      `average`: taking average of the two branches. 
+      `first`: takeing the result in the first branch. 
+      `second`: taking the result in the second branch.
+    """
     def __init__(self, params):
         super(UNet2D_DualBranch, self).__init__()
         self.output_mode = params.get("output_mode", "average")

@@ -25,11 +25,10 @@ class SLSRLoss(AbstractSegLoss):
     :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not. 
     :param `slsrloss_epsilon`: (optional, float) Hyper-parameter epsilon. Default is 0.25.
     """
-    def __init__(self, params):
-        super(SLSRLoss, self).__init__()
+    def __init__(self, params = None):
+        super(SLSRLoss, self).__init__(params)
         if(params is None):
             params = {}
-        self.softmax = params.get('loss_softmax', True)
         self.epsilon = params.get('slsrloss_epsilon', 0.25)
     
     def forward(self, loss_input_dict):

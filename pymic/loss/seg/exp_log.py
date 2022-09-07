@@ -4,14 +4,15 @@ from __future__ import print_function, division
 
 import torch
 import torch.nn as nn
+from pymic.loss.seg.abstract import AbstractSegLoss
 from pymic.loss.seg.util import reshape_tensor_to_2D, get_classwise_dice
 
-class ExpLogLoss(nn.Module):
+class ExpLogLoss(AbstractSegLoss):
     """
     The exponential logarithmic loss in this paper: 
         
     * K. Wong et al.: 3D Segmentation with Exponential Logarithmic Loss for Highly 
-      Unbalanced Object Sizes. MICCAI 2018.
+      Unbalanced Object Sizes. `MICCAI 2018. <https://arxiv.org/abs/1809.00076>`_
 
     The arguments should be written in the `params` dictionary, and it has the
     following fields:
@@ -21,24 +22,11 @@ class ExpLogLoss(nn.Module):
     :param `ExpLogLoss_gamma`: (float) Hyper-parameter gamma. 
     """
     def __init__(self, params):
-        super(ExpLogLoss, self).__init__()
-        self.softmax = params.get('loss_softmax', True)
+        super(ExpLogLoss, self).__init__(params)
         self.w_dice = params['ExpLogLoss_w_dice'.lower()]
         self.gamma  = params['ExpLogLoss_gamma'.lower()]
 
     def forward(self, loss_input_dict):
-        """
-        Forward pass for calculating the loss.
-        The arguments should be written in the `loss_input_dict` dictionary, 
-        and it has the following fields:
-
-        :param `prediction`: (tensor) Prediction of a network, with the 
-            shape of [N, C, D, H, W] or [N, C, H, W].
-        :param `ground_truth`: (tensor) Ground truth, with the 
-            shape of [N, C, D, H, W] or [N, C, H, W]. 
-        
-        :return: Loss function value.
-        """
         predict = loss_input_dict['prediction']
         soft_y  = loss_input_dict['ground_truth']
         

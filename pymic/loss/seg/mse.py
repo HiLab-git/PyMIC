@@ -5,17 +5,13 @@ from pymic.loss.seg.abstract import AbstractSegLoss
 class MSELoss(AbstractSegLoss):
     """
     Mean Sequare Loss for segmentation tasks.
-    The arguments should be written in the `params` dictionary, and it has the
+    The parameters should be written in the `params` dictionary, and it has the
     following fields:
 
     :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not. 
     """
-    def __init__(self, params):
-        super(MSELoss, self).__init__()
-        if(params is None):
-            self.softmax = True
-        else:
-            self.softmax = params.get('loss_softmax', True)
+    def __init__(self, params = None):
+        super(MSELoss, self).__init__(params)
             
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
@@ -38,12 +34,8 @@ class MAELoss(AbstractSegLoss):
 
     :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not. 
     """
-    def __init__(self, params):
+    def __init__(self, params = None):
         super(MAELoss, self).__init__(params)
-        if(params is None):
-            self.softmax = True
-        else:
-            self.softmax = params.get('loss_softmax', True)
     
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']

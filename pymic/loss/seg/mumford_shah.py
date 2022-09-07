@@ -15,7 +15,7 @@ class MumfordShahLoss(nn.Module):
     <https://github.com/jongcye/CNN_MumfordShah_Loss>`_ 
     Currently only 2D version is supported.
 
-    The arguments should be written in the `params` dictionary, and it has the
+    The parameters should be written in the `params` dictionary, and it has the
     following fields:
 
     :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not. 
@@ -26,7 +26,6 @@ class MumfordShahLoss(nn.Module):
         super(MumfordShahLoss, self).__init__()
         if(params is None):
             params = {}
-        self.softmax = params.get('loss_softmax', True)
         self.penalty = params.get('MumfordShahLoss_penalty', "l1")
         self.grad_w  = params.get('MumfordShahLoss_lambda', 1.0)
 

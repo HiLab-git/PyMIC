@@ -7,9 +7,12 @@ import numpy as np
 
 def get_soft_label(input_tensor, num_class, data_type = 'float'):
     """
-        convert a label tensor to one-hot soft label 
-        input_tensor: tensor with shae [B, 1]
-        output_tensor: shape [B, num_class]
+    Convert a label tensor to one-hot soft label.
+
+    :param input_tensor: Tensor with shape of [B, 1].
+    :param output_tensor: Tensor with shape of [B, num_class].
+    :param num_class: (int) Class number.
+    :param data_type: (str) `float` or `double`.
     """
     tensor_list = []
     for i in range(num_class):

@@ -209,7 +209,7 @@ hyper-parameters. For example, the following is a configuration for using ``2DUN
    bilinear      = False
    deep_supervise= False
 
-The ``SegNetDict`` in :mod:`pymic.net.neg_dict_seg` lists all the built-in network 
+The ``SegNetDict`` in :mod:`pymic.net.net_dict_seg` lists all the built-in network 
 structures currently implemented in PyMIC. 
 
 You can also define your own networks. To integrate your customized 

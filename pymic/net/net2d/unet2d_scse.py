@@ -1,10 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Combining U-Net with SCSE module according to the following paper:
-    Abhijit Guha Roy, Nassir Navab, Christian Wachinger:
-    Recalibrating Fully Convolutional Networks With Spatial and Channel "Squeeze and Excitation" Blocks. \
-    IEEE Trans. Med. Imaging 38(2): 540-549 (2019)
-"""
 from __future__ import print_function, division
 
 import torch
@@ -13,8 +7,12 @@ import numpy as np
 from pymic.net.net2d.scse2d import *
 
 class ConvScSEBlock(nn.Module):
-    """two convolution layers with batch norm and leaky relu"""
-    def __init__(self,in_channels, out_channels, dropout_p):
+    """
+    Two convolutional blocks followed by `ChannelSpatialSELayer`.
+    Each block consists of `Conv2d` + `BatchNorm2d` + `LeakyReLU`.
+    A dropout layer is used between the wo blocks.
+    """
+    def __init__(self, in_channels, out_channels, dropout_p):
         super(ConvScSEBlock, self).__init__()
         self.conv_conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
@@ -31,7 +29,7 @@ class ConvScSEBlock(nn.Module):
         return self.conv_conv(x)
 
 class DownBlock(nn.Module):
-    """Downsampling followed by ConvBlock"""
+    """Downsampling followed by `ConvScSEBlock`."""
     def __init__(self, in_channels, out_channels, dropout_p):
         super(DownBlock, self).__init__()
         self.maxpool_conv = nn.Sequential(
@@ -44,7 +42,7 @@ class DownBlock(nn.Module):
         return self.maxpool_conv(x)
 
 class UpBlock(nn.Module):
-    """Upssampling followed by ConvBlock"""
+    """Up-sampling followed by `ConvScSEBlock`."""
     def __init__(self, in_channels1, in_channels2, out_channels, dropout_p, 
                  bilinear=True):
         super(UpBlock, self).__init__()
@@ -64,14 +62,34 @@ class UpBlock(nn.Module):
         return self.conv(x)
 
 class UNet2D_ScSE(nn.Module):
+    """
+    Combining 2D U-Net with SCSE module.
+
+    * Reference: Abhijit Guha Roy, Nassir Navab, Christian Wachinger:
+      Recalibrating Fully Convolutional Networks With Spatial and Channel 
+      "Squeeze and Excitation" Blocks. 
+      `IEEE Trans. Med. Imaging 38(2): 540-549 (2019). <https://ieeexplore.ieee.org/document/8447284>`_
+
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    :param class_num: (int) The class number for segmentation task. 
+    :param bilinear: (bool) Using bilinear for up-sampling or not. 
+        If False, deconvolution will be used for up-sampling.
+    """
     def __init__(self, params):
         super(UNet2D_ScSE, self).__init__()
         self.params    = params
         self.in_chns   = self.params['in_chns']
         self.ft_chns   = self.params['feature_chns']
+        self.dropout   = self.params['dropout']
         self.n_class   = self.params['class_num']
         self.bilinear  = self.params['bilinear']
-        self.dropout   = self.params['dropout']
         assert(len(self.ft_chns) == 5)
 
         self.in_conv= ConvScSEBlock(self.in_chns, self.ft_chns[0], self.dropout[0])

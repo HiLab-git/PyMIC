@@ -10,15 +10,12 @@ def load_nifty_volume_as_4d_array(filename):
     """
     Read a nifty image and return a dictionay storing data array, origin, 
     spacing and direction.\n
-    output['data_array'] 4d array with shape [C, D, H, W];\n
-    output['spacing']    a list of spacing in z, y, x axis;\n
-    output['direction']  a 3x3 matrix for direction.
+    output['data_array'] 4D array with shape [C, D, H, W];\n
+    output['spacing']    A list of spacing in z, y, x axis;\n
+    output['direction']  A 3x3 matrix for direction.
 
-    Args:
-        filename (str): the input file name
-    
-    Returns:
-        dict: a dictionay storing data array, origin, spacing and direction.
+    :param filename: (str) The input file name
+    :return: A dictionay storing data array, origin, spacing and direction.
     """
     img_obj    = sitk.ReadImage(filename)
     data_array = sitk.GetArrayFromImage(img_obj)
@@ -43,15 +40,12 @@ def load_rgb_image_as_3d_array(filename):
     """
     Read an RGB image and return a dictionay storing data array, origin, 
     spacing and direction. \n
-    output['data_array'] 3d array with shape [D, H, W]; \n
+    output['data_array'] 3D array with shape [D, H, W]; \n
     output['spacing']    a list of spacing in z, y, x axis;  \n
     output['direction']  a 3x3 matrix for direction.
 
-    Args:
-        filename (str): the input file name
-    
-    Returns:
-        dict: a dictionay storing data array, origin, spacing and direction.
+    :param filename: (str) The input file name
+    :return: A dictionay storing data array, origin, spacing and direction.
     """
     image = np.asarray(Image.open(filename))
     image_shape = image.shape
@@ -74,14 +68,11 @@ def load_rgb_image_as_3d_array(filename):
 
 def load_image_as_nd_array(image_name):
     """
-    load an image and return a 4D array with shape [C, D, H, W], 
+    Load an image and return a 4D array with shape [C, D, H, W], 
     or 3D array with shape [C, H, W].
 
-    Args:
-        image_name (str): the image name.
-
-    Returns:
-        dict: a dictionay storing data array, origin, spacing and direction.
+    :param filename: (str) The input file name
+    :return: A dictionay storing data array, origin, spacing and direction.
     """
     if (image_name.endswith(".nii.gz") or image_name.endswith(".nii") or
         image_name.endswith(".mha")):
@@ -97,10 +88,9 @@ def save_array_as_nifty_volume(data, image_name, reference_name = None):
     """
     Save a numpy array as nifty image
 
-    Args:
-        data (numpy.ndarray): a numpy array with shape [Depth, Height, Width].\n
-        image_name (str): the ouput file name.\n
-        reference_name (str): file name of the reference image of which 
+    :param data:  (numpy.ndarray) A numpy array with shape [Depth, Height, Width].
+    :param image_name:  (str) The ouput file name.
+    :param reference_name:  (str) File name of the reference image of which 
         meta information is used.
     """
     img = sitk.GetImageFromArray(data)
@@ -114,12 +104,11 @@ def save_array_as_nifty_volume(data, image_name, reference_name = None):
 
 def save_array_as_rgb_image(data, image_name):
     """
-    Save a numpy array as rgb image
+    Save a numpy array as rgb image.
 
-    Args:
-        data (numpy.ndarray): a numpy array with shape [3, H, W] or
-        [H, W, 3] or [H, W]. \n
-        image_name (str): the output file name.
+    :param data:  (numpy.ndarray) A numpy array with shape [3, H, W] or
+        [H, W, 3] or [H, W]. 
+    :param image_name:  (str) The output file name.
     """
     data_dim = len(data.shape)
     if(data_dim == 3):
@@ -133,10 +122,9 @@ def save_nd_array_as_image(data, image_name, reference_name = None):
     """
     Save a 3D or 2D numpy array as medical image or RGB image
     
-    Args:
-        data (numpy.ndarray): a numpy array with shape [D, H, W] or [C, H, W]. \n
-        image_name (str): the output file name. \n 
-        reference_name (str): file name of the reference image of which 
+    :param data:  (numpy.ndarray) A numpy array with shape [3, H, W] or
+        [H, W, 3] or [H, W]. 
+    :param reference_name: (str) File name of the reference image of which 
         meta information is used.
     """
     data_dim = len(data.shape)
@@ -158,16 +146,14 @@ def rotate_nifty_volume_to_LPS(filename_or_image_dict, origin = None, direction 
     '''
     Rotate the axis of a 3D volume to LPS
 
-    Args:
-        filename_or_image_dict (str): filename of the nifty file (str) or image dictionary 
+    :param filename_or_image_dict: (str) Filename of the nifty file (str) or image dictionary 
         returned by load_nifty_volume_as_4d_array. If supplied with the former, 
         the flipped image data will be saved to override the original file. 
         If supplied with the later, only flipped image data will be returned.\n
-        origin (list or tuple): the origin of the image.\n
-        direction (list or tuple): the direction of the image.
+    :param origin: (list/tuple) The origin of the image.
+    :param direction: (list or tuple) The direction of the image.
 
-    Returns:
-        dict: a dictionary for image data and meta info, with ``data_array``,
+    :return: A dictionary for image data and meta info, with ``data_array``,
         ``origin``, ``direction`` and ``spacing``.
     '''
 

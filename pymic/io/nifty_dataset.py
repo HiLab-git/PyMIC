@@ -15,13 +15,12 @@ class NiftyDataset(Dataset):
     dimention order [C, D, H, W] for 3D images, and 3D tensors 
     with dimention order [C, H, W] for 2D images.
 
-    Args:
-        root_dir (str): Directory with all the images. \n
-        csv_file (str): Path to the csv file with image names. \n
-        modal_num (int): Number of modalities. \n
-        with_label (bool): Load the data with segmentation ground truth or not. \n
-        with_weight(bool): Load pixel-wise weight map or not. \n
-        transform (list): list of transform to be applied on a sample.
+    :param root_dir: (str) Directory with all the images. 
+    :param csv_file: (str) Path to the csv file with image names.
+    :param modal_num: (int) Number of modalities. 
+    :param with_label: (bool) Load the data with segmentation ground truth or not.
+    :param transform:  (list) List of transforms to be applied on a sample.
+        The built-in transforms can listed in :mod:`pymic.transform.trans_dict`.
     """
     def __init__(self, root_dir, csv_file, modal_num = 1, 
             with_label = False, transform=None):
@@ -93,13 +92,13 @@ class ClassificationDataset(NiftyDataset):
     dimention order [C, D, H, W] for 3D images, and 3D tensors 
     with dimention order [C, H, W] for 2D images.
 
-    Args:
-        root_dir (str): Directory with all the images. \n
-        csv_file (str): Path to the csv file with image names. \n
-        modal_num (int): Number of modalities. \n
-        class_num (int): class number of the classificaiton task. \n
-        with_label (bool): Load the data with segmentation ground truth or not. \n
-        transform (list): list of transform to be applied on a sample.
+    :param root_dir: (str) Directory with all the images. 
+    :param csv_file: (str) Path to the csv file with image names.
+    :param modal_num: (int) Number of modalities. 
+    :param class_num: (int) Class number of the classificaiton task.
+    :param with_label: (bool) Load the data with segmentation ground truth or not.
+    :param transform:  (list) List of transforms to be applied on a sample.
+        The built-in transforms can listed in :mod:`pymic.transform.trans_dict`.
     """
     def __init__(self, root_dir, csv_file, modal_num = 1, class_num = 2, 
             with_label = False, transform=None):
