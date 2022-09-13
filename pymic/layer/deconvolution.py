@@ -7,8 +7,21 @@ import torch.nn as nn
 class DeconvolutionLayer(nn.Module):
     """
     A compose layer with the following components:
-    deconvolution -> (batch_norm) -> activation -> (dropout)
-    batch norm and dropout are optional
+    deconvolution -> (batch_norm / layer_norm / group_norm / instance_norm) -> (activation) -> (dropout)
+    Batch norm and activation are optional.
+
+    :param in_channels: (int) The input channel number.
+    :param out_channels: (int) The output channel number. 
+    :param kernel_size: The size of convolution kernel. It can be either a single 
+        int or a tupe of two or three ints. 
+    :param dim: (int) The dimention of convolution (2 or 3).
+    :param stride: (int) The stride of convolution. 
+    :param padding: (int) Padding size. 
+    :param dilation: (int) Dilation rate.
+    :param groups: (int) The groupt number of convolution. 
+    :param bias: (bool) Add bias or not for convolution. 
+    :param batch_norm: (bool) Use batch norm or not.
+    :param acti_func: (str or None) Activation funtion. 
     """
     def __init__(self, in_channels, out_channels, kernel_size, 
             dim = 3, stride = 1, padding = 0, output_padding = 0, 
@@ -44,9 +57,23 @@ class DeconvolutionLayer(nn.Module):
 
 class  DepthSeperableDeconvolutionLayer(nn.Module):
     """
-    A compose layer with the following components:
-    convolution -> (batch_norm) -> activation -> (dropout)
-    batch norm and dropout are optional
+    Depth seperable deconvolution with the following components:
+    1x1 conv -> deconv -> (batch_norm / layer_norm / group_norm / instance_norm) -> (activation) -> (dropout)
+    Batch norm and activation are optional.
+
+    :param in_channels: (int) The input channel number.
+    :param out_channels: (int) The output channel number. 
+    :param kernel_size: The size of convolution kernel. It can be either a single 
+        int or a tupe of two or three ints. 
+    :param dim: (int) The dimention of convolution (2 or 3).
+    :param stride: (int) The stride of convolution. 
+    :param padding: (int) Padding size for input.
+    :param output_padding: (int) Padding size for ouput.
+    :param dilation: (int) Dilation rate.
+    :param groups: (int) The groupt number of convolution. 
+    :param bias: (bool) Add bias or not for convolution. 
+    :param batch_norm: (bool) Use batch norm or not.
+    :param acti_func: (str or None) Activation funtion. 
     """
     def __init__(self, in_channels, out_channels, kernel_size, 
         dim = 3, stride = 1, padding = 0, output_padding = 0,

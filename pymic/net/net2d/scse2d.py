@@ -1,11 +1,14 @@
+# -*- coding: utf-8 -*-
 """
-1. Channel Squeeze and Excitation
-2. Spatial Squeeze and Excitation
+2D implementation of: \n
+1. Channel Squeeze and Excitation \n
+2. Spatial Squeeze and Excitation \n
 3. Concurrent Spatial and Channel Squeeze & Excitation
 
 Oringinal file is on `Github.
 <https://github.com/maodong2056/squeeze_and_excitation/blob/master/squeeze_and_excitation/squeeze_and_excitation.py>`_
 """
+from __future__ import print_function, division
 from enum import Enum
 import torch
 import torch.nn as nn

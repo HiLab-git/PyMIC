@@ -11,6 +11,10 @@ class ConvScSEBlock(nn.Module):
     Two convolutional blocks followed by `ChannelSpatialSELayer`.
     Each block consists of `Conv2d` + `BatchNorm2d` + `LeakyReLU`.
     A dropout layer is used between the wo blocks.
+
+    :param in_channels: (int) Input channel number.
+    :param out_channels: (int) Output channel number.
+    :param dropout_p: (int) Dropout probability.
     """
     def __init__(self, in_channels, out_channels, dropout_p):
         super(ConvScSEBlock, self).__init__()
@@ -29,7 +33,12 @@ class ConvScSEBlock(nn.Module):
         return self.conv_conv(x)
 
 class DownBlock(nn.Module):
-    """Downsampling followed by `ConvScSEBlock`."""
+    """Downsampling followed by `ConvScSEBlock`.
+
+    :param in_channels: (int) Input channel number.
+    :param out_channels: (int) Output channel number.
+    :param dropout_p: (int) Dropout probability.
+    """
     def __init__(self, in_channels, out_channels, dropout_p):
         super(DownBlock, self).__init__()
         self.maxpool_conv = nn.Sequential(
@@ -42,7 +51,14 @@ class DownBlock(nn.Module):
         return self.maxpool_conv(x)
 
 class UpBlock(nn.Module):
-    """Up-sampling followed by `ConvScSEBlock`."""
+    """Up-sampling followed by `ConvScSEBlock` in U-Net structure.
+    
+    :param in_channels1: (int) Input channel number for low-resolution feature map.
+    :param in_channels2: (int) Input channel number for high-resolution feature map.
+    :param out_channels: (int) Output channel number.
+    :param dropout_p: (int) Dropout probability.
+    :param bilinear: (bool) Use bilinear for up-sampling or not.
+    """
     def __init__(self, in_channels1, in_channels2, out_channels, dropout_p, 
                  bilinear=True):
         super(UpBlock, self).__init__()

@@ -174,7 +174,7 @@ class UNet2D(nn.Module):
       MICCAI (3) 2015: 234-241
     
     Note that there are some modifications from the original paper, such as
-    the use of batch normalization, dropout, and leaky relu here.
+    the use of batch normalization, dropout, leaky relu and deep supervision.
 
     Parameters are given in the `params` dictionary, and should include the
     following fields:

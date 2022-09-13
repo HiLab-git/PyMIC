@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
-"""
-Combining 3D U-Net with SCSE module according to the following paper:
-    Abhijit Guha Roy, Nassir Navab, Christian Wachinger:
-    Recalibrating Fully Convolutional Networks With Spatial and Channel "Squeeze and Excitation" Blocks. \
-    IEEE Trans. Med. Imaging 38(2): 540-549 (2019)
-"""
 from __future__ import print_function, division
-
 import torch
 import torch.nn as nn
 import numpy as np
 from pymic.net.net3d.scse3d import *
 
 class ConvScSEBlock3D(nn.Module):
-    """two convolution layers with batch norm and leaky relu"""
-    def __init__(self,in_channels, out_channels, dropout_p):
+    """
+    Two 3D convolutional blocks followed by `ChannelSpatialSELayer3D`.
+    Each block consists of `Conv3d` + `BatchNorm3d` + `LeakyReLU`.
+    A dropout layer is used between the wo blocks.
+
+    :param in_channels: (int) Input channel number.
+    :param out_channels: (int) Output channel number.
+    :param dropout_p: (int) Dropout probability.
+    """
+    def __init__(self, in_channels, out_channels, dropout_p):
         super(ConvScSEBlock3D, self).__init__()
         self.conv_conv = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
@@ -31,7 +32,12 @@ class ConvScSEBlock3D(nn.Module):
         return self.conv_conv(x)
 
 class DownBlock(nn.Module):
-    """Downsampling followed by ConvBlock"""
+    """3D Downsampling followed by `ConvScSEBlock3D`.
+
+    :param in_channels: (int) Input channel number.
+    :param out_channels: (int) Output channel number.
+    :param dropout_p: (int) Dropout probability.
+    """
     def __init__(self, in_channels, out_channels, dropout_p):
         super(DownBlock, self).__init__()
         self.maxpool_conv = nn.Sequential(
@@ -43,12 +49,19 @@ class DownBlock(nn.Module):
         return self.maxpool_conv(x)
 
 class UpBlock(nn.Module):
-    """Upssampling followed by ConvBlock"""
+    """3D Up-sampling followed by `ConvScSEBlock3D` in UNet3D_ScSE.
+    
+    :param in_channels1: (int) Input channel number for low-resolution feature map.
+    :param in_channels2: (int) Input channel number for high-resolution feature map.
+    :param out_channels: (int) Output channel number.
+    :param dropout_p: (int) Dropout probability.
+    :param trilinear: (bool) Use trilinear for up-sampling or not.
+    """
     def __init__(self, in_channels1, in_channels2, out_channels, dropout_p, 
-                 bilinear=True):
+                 trilinear=True):
         super(UpBlock, self).__init__()
-        self.bilinear = bilinear
-        if bilinear:
+        self.trilinear = trilinear
+        if trilinear:
             self.conv1x1 = nn.Conv3d(in_channels1, in_channels2, kernel_size = 1)
             self.up = nn.Upsample(scale_factor=2, mode='trilinear', align_corners=True)
         else:
@@ -56,21 +69,42 @@ class UpBlock(nn.Module):
         self.conv = ConvScSEBlock3D(in_channels2 * 2, out_channels, dropout_p)
 
     def forward(self, x1, x2):
-        if self.bilinear:
+        if self.trilinear:
             x1 = self.conv1x1(x1)
         x1 = self.up(x1)
         x = torch.cat([x2, x1], dim=1)
         return self.conv(x)
 
 class UNet3D_ScSE(nn.Module):
+    """
+    Combining 3D U-Net with SCSE module.
+
+    * Reference: Abhijit Guha Roy, Nassir Navab, Christian Wachinger:
+      Recalibrating Fully Convolutional Networks With Spatial and Channel 
+      "Squeeze and Excitation" Blocks. 
+      `IEEE Trans. Med. Imaging 38(2): 540-549 (2019). <https://ieeexplore.ieee.org/document/8447284>`_
+
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    :param class_num: (int) The class number for segmentation task. 
+    :param trilinear: (bool) Using trilinear for up-sampling or not. 
+        If False, deconvolution will be used for up-sampling.
+    """
     def __init__(self, params):
         super(UNet3D_ScSE, self).__init__()
         self.params    = params
         self.in_chns   = self.params['in_chns']
         self.ft_chns   = self.params['feature_chns']
+        self.dropout   = self.params['dropout']
         self.n_class   = self.params['class_num']
         self.bilinear  = self.params['trilinear']
-        self.dropout   = self.params['dropout']
+        
         assert(len(self.ft_chns) == 5)
 
         self.in_conv= ConvScSEBlock3D(self.in_chns, self.ft_chns[0], self.dropout[0])

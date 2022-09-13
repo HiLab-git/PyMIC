@@ -1,25 +1,20 @@
 # -*- coding: utf-8 -*-
-"""
-A 2.5D network combining 3D convolutions with 2D convolutions according to the following paper:
-    Guotai Wang, Jonathan Shapey, Wenqi Li, Reuben Dorent, Alex Demitriadis, Sotirios Bisdas, 
-    Ian Paddick, Robert Bradford, Shaoting Zhang, Sébastien Ourselin, Tom Vercauteren:
-    Automatic Segmentation of Vestibular Schwannoma from T2-Weighted MRI by Deep Spatial Attention
-    with Hardness-Weighted Loss. MICCAI (2) 2019: 264-272.
-Note that the attention module in the orininal paper is not used here.
-"""
 from __future__ import print_function, division
 import torch
 import torch.nn as nn
 import numpy as np
 
 class ConvBlockND(nn.Module):
-    """for 2D and 3D convolutional blocks"""
+    """
+    2D or 3D convolutional block
+    
+    :param in_channels: (int) Input channel number.
+    :param out_channels: (int) Output channel number.
+    :param dim: (int) Should be 2 or 3, for 2D and 3D convolution, respectively.
+    :param dropout_p: (int) Dropout probability.
+    """
     def __init__(self, in_channels, out_channels, 
                 dim = 2, dropout_p = 0.0):
-        """
-        dim: should be 2 or 3
-        dropout_p: probability to be zeroed
-        """
         super(ConvBlockND, self).__init__()
         assert(dim == 2 or dim == 3)
         self.dim = dim 
@@ -49,8 +44,15 @@ class ConvBlockND(nn.Module):
         return output 
 
 class DownBlock(nn.Module):
-    """a convolutional block followed by downsampling"""
-    def __init__(self,in_channels, out_channels, 
+    """`ConvBlockND` block followed by downsampling.
+
+    :param in_channels: (int) Input channel number.
+    :param out_channels: (int) Output channel number.
+    :param dim: (int) Should be 2 or 3, for 2D and 3D convolution, respectively.
+    :param dropout_p: (int) Dropout probability.
+    :param downsample: (bool) Use downsample or not after convolution. 
+    """
+    def __init__(self, in_channels, out_channels, 
                 dim = 2, dropout_p = 0.0, downsample = True):
         super(DownBlock, self).__init__()
         self.downsample = downsample 
@@ -86,7 +88,15 @@ class DownBlock(nn.Module):
         return output, output_d
 
 class UpBlock(nn.Module):
-    """Upsampling followed by ConConvBlockNDvBlock"""
+    """Upsampling followed by `ConvBlockND` block
+    
+    :param in_channels1: (int) Input channel number for low-resolution feature map.
+    :param in_channels2: (int) Input channel number for high-resolution feature map.
+    :param out_channels: (int) Output channel number.
+    :param dim: (int) Should be 2 or 3, for 2D and 3D convolution, respectively.
+    :param dropout_p: (int) Dropout probability.
+    :param bilinear: (bool) Use bilinear for up-sampling or not.
+    """
     def __init__(self, in_channels1, in_channels2, out_channels, 
                  dim = 2, dropout_p = 0.0, bilinear=True):
         super(UpBlock, self).__init__()
@@ -132,15 +142,41 @@ class UpBlock(nn.Module):
         return output  
 
 class UNet2D5(nn.Module):
+    """
+    A 2.5D network combining 3D convolutions with 2D convolutions.
+
+    * Reference: Guotai Wang, Jonathan Shapey, Wenqi Li, Reuben Dorent, Alex Demitriadis, 
+      Sotirios Bisdas, Ian Paddick, Robert Bradford, Shaoting Zhang, Sébastien Ourselin, 
+      Tom Vercauteren: Automatic Segmentation of Vestibular Schwannoma from T2-Weighted 
+      MRI by Deep Spatial Attention with Hardness-Weighted Loss. 
+      `MICCAI (2) 2019: 264-272. <https://link.springer.com/chapter/10.1007/978-3-030-32245-8_30>`_
+    
+    Note that the attention module in the orininal paper is not used here.
+
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    :param conv_dims: (list) The convolution dimension (2 or 3) for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    :param class_num: (int) The class number for segmentation task. 
+    :param bilinear: (bool) Using bilinear for up-sampling or not. 
+        If False, deconvolution will be used for up-sampling.
+    """
     def __init__(self, params):
         super(UNet2D5, self).__init__()
         self.params    = params
         self.in_chns   = self.params['in_chns']
         self.ft_chns   = self.params['feature_chns']
+        self.dropout   = self.params['dropout']
         self.dims      = self.params['conv_dims']
         self.n_class   = self.params['class_num']
         self.bilinear  = self.params['bilinear']
-        self.dropout   = self.params['dropout']
+        
         assert(len(self.ft_chns) == 5)
 
         self.block0 = DownBlock(self.in_chns, self.ft_chns[0], self.dims[0], self.dropout[0], True)
