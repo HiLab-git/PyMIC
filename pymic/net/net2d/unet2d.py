@@ -1,12 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-An implementation of the U-Net paper:
-    Olaf Ronneberger, Philipp Fischer, Thomas Brox:
-    U-Net: Convolutional Networks for Biomedical Image Segmentation. 
-    MICCAI (3) 2015: 234-241
-Note that there are some modifications from the original paper, such as
-the use of batch normalization, dropout, and leaky relu here.
-"""
 from __future__ import print_function, division
 
 import torch
@@ -15,11 +7,15 @@ import numpy as np
 from torch.nn.functional import interpolate
 
 class ConvBlock(nn.Module):
-    """two convolution layers with batch norm and leaky relu"""
+    """
+    Two convolution layers with batch norm and leaky relu.
+    Droput is used between the two convolution layers.
+    
+    :param in_channels: (int) Input channel number.
+    :param out_channels: (int) Output channel number.
+    :param dropout_p: (int) Dropout probability.
+    """
     def __init__(self,in_channels, out_channels, dropout_p):
-        """
-        dropout_p: probability to be zeroed
-        """
         super(ConvBlock, self).__init__()
         self.conv_conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
@@ -35,7 +31,13 @@ class ConvBlock(nn.Module):
         return self.conv_conv(x)
 
 class DownBlock(nn.Module):
-    """Downsampling followed by ConvBlock"""
+    """
+    Downsampling followed by ConvBlock
+
+    :param in_channels: (int) Input channel number.
+    :param out_channels: (int) Output channel number.
+    :param dropout_p: (int) Dropout probability.
+    """
     def __init__(self, in_channels, out_channels, dropout_p):
         super(DownBlock, self).__init__()
         self.maxpool_conv = nn.Sequential(
@@ -47,15 +49,18 @@ class DownBlock(nn.Module):
         return self.maxpool_conv(x)
 
 class UpBlock(nn.Module):
-    """Upsampling followed by ConvBlock"""
+    """
+    Upsampling followed by ConvBlock
+    
+    :param in_channels1: (int) Channel number of high-level features.
+    :param in_channels2: (int) Channel number of low-level features.
+    :param out_channels: (int) Output channel number.
+    :param dropout_p: (int) Dropout probability.
+    :param bilinear: (bool) Use bilinear for up-sampling (by default).
+        If False, deconvolution is used for up-sampling. 
+    """
     def __init__(self, in_channels1, in_channels2, out_channels, dropout_p,
                  bilinear=True):
-        """
-        in_channels1: channel of high-level features
-        in_channels2: channel of low-level features
-        out_channels: output channel number
-        dropout_p: probability of dropout
-        """
         super(UpBlock, self).__init__()
         self.bilinear = bilinear
         if bilinear:
@@ -73,6 +78,18 @@ class UpBlock(nn.Module):
         return self.conv(x)
 
 class Encoder(nn.Module):
+    """
+    Encoder of 2D UNet.
+
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 4 or 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    """
     def __init__(self, params):
         super(Encoder, self).__init__()
         self.params    = params
@@ -100,6 +117,21 @@ class Encoder(nn.Module):
         return output
 
 class Decoder(nn.Module):
+    """
+    Decoder of 2D UNet.
+
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 4 or 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    :param class_num: (int) The class number for segmentation task. 
+    :param bilinear: (bool) Using bilinear for up-sampling or not. 
+        If False, deconvolution will be used for up-sampling.
+    """
     def __init__(self, params):
         super(Decoder, self).__init__()
         self.params    = params
@@ -134,6 +166,29 @@ class Decoder(nn.Module):
         return output
 
 class UNet2D(nn.Module):
+    """
+    An implementation of 2D U-Net.
+
+    * Reference: Olaf Ronneberger, Philipp Fischer, Thomas Brox:
+      U-Net: Convolutional Networks for Biomedical Image Segmentation. 
+      MICCAI (3) 2015: 234-241
+    
+    Note that there are some modifications from the original paper, such as
+    the use of batch normalization, dropout, leaky relu and deep supervision.
+
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 4 or 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    :param class_num: (int) The class number for segmentation task. 
+    :param bilinear: (bool) Using bilinear for up-sampling or not. 
+        If False, deconvolution will be used for up-sampling.
+    :param deep_supervise: (bool) Using deep supervision for training or not.
+    """
     def __init__(self, params):
         super(UNet2D, self).__init__()
         self.params    = params

@@ -13,11 +13,20 @@ from pymic.util.ramps import get_rampup_ratio
 
 class SSLMeanTeacher(SSLSegAgent):
     """
-    Mean Teacher for semi-supervised learning according to the following paper:
-    Antti Tarvainen, Harri Valpola: Mean teachers are better role models: Weight-averaged 
-    consistency targets improve semi-supervised deep learning results.
-    NeurIPS 2017.
-    https://arxiv.org/abs/1703.01780
+    Mean Teacher for semi-supervised segmentation.
+
+    * Reference: Antti Tarvainen, Harri Valpola: Mean teachers are better role models: 
+      Weight-averaged consistency targets improve semi-supervised deep learning results.
+      `NeurIPS 2017. <https://arxiv.org/abs/1703.01780>`_
+    
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `semi_supervised_learning` is needed. See :doc:`usage.ssl` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(SSLMeanTeacher, self).__init__(config, stage)

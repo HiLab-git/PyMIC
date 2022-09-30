@@ -1,12 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Implementation of DAST for noise robust learning according to the following paper.
-    Shuojue Yang, Guotai Wang, Hui Sun, Xiangde Luo, Peng Sun, Kang Li, Qijun Wang, 
-    Shaoting Zhang: Learning COVID-19 Pneumonia Lesion Segmentation from Imperfect 
-    Annotations via Divergence-Aware Selective Training.
-    JBHI 2022. https://ieeexplore.ieee.org/document/9770406    
-"""
-
 from __future__ import print_function, division
 import random
 import torch
@@ -24,7 +16,9 @@ from pymic.util.ramps import get_rampup_ratio
 
 class Rank(object):
     """
-    Dynamically rank the current training sample with specific metrics 
+    Dynamically rank the current training sample with specific metrics.
+
+    :param  quene_length: (int) The lenght for a quene.
     """
     def __init__(self, quene_length = 100):
         self.vals = []
@@ -34,9 +28,8 @@ class Rank(object):
         """
         Update the quene and calculate the order of the input value.
 
-        Return
-        ---------
-        rank: rank of the input value with a range of  (0, self.quenen_length)
+        :param val: (float) a value adding to the quene.
+        :return: rank of the input value with a range of  (0, self.quene_length)
         """
         if len(self.vals) < self.quene_length:
             self.vals.append(val)
@@ -80,9 +73,11 @@ def get_ce(prob, soft_y, size_avg = True):
 @torch.no_grad()
 def select_criterion(no_noisy_sample, cl_noisy_sample, label):
     """
-    no_noisy_sample: noisy branch's output probability for noisy sample
-    cl_noisy_sample: clean branch's output probability for noisy sample
-    label: noisy label
+    Obtain the sample selection criterion score.
+
+    :param no_noisy_sample: noisy branch's output probability for noisy sample.
+    :param cl_noisy_sample: clean branch's output probability for noisy sample.
+    :param label: noisy label.
     """
     l_n = get_ce(no_noisy_sample, label, size_avg = False)
     l_c = get_ce(cl_noisy_sample, label, size_avg = False)
@@ -94,6 +89,23 @@ def select_criterion(no_noisy_sample, cl_noisy_sample, label):
     return loss_n, loss_c
 
 class NLLDAST(SegmentationAgent):
+    """
+    Divergence-Aware Selective Training for noisy label learning.
+
+    * Reference: Shuojue Yang, Guotai Wang, Hui Sun, Xiangde Luo, Peng Sun, 
+      Kang Li, Qijun Wang, Shaoting Zhang: Learning COVID-19 Pneumonia Lesion 
+      Segmentation from Imperfect  Annotations via Divergence-Aware Selective Training.
+      `JBHI 2022. <https://ieeexplore.ieee.org/document/9770406>`_    
+    
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `noisy_label_learning` is needed. See :doc:`usage.nll` for details.
+    """
     def __init__(self, config, stage = 'train'):
         super(NLLDAST, self).__init__(config, stage)
         self.train_set_noise = None 
@@ -103,6 +115,9 @@ class NLLDAST(SegmentationAgent):
         self.clean_rank = None
 
     def get_noisy_dataset_from_config(self):
+        """
+        Create a dataset for images with noisy labels based on configuraiton.
+        """
         root_dir  = self.config['dataset']['root_dir']
         modal_num = self.config['dataset'].get('modal_num', 1)
         transform_names = self.config['dataset']['train_transform']

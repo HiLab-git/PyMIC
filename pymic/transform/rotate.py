@@ -13,15 +13,24 @@ from pymic.util.image_process import *
 
 class RandomRotate(AbstractTransform):
     """
-    random rotate the image (shape [C, D, H, W] or [C, H, W]) 
+    Random rotate an image, wiht a shape of [C, D, H, W] or [C, H, W].
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `RandomRotate_angle_range_d`: (list/tuple or None) 
+        Rotation angle (degree) range along depth axis (x-y plane), e.g., (-90, 90).
+        If None, no rotation along this axis. 
+    :param `RandomRotate_angle_range_h`: (list/tuple or None) 
+        Rotation angle (degree) range along height axis (x-z plane), e.g., (-90, 90).
+        If None, no rotation along this axis. Only used for 3D images. 
+    :param `RandomRotate_angle_range_w`: (list/tuple or None) 
+        Rotation angle (degree) range along width axis (y-z plane), e.g., (-90, 90).
+        If None, no rotation along this axis. Only used for 3D images. 
+    :param `RandomRotate_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `True`.
     """
     def __init__(self, params): 
-        """
-        angle_range_d (tuple/list/None) : rorate angle range along depth axis (degree),
-               only used for 3D images
-        angle_range_h (tuple/list/None) : rorate angle range along height axis (degree)
-        angle_range_w (tuple/list/None) : rorate angle range along width axis (degree)
-        """
         super(RandomRotate, self).__init__(params)
         self.angle_range_d  = params['RandomRotate_angle_range_d'.lower()]
         self.angle_range_h  = params['RandomRotate_angle_range_h'.lower()]
@@ -30,11 +39,11 @@ class RandomRotate(AbstractTransform):
 
     def __apply_transformation(self, image, transform_param_list, order = 1):
         """
-        apply rotation transformation to an ND image
-        Args:
-            image (nd array): the input nd image
-            transform_param_list (list): a list of roration angle and axes
-            order (int): interpolation order
+        Apply rotation transformation to an ND image.
+    
+        :param image: The input ND image.
+        :param transform_param_list:  (list) A list of roration angle and axes.
+        :param order: (int) Interpolation order.
         """
         for angle, axes in transform_param_list:
             image = ndimage.rotate(image, angle, axes, reshape = False, order = order)
@@ -70,9 +79,6 @@ class RandomRotate(AbstractTransform):
         return sample
 
     def  inverse_transform_for_prediction(self, sample):
-        ''' rorate sample['predict'] (5D or 4D) to the original direction.
-        transform_param_list is a list as saved in __call__().'''
-        # get the paramters for invers transformation
         if(isinstance(sample['RandomRotate_Param'], list) or \
             isinstance(sample['RandomRotate_Param'], tuple)):
             transform_param_list = json.loads(sample['RandomRotate_Param'][0]) 

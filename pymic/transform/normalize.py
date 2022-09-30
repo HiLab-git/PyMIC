@@ -8,19 +8,31 @@ from pymic.util.image_process import *
 
 
 class NormalizeWithMeanStd(AbstractTransform):
-    """Nomralize the image (shape [C, D, H, W] or [C, H, W]) with mean and std for given channels
+    """
+    Normalize the image based on mean and std. The image should have a shape
+    of [C, D, H, W] or [C, H, W].  
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `NormalizeWithMeanStd_channels`: (list/tuple or None) 
+        A list or tuple of int for specifying the channels. 
+        If None, the transform operates on all the channels.
+    :param `NormalizeWithMeanStd_mean`: (list/tuple or None) 
+        The mean values along each specified channel.
+        If None, the mean values are calculated automatically.
+    :param `NormalizeWithMeanStd_std`: (list/tuple or None) 
+        The std values along each specified channel.
+        If None, the std values are calculated automatically.
+    :param `NormalizeWithMeanStd_ignore_non_positive`: (optional, bool) 
+        Only used when mean and std are not given. Default is False.
+        If True, calculate mean and std in the positive region for normalization,
+        and set non-positive region to random. If False, calculate
+        the mean and std values in the entire image region. 
+    :param `NormalizeWithMeanStd_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
     """
     def __init__(self, params):
-        """
-        :param chanels: (None or tuple/list) the indices of channels to be noramlized.
-        :param mean: (None or tuple/list): The mean values along each channel.
-        :param  std : (None or tuple/list): The std values along each channel.
-            When mean and std are not provided, calculate them from the entire image
-            region or the non-positive region.
-        :param ignore_non_positive: (bool) Only used when mean and std are not given. 
-            Use positive region to calculate mean and std, and set non-positive region to random.  
-        :param inverse: (bool) Whether inverse transform is needed or not.
-        """
         super(NormalizeWithMeanStd, self).__init__(params)
         self.chns = params['NormalizeWithMeanStd_channels'.lower()]
         self.mean = params.get('NormalizeWithMeanStd_mean'.lower(), None)
@@ -56,15 +68,24 @@ class NormalizeWithMeanStd(AbstractTransform):
 
 
 class NormalizeWithMinMax(AbstractTransform):
-    """Nomralize the image (shape [C, D, H, W] or [C, H, W]) with min and max for given channels
+    """Nomralize the image to [0, 1]. The shape should be [C, D, H, W] or [C, H, W].
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `NormalizeWithMinMax_channels`: (list/tuple or None) 
+        A list or tuple of int for specifying the channels. 
+        If None, the transform operates on all the channels.
+    :param `NormalizeWithMinMax_threshold_lower`: (list/tuple or None) 
+        The min values along each specified channel.
+        If None, the min values are calculated automatically.
+    :param `NormalizeWithMinMax_threshold_upper`: (list/tuple or None) 
+        The max values along each specified channel.
+        If None, the max values are calculated automatically.
+    :param `NormalizeWithMinMax_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
     """
     def __init__(self, params):
-        """
-        :param chanels: (None or tuple/list) the indices of channels to be noramlized.
-        :param threshold_lower: (tuple/list/None) The lower threshold value along each channel.
-        :param threshold_upper: (typle/list/None) The upper threshold value along each channel.
-        :param inverse: (bool) Whether inverse transform is needed or not.
-        """
         super(NormalizeWithMinMax, self).__init__(params)
         self.chns = params['NormalizeWithMinMax_channels'.lower()]
         self.thred_lower = params['NormalizeWithMinMax_threshold_lower'.lower()]
@@ -91,15 +112,23 @@ class NormalizeWithMinMax(AbstractTransform):
         return sample
 
 class NormalizeWithPercentiles(AbstractTransform):
-    """Nomralize the image (shape [C, D, H, W] or [C, H, W]) with percentiles for given channels
+    """Nomralize the image to [0, 1] with percentiles for given channels.
+    The shape should be [C, D, H, W] or [C, H, W].
+    
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `NormalizeWithPercentiles_channels`: (list/tuple or None) 
+        A list or tuple of int for specifying the channels. 
+        If None, the transform operates on all the channels.
+    :param `NormalizeWithPercentiles_percentile_lower`: (float) 
+        The min percentile, which must be between 0 and 100 inclusive.
+    :param `NormalizeWithPercentiles_percentile_upper`: (float) 
+        The max percentile, which must be between 0 and 100 inclusive.
+    :param `NormalizeWithMinMax_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
     """
     def __init__(self, params):
-        """
-        :param chanels: (None or tuple/list) the indices of channels to be noramlized.
-        :param percentile_lower: (tuple/list/None) The lower percentile along each channel.
-        :param percentile_upper: (typle/list/None) The upper percentile along each channel.
-        :param inverse: (bool) Whether inverse transform is needed or not.
-        """
         super(NormalizeWithPercentiles, self).__init__(params)
         self.chns = params['NormalizeWithPercentiles_channels'.lower()]
         self.percent_lower = params['NormalizeWithPercentiles_percentile_lower'.lower()]

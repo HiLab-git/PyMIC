@@ -7,9 +7,13 @@ import numpy as np
 
 def get_soft_label(input_tensor, num_class, data_type = 'float'):
     """
-        convert a label tensor to one-hot label 
-        input_tensor: tensor with shae [B, 1, D, H, W] or [B, 1, H, W]
-        output_tensor: shape [B, num_class, D, H, W] or [B, num_class, H, W]
+    Convert a label tensor to one-hot label for segmentation tasks.
+        
+    :param `input_tensor`: (tensor)  Tensor with shae [B, 1, D, H, W] or [B, 1, H, W].
+    :param `num_class`: (int) The class number.
+    :param `data_type`: (optional, str) Type of data, `float` (default) or `double`.
+    
+    :return: A tensor with shape [B, num_class, D, H, W] or [B, num_class, H, W]
     """
 
     shape = input_tensor.shape
@@ -31,7 +35,7 @@ def get_soft_label(input_tensor, num_class, data_type = 'float'):
 
 def reshape_tensor_to_2D(x):
     """
-    reshape input variables of shape [B, C, D, H, W] to [voxel_n, C]
+    Reshape input tensor of shape [N, C, D, H, W] or [N, C, H, W] to [voxel_n, C]
     """
     tensor_dim = len(x.size())
     num_class  = list(x.size())[1]
@@ -47,7 +51,12 @@ def reshape_tensor_to_2D(x):
 
 def reshape_prediction_and_ground_truth(predict, soft_y):
     """
-    reshape input variables of shape [B, C, D, H, W] to [voxel_n, C]
+    Reshape input variables two 2D.
+    
+    :param predict: (tensor) A tensor of shape [N, C, D, H, W] or [N, C, H, W].
+    :param soft_y: (tensor) A tensor of shape [N, C, D, H, W] or [N, C, H, W].
+    
+    :return: Two output tensors with shape [voxel_n, C] that correspond to the two inputs.
     """
     tensor_dim = len(predict.size())
     num_class  = list(predict.size())[1]
@@ -67,7 +76,13 @@ def reshape_prediction_and_ground_truth(predict, soft_y):
 
 def get_classwise_dice(predict, soft_y, pix_w = None):
     """
-    get dice scores for each class in predict (after softmax) and soft_y
+    Get dice scores for each class in predict (after softmax) and soft_y.
+
+    :param predict: (tensor) Prediction of a segmentation network after softmax.
+    :param soft_y: (tensor) The one-hot segmentation ground truth.
+    :param pix_w: (optional, tensor) The pixel weight map. Default is None.
+
+    :return: Dice score for each class.
     """
     
     if(pix_w is None):

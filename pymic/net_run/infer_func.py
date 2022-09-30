@@ -5,6 +5,18 @@ import torch
 from torch.nn.functional import interpolate
 
 class Inferer(object):
+    """
+    The class for inference.
+    The arguments should be written in the `config` dictionary, 
+    and it has the following fields:
+
+    :param `sliding_window_enable`: (optional, bool) Default is `False`.
+    :param `sliding_window_size`: (optional, list) The sliding window size. 
+    :param `sliding_window_stride`: (optional, list) The sliding window stride. 
+    :param `tta_mode`: (optional, int) The test time augmentation mode. Default
+        is 0 (no test time augmentation). The other option is 1 (augmentation 
+        with horinzontal and vertical flipping).
+    """
     def __init__(self, config):
         self.config = config
         
@@ -127,6 +139,12 @@ class Inferer(object):
             return output_list
 
     def run(self, model, image):
+        """
+        Using `model` for inference on `image`.
+
+        :param model: (nn.Module) a network.
+        :param image: (tensor) An image.
+        """
         self.model = model
         tta_mode   = self.config.get('tta_mode', 0)
         if(tta_mode == 0):

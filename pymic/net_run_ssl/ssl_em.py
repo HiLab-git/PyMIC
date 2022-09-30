@@ -14,11 +14,20 @@ from pymic.util.ramps import get_rampup_ratio
 
 class SSLEntropyMinimization(SSLSegAgent):
     """
-    Implementation of the following paper:
-    Yves Grandvalet and Yoshua Bengio:
-    Semi-supervised Learningby Entropy Minimization.
-    NeurIPS, 2005.
-    https://papers.nips.cc/paper/2004/file/96f2b50b5d3613adf9c27049b2a888c7-Paper.pdf 
+    Using Entropy Minimization for semi-supervised segmentation. 
+
+    * Reference: Yves Grandvalet and Yoshua Bengio:
+      Semi-supervised Learningby Entropy Minimization.
+      `NeurIPS, 2005. <https://papers.nips.cc/paper/2004/file/96f2b50b5d3613adf9c27049b2a888c7-Paper.pdf>`_ 
+    
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `semi_supervised_learning` is needed. See :doc:`usage.ssl` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(SSLEntropyMinimization, self).__init__(config, stage)

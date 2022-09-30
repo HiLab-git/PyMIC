@@ -1,9 +1,16 @@
 # -*- coding: utf-8 -*-
+"""
+Built-in loss functions for classification. 
+
+* CrossEntropyLoss :mod:`pymic.loss.cls.basic.CrossEntropyLoss`
+* SigmoidCELoss :mod:`pymic.loss.cls.basic.SigmoidCELoss`
+* L1Loss :mod:`pymic.loss.cls.basic.L1Loss`
+* MSELoss :mod:`pymic.loss.cls.basic.MSELoss`
+* NLLLoss :mod:`pymic.loss.cls.basic.NLLLoss`
+
+"""
 from __future__ import print_function, division
-from pymic.loss.cls.ce import CrossEntropyLoss, SigmoidCELoss
-from pymic.loss.cls.l1 import L1Loss
-from pymic.loss.cls.nll import NLLLoss
-from pymic.loss.cls.mse import MSELoss
+from pymic.loss.cls.basic import *
 
 PyMICClsLossDict = {"CrossEntropyLoss": CrossEntropyLoss,
     "SigmoidCELoss": SigmoidCELoss,

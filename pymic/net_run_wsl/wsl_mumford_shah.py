@@ -13,10 +13,20 @@ from pymic.util.ramps import get_rampup_ratio
 
 class WSLMumfordShah(WSLSegAgent):
     """
-    Weakly supervised learning with Mumford Shah Loss according to this paper:
-        Boah Kim and Jong Chul Ye: Mumford–Shah Loss Functional 
-        for Image Segmentation With Deep Learning. IEEE TIP, 2019.
-        https://doi.org/10.1109/TIP.2019.2941265 
+    Weakly supervised learning with Mumford Shah Loss.
+
+    * Reference: Boah Kim and Jong Chul Ye: Mumford–Shah Loss Functional 
+      for Image Segmentation With Deep Learning. 
+      `IEEE TIP <https://doi.org/10.1109/TIP.2019.2941265>`_, 2019.
+         
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `weakly_supervised_learning` is needed. See :doc:`usage.wsl` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(WSLMumfordShah, self).__init__(config, stage)

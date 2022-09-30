@@ -12,16 +12,19 @@ from pymic.util.image_process import *
 
 
 class Rescale(AbstractTransform):
-    """Rescale the image in a sample to a given size."""
+    """Rescale the image to a given size.
+    
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `Rescale_output_size`: (list/tuple or int) The output size along each spatial axis, 
+        such as [D, H, W] or [H, W].  If D is None, the input image is only reslcaled in 2D.
+        If int, the smallest axis is matched to output_size keeping aspect ratio the same
+        as the input.
+    :param `Rescale_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `True`.
+    """
     def __init__(self, params):
-        """
-        output_size (tuple/list or int): Desired output size. 
-            If tuple/list, output_size should in the format of [D, H, W] or [H, W].
-            Channel number is kept the same as the input. If D is None, the input image
-            is only reslcaled in 2D.
-            If int, the smallest axis is matched to output_size keeping 
-            aspect ratio the same.
-        """
         super(Rescale, self).__init__(params)
         self.output_size = params["Rescale_output_size".lower()]
         self.inverse     = params.get("Rescale_inverse".lower(), True)
@@ -59,8 +62,6 @@ class Rescale(AbstractTransform):
         return sample
 
     def inverse_transform_for_prediction(self, sample):
-        ''' rescale sample['predict'] (5D or 4D) to the original spatial shape.
-        origin_shape is a 4D or 3D vector as saved in __call__().'''
         if(isinstance(sample['Rescale_origin_shape'], list) or \
             isinstance(sample['Rescale_origin_shape'], tuple)):
             origin_shape = json.loads(sample['Rescale_origin_shape'][0])
@@ -78,7 +79,19 @@ class Rescale(AbstractTransform):
         return sample
 
 class RandomRescale(AbstractTransform):
-    """Rescale the image in a sample to a given size."""
+    """
+    Rescale the input image randomly along each spatial axis. 
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `RandomRescale_lower_bound`: (list/tuple or int) 
+        Desired minimal rescale ratio. If tuple/list, the length should be 3 or 2.
+    :param `RandomRescale_upper_bound`: (list/tuple or int) 
+        Desired maximal rescale ratio. If tuple/list, the length should be 3 or 2.
+    :param `RandomRescale_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `True`.
+    """
     def __init__(self, params):
         """
         ratio0 (tuple/list or int): Desired minimal rescale ratio. 
@@ -123,8 +136,6 @@ class RandomRescale(AbstractTransform):
         return sample
 
     def inverse_transform_for_prediction(self, sample):
-        ''' rescale sample['predict'] (5D or 4D) to the original spatial shape.
-        origin_shape is a 4D or 3D vector as saved in __call__().'''
         if(isinstance(sample['RandomRescale_origin_shape'], list) or \
             isinstance(sample['RandomRescale_origin_shape'], tuple)):
             origin_shape = json.loads(sample['RandomRescale_origin_shape'][0])

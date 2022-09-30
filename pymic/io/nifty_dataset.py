@@ -10,22 +10,20 @@ from torchvision import transforms, utils
 from pymic.io.image_read_write import load_image_as_nd_array
 
 class NiftyDataset(Dataset):
-    """Dataset for loading images. It generates 4D tensors with
+    """
+    Dataset for loading images for segmentation. It generates 4D tensors with
     dimention order [C, D, H, W] for 3D images, and 3D tensors 
-    with dimention order [C, H, W] for 2D images"""
+    with dimention order [C, H, W] for 2D images.
 
+    :param root_dir: (str) Directory with all the images. 
+    :param csv_file: (str) Path to the csv file with image names.
+    :param modal_num: (int) Number of modalities. 
+    :param with_label: (bool) Load the data with segmentation ground truth or not.
+    :param transform:  (list) List of transforms to be applied on a sample.
+        The built-in transforms can listed in :mod:`pymic.transform.trans_dict`.
+    """
     def __init__(self, root_dir, csv_file, modal_num = 1, 
             with_label = False, transform=None):
-        """
-        Args:
-            root_dir (string): Directory with all the images.
-            csv_file (string): Path to the csv file with image names.
-            modal_num (int): Number of modalities. 
-            with_label (bool): Load the data with segmentation ground truth.
-            with_weight(bool): Load pixel-wise weight map.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
         self.root_dir   = root_dir
         self.csv_items  = pd.read_csv(csv_file)
         self.modal_num  = modal_num
@@ -89,6 +87,19 @@ class NiftyDataset(Dataset):
 
 
 class ClassificationDataset(NiftyDataset):
+    """
+    Dataset for loading images for classification. It generates 4D tensors with
+    dimention order [C, D, H, W] for 3D images, and 3D tensors 
+    with dimention order [C, H, W] for 2D images.
+
+    :param root_dir: (str) Directory with all the images. 
+    :param csv_file: (str) Path to the csv file with image names.
+    :param modal_num: (int) Number of modalities. 
+    :param class_num: (int) Class number of the classificaiton task.
+    :param with_label: (bool) Load the data with segmentation ground truth or not.
+    :param transform:  (list) List of transforms to be applied on a sample.
+        The built-in transforms can listed in :mod:`pymic.transform.trans_dict`.
+    """
     def __init__(self, root_dir, csv_file, modal_num = 1, class_num = 2, 
             with_label = False, transform=None):
         super(ClassificationDataset, self).__init__(root_dir, 

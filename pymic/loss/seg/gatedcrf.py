@@ -1,25 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-the original implementation is from:
-https://github.com/LEONOB2014/GatedCRFLoss/blob/master/models/model_loss_semseg_gatedcrf.py
+The code is adapted from the original implementation at `Github. 
+<https://github.com/LEONOB2014/GatedCRFLoss/blob/master/models/model_loss_semseg_gatedcrf.py>`_
 """
 import torch
 import torch.nn.functional as F
 
-
-class ModelLossSemsegGatedCRF(torch.nn.Module):
+class GatedCRFLoss(torch.nn.Module):
     """
-    This module provides an implementation of the Gated CRF Loss for Weakly Supervised Semantic Image Segmentation.
+    Gated CRF Loss for Weakly Supervised Semantic Image Segmentation.
     This loss function promotes consistent label assignment guided by input features, such as RGBXY.
-    Please consider using the following bibtex for citation:
-    @article{obukhov2019gated,
-        author={Anton Obukhov and Stamatios Georgoulis and Dengxin Dai and Luc {Van Gool}},
-        title={Gated {CRF} Loss for Weakly Supervised Semantic Image Segmentation},
-        journal={CoRR},
-        volume={abs/1906.04651},
-        year={2019},
-        url={http://arxiv.org/abs/1906.04651},
-    }
+    
+    * Reference: Anton Obukhov, Stamatios Georgoulis, Dengxin Dai and Luc Van Gool: 
+      Gated CRF Loss for Weakly Supervised Semantic Image Segmentation. `CoRR 
+      <http://arxiv.org/abs/1906.04651>`_ 2019.
     """
     def forward(
             self, y_hat_softmax, kernels_desc, kernels_radius, sample, height_input, width_input,
@@ -27,18 +21,13 @@ class ModelLossSemsegGatedCRF(torch.nn.Module):
     ):
         """
         Performs the forward pass of the loss.
+
         :param y_hat_softmax: A tensor of predicted per-pixel class probabilities of size NxCxHxW
         :param kernels_desc: A list of dictionaries, each describing one Gaussian kernel composition from modalities.
             The final kernel is a weighted sum of individual kernels. Following example is a composition of
             RGBXY and XY kernels:
-            kernels_desc: [{
-                'weight': 0.9,          # Weight of RGBXY kernel
-                'xy': 6,                # Sigma for XY
-                'rgb': 0.1,             # Sigma for RGB
-            },{
-                'weight': 0.1,          # Weight of XY kernel
-                'xy': 6,                # Sigma for XY
-            }]
+            kernels_desc: [{'weight': 0.9,'xy': 6,'rgb': 0.1},{'weight': 0.1,'xy': 6}]
+
         :param kernels_radius: Defines size of bounding box region around each pixel in which the kernel is constructed.
         :param sample: A dictionary with modalities (except 'xy') used in kernels_desc parameter. Each of the provided
             modalities is allowed to be larger than the shape of y_hat_softmax, in such case downsampling will be
@@ -70,7 +59,7 @@ class ModelLossSemsegGatedCRF(torch.nn.Module):
             assert mask.dim() == 4 and mask.shape[:2] == (N, 1) and mask.dtype == torch.float32, \
                 f'{name} mask must be a NCHW batch with C=1 and dtype float32'
             if mask.shape[2:] != (height_pred, width_pred):
-                mask = ModelLossSemsegGatedCRF._downsample(
+                mask = GatedCRFLoss._downsample(
                     mask, 'mask', height_pred, width_pred, custom_modality_downsamplers
                 )
             mask[mask != mask] = 0.0    # handle NaN
@@ -140,18 +129,18 @@ class ModelLossSemsegGatedCRF(torch.nn.Module):
                 if modality == 'weight':
                     continue
                 if modality == 'xy':
-                    feature = ModelLossSemsegGatedCRF._get_mesh(N, height_pred, width_pred, device)
+                    feature = GatedCRFLoss._get_mesh(N, height_pred, width_pred, device)
                 else:
                     assert modality in sample, \
                         f'Modality {modality} is listed in {i}-th kernel descriptor, but not present in the sample'
                     feature = sample[modality]
-                    feature = ModelLossSemsegGatedCRF._downsample(
+                    feature = GatedCRFLoss._downsample(
                         feature, modality, height_pred, width_pred, custom_modality_downsamplers
                     )
                 feature /= sigma
                 features.append(feature)
             features = torch.cat(features, dim=1)
-            kernel = weight * ModelLossSemsegGatedCRF._create_kernels_from_features(features, kernels_radius)
+            kernel = weight * GatedCRFLoss._create_kernels_from_features(features, kernels_radius)
             kernels = kernel if kernels is None else kernel + kernels
         return kernels
 
@@ -159,7 +148,7 @@ class ModelLossSemsegGatedCRF(torch.nn.Module):
     def _create_kernels_from_features(features, radius):
         assert features.dim() == 4, 'Features must be a NCHW batch'
         N, C, H, W = features.shape
-        kernels = ModelLossSemsegGatedCRF._unfold(features, radius)
+        kernels = GatedCRFLoss._unfold(features, radius)
         kernels = kernels - kernels[:, :, radius, radius, :, :].view(N, C, 1, 1, H, W)
         kernels = (-0.5 * kernels ** 2).sum(dim=1, keepdim=True).exp()
         kernels[:, :, radius, radius, :, :] = 0

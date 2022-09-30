@@ -21,6 +21,9 @@ SSLMethodDict = {'EntropyMinimization': SSLEntropyMinimization,
     'URPC': SSLURPC}
 
 def main():
+    """
+    Main function for running a semi-supervised method.
+    """
     if(len(sys.argv) < 3):
         print('Number of arguments should be 3. e.g.')
         print('   pymic_ssl train config.cfg')

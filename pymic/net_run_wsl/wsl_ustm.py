@@ -16,12 +16,21 @@ from pymic.util.general import keyword_match
 
 class WSLUSTM(WSLSegAgent):
     """
-    USTM for scribble-supervised segmentation according to the following paper:
-        Xiaoming Liu, Quan Yuan, Yaozong Gao, Helei He, Shuo Wang, Xiao Tang,
-        Jinshan Tang, Dinggang Shen:
-        Weakly Supervised Segmentation of COVID19 Infection with Scribble Annotation on CT Images.
-        Patter Recognition, 2022.
-        https://doi.org/10.1016/j.patcog.2021.108341 
+    USTM for scribble-supervised segmentation.
+
+    * Reference: Xiaoming Liu, Quan Yuan, Yaozong Gao, Helei He, Shuo Wang, 
+      Xiao Tang, Jinshan Tang, Dinggang Shen: Weakly Supervised Segmentation 
+      of COVID19 Infection with Scribble Annotation on CT Images.
+      `Patter Recognition <https://doi.org/10.1016/j.patcog.2021.108341>`_, 2022.
+        
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `weakly_supervised_learning` is needed. See :doc:`usage.wsl` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(WSLUSTM, self).__init__(config, stage)

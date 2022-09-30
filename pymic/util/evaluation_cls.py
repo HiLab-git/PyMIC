@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+Evaluation module for classification tasks.
+"""
 from __future__ import absolute_import, print_function
 
 import os
@@ -16,16 +19,25 @@ from pymic.util.image_process import *
 from pymic.util.parse_config import parse_config
 
 def accuracy(gt_label, pred_label):
+    """
+    Calculate the accuracy. 
+    """
     correct_pred = gt_label == pred_label
     acc = (correct_pred.sum() + 0.0 ) / len(gt_label)
     return acc 
 
 def sensitivity(gt_label, pred_label):
+    """
+    Calculate the sensitivity for binary prediction. 
+    """
     pos_pred = gt_label * pred_label
     senst = (pos_pred.sum() + 0.0) / gt_label.sum() 
     return senst
 
 def specificity(gt_label, pred_label):
+    """
+    Calculate the specificity for binary prediction. 
+    """
     gt_label = 1 - gt_label
     pred_label = 1 - pred_label
     neg_pred = gt_label * pred_label
@@ -34,8 +46,13 @@ def specificity(gt_label, pred_label):
 
 def get_evaluation_score(gt_label, pred_prob, metric):
     """
-    the gt_label is 1-d array
-    currently only binary classification is considered
+    Get an evaluation score for binary classification.
+
+    :param gt_label: (array) Ground truth label.
+    :param pred_prob: (array) Predicted positive probability. 
+    :param metric: (str) One of the evaluation metrics in 
+        {`accuracy`, `recall`, `sensitivity`, `specificity`,
+        `precision`, `auc`}.
     """
     pred_lab = np.argmax(pred_prob, axis = 1)
     if(metric == "accuracy"):
@@ -53,6 +70,17 @@ def get_evaluation_score(gt_label, pred_prob, metric):
     return score
 
 def binary_evaluation(config):
+    """
+    Evaluation of binary classification performance.
+    The arguments are given in the `config` dictionary. 
+    It should have the following fields:
+
+    :param metric_list: (list) A list of evaluation metrics.
+        The supported metrics are {`accuracy`, `recall`, `sensitivity`, `specificity`,
+        `precision`, `auc`}.
+    :param ground_truth_csv: (str) The csv file for ground truth.
+    :param predict_prob_csv: (str) The csv file for prediction probability.
+    """
     metric_list = config['metric_list']
     gt_csv  = config['ground_truth_csv']
     prob_csv= config['predict_prob_csv']
@@ -79,7 +107,15 @@ def binary_evaluation(config):
 
 def nexcl_evaluation(config):
     """
-    evaluation for nonexclusive classification
+    Evaluation of non-exclusive binary classification performance.
+    The arguments are given in the `config` dictionary. 
+    It should have the following fields:
+
+    :param metric_list: (list) A list of evaluation metrics.
+        The supported metrics are {`accuracy`, `recall`, `sensitivity`, `specificity`,
+        `precision`, `auc`}.
+    :param ground_truth_csv: (str) The csv file for ground truth.
+    :param predict_prob_csv: (str) The csv file for prediction probability.
     """
     metric_list = config['metric_list']
     gt_csv    = config['ground_truth_csv']
@@ -121,6 +157,24 @@ def nexcl_evaluation(config):
             csv_writer.writerow(item)
 
 def main():
+    """
+    Main function for evaluation of classification results. 
+    A configuration file is needed for runing. e.g., 
+    
+    .. code-block:: none
+
+        pymic_evaluate_cls config.cfg
+
+    The configuration file should have an `evaluation` section with
+    the following fields:
+
+    :param task_type: (str) `cls` or `cls_nexcl`.
+    :param metric_list: (list) A list of evaluation metrics.
+        The supported metrics are {`accuracy`, `recall`, `sensitivity`, `specificity`,
+        `precision`, `auc`}.
+    :param ground_truth_csv: (str) The csv file for ground truth.
+    :param predict_prob_csv: (str) The csv file for prediction probability.
+    """
     if(len(sys.argv) < 2):
         print('Number of arguments should be 2. e.g.')
         print('    pymic_evaluate_cls config.cfg')

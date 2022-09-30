@@ -1,12 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-An implementation of the 3D U-Net paper:
-     Özgün Çiçek, Ahmed Abdulkadir, Soeren S. Lienkamp, Thomas Brox, Olaf Ronneberger:
-     3D U-Net: Learning Dense Volumetric Segmentation from Sparse Annotation. 
-     MICCAI (2) 2016: 424-432
-Note that there are some modifications from the original paper, such as
-the use of batch normalization, dropout, and leaky relu here.
-"""
 from __future__ import print_function, division
 
 import torch
@@ -15,11 +7,15 @@ import numpy as np
 from torch.nn.functional import interpolate
 
 class ConvBlock(nn.Module):
-    """two convolution layers with batch norm and leaky relu"""
-    def __init__(self,in_channels, out_channels, dropout_p):
-        """
-        dropout_p: probability to be zeroed
-        """
+    """
+    Two 3D convolution layers with batch norm and leaky relu.
+    Droput is used between the two convolution layers.
+    
+    :param in_channels: (int) Input channel number.
+    :param out_channels: (int) Output channel number.
+    :param dropout_p: (int) Dropout probability.
+    """
+    def __init__(self, in_channels, out_channels, dropout_p):
         super(ConvBlock, self).__init__()
         self.conv_conv = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
@@ -35,7 +31,13 @@ class ConvBlock(nn.Module):
         return self.conv_conv(x)
 
 class DownBlock(nn.Module):
-    """Downsampling followed by ConvBlock"""
+    """
+    3D downsampling followed by ConvBlock
+
+    :param in_channels: (int) Input channel number.
+    :param out_channels: (int) Output channel number.
+    :param dropout_p: (int) Dropout probability.
+    """
     def __init__(self, in_channels, out_channels, dropout_p):
         super(DownBlock, self).__init__()
         self.maxpool_conv = nn.Sequential(
@@ -47,7 +49,16 @@ class DownBlock(nn.Module):
         return self.maxpool_conv(x)
 
 class UpBlock(nn.Module):
-    """Upssampling followed by ConvBlock"""
+    """
+    3D upsampling followed by ConvBlock
+    
+    :param in_channels1: (int) Channel number of high-level features.
+    :param in_channels2: (int) Channel number of low-level features.
+    :param out_channels: (int) Output channel number.
+    :param dropout_p: (int) Dropout probability.
+    :param trilinear: (bool) Use trilinear for up-sampling (by default).
+        If False, deconvolution is used for up-sampling. 
+    """
     def __init__(self, in_channels1, in_channels2, out_channels, dropout_p,
                  trilinear=True):
         super(UpBlock, self).__init__()
@@ -67,26 +78,30 @@ class UpBlock(nn.Module):
         return self.conv(x)
 
 
-
-class UNetBlock(nn.Module):
-    def __init__(self,in_channels, out_channels, acti_func, acti_func_param):
-        super(UNetBlock, self).__init__()
-        
-        self.in_chns   = in_channels
-        self.out_chns  = out_channels
-        self.acti_func = acti_func
-
-        self.conv1 = ConvolutionLayer(in_channels,  out_channels, 3, 
-                padding = 1, acti_func=get_acti_func(acti_func, acti_func_param))
-        self.conv2 = ConvolutionLayer(out_channels, out_channels, 3, 
-                padding = 1, acti_func=get_acti_func(acti_func, acti_func_param))
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)
-        return x
-
 class UNet3D(nn.Module):
+    """
+    An implementation of the U-Net.
+        
+    * Reference: Özgün Çiçek, Ahmed Abdulkadir, Soeren S. Lienkamp, Thomas Brox, Olaf Ronneberger:
+      3D U-Net: Learning Dense Volumetric Segmentation from Sparse Annotation. 
+      `MICCAI (2) 2016: 424-432. <https://link.springer.com/chapter/10.1007/978-3-319-46723-8_49>`_
+    
+    Note that there are some modifications from the original paper, such as
+    the use of batch normalization, dropout, leaky relu and deep supervision.
+
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 4 or 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    :param class_num: (int) The class number for segmentation task. 
+    :param trilinear: (bool) Using trilinear for up-sampling or not. 
+        If False, deconvolution will be used for up-sampling.
+    :param deep_supervise: (bool) Using deep supervision for training or not.
+    """
     def __init__(self, params):
         super(UNet3D, self).__init__()
         self.params    = params

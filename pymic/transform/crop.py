@@ -13,19 +13,23 @@ from pymic.util.image_process import *
 class CenterCrop(AbstractTransform):
     """
     Crop the given image at the center.
-    input shape should be [C, D, H, W] or [C, H, W])
+    Input shape should be [C, D, H, W] or [C, H, W].
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `CenterCrop_output_size`: (list or tuple) The output size. 
+        [D, H, W] for 3D images and [H, W] for 2D images.
+        If D is None, then the z-axis is not cropped.
+    :param `CenterCrop_inverse`: (optional, bool) Is inverse transform needed for inference.
+        Default is `True`.
     """
     def __init__(self, params):
-        """
-        output_size (tuple/list): Desired spatial output size. 
-            [D, H, W] for 3D images and [H, W] for 2D images
-            If D is None, then the z-axis is not cropped
-        """
+        super(CenterCrop, self).__init__(params)
         self.output_size = params['CenterCrop_output_size'.lower()]
         self.inverse = params.get('CenterCrop_inverse'.lower(), True)
-        self.task = params['Task'.lower()]
 
-    def get_crop_param(self, sample):
+    def _get_crop_param(self, sample):
         input_shape = sample['image'].shape
         input_dim   = len(input_shape) - 1
         assert(input_dim == len(self.output_size))
@@ -46,7 +50,7 @@ class CenterCrop(AbstractTransform):
 
     def __call__(self, sample):
         image = sample['image']
-        sample, crop_min, crop_max = self.get_crop_param(sample)
+        sample, crop_min, crop_max = self._get_crop_param(sample)
 
         image_t = crop_ND_volume_with_bounding_box(image, crop_min, crop_max)
         sample['image'] = image_t
@@ -63,7 +67,7 @@ class CenterCrop(AbstractTransform):
             sample['pixel_weight'] = weight
         return sample
 
-    def get_param_for_inverse_transform(self, sample):
+    def _get_param_for_inverse_transform(self, sample):
         if(isinstance(sample['CenterCrop_Param'], list) or \
             isinstance(sample['CenterCrop_Param'], tuple)):
             params = json.loads(sample['CenterCrop_Param'][0]) 
@@ -72,9 +76,7 @@ class CenterCrop(AbstractTransform):
         return params
 
     def inverse_transform_for_prediction(self, sample):
-        ''' rescale sample['predict'] (5D or 4D) to the original spatial shape.
-        origin_shape is a 4D or 3D vector as saved in __call__().'''
-        params = self.get_param_for_inverse_transform(sample)
+        params = self._get_param_for_inverse_transform(sample)
         origin_shape = params[0]
         crop_min     = params[1]
         crop_max     = params[2]
@@ -101,22 +103,27 @@ class CenterCrop(AbstractTransform):
         return sample
 
 class CropWithBoundingBox(CenterCrop):
-    """Crop the image (shape [C, D, H, W] or [C, H, W]) based on bounding box
+    """
+    Crop the image (shape [C, D, H, W] or [C, H, W]) based on a bounding box.
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `CropWithBoundingBox_start`: (None, or list/tuple) The start index 
+        along each spatial axis. If None, calculate the start index automatically 
+        so that the cropped region is centered at the non-zero region.
+    :param `CropWithBoundingBox_output_size`: (None or tuple/list): 
+        Desired spatial output size.
+        If None, set it as the size of bounding box of non-zero region.
+    :param `CropWithBoundingBox_inverse`: (optional, bool) Is inverse transform needed for inference.
+        Default is `True`.
     """
     def __init__(self, params):
-        """
-        start (None or tuple/list): The start index along each spatial axis.
-            if None, calculate the start index automatically so that 
-            the cropped region is centered at the non-zero region.
-        output_size (None or tuple/list): Desired spatial output size.
-            if None, set it as the size of bounding box of non-zero region 
-        """
         self.start       = params['CropWithBoundingBox_start'.lower()]
         self.output_size = params['CropWithBoundingBox_output_size'.lower()]
         self.inverse     = params.get('CropWithBoundingBox_inverse'.lower(), True)
         self.task = params['task']
         
-    def get_crop_param(self, sample):
+    def _get_crop_param(self, sample):
         image = sample['image']
         input_shape = sample['image'].shape
         input_dim   = len(input_shape) - 1
@@ -146,7 +153,7 @@ class CropWithBoundingBox(CenterCrop):
         print("for crop", crop_min, crop_max)
         return sample, crop_min, crop_max
 
-    def get_param_for_inverse_transform(self, sample):
+    def _get_param_for_inverse_transform(self, sample):
         if(isinstance(sample['CropWithBoundingBox_Param'], list) or \
             isinstance(sample['CropWithBoundingBox_Param'], tuple)):
             params = json.loads(sample['CropWithBoundingBox_Param'][0]) 
@@ -156,20 +163,26 @@ class CropWithBoundingBox(CenterCrop):
         
 
 class RandomCrop(CenterCrop):
-    """Randomly crop the input image (shape [C, D, H, W] or [C, H, W]) 
+    """Randomly crop the input image (shape [C, D, H, W] or [C, H, W]).
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `RandomCrop_output_size`: (list/tuple) Desired output size [D, H, W] or [H, W].
+        The output channel is the same as the input channel. 
+        If D is None for 3D images, the z-axis is not cropped.
+    :param `RandomCrop_foreground_focus`: (optional, bool) 
+        If true, allow crop around the foreground. Default is False.
+    :param `RandomCrop_foreground_ratio`: (optional, float) 
+        Specifying the probability of foreground focus cropping when 
+        `RandomCrop_foreground_focus` is True.
+    :param `RandomCrop_mask_label`: (optional, None, or list/tuple) 
+        Specifying the foreground labels for foreground focus cropping when 
+        `RandomCrop_foreground_focus` is True.
+    :param `RandomCrop_inverse`: (optional, bool) Is inverse transform needed for inference.
+        Default is `True`.
     """
     def __init__(self, params):
-        """
-        output_size (tuple or list): Desired output size [D, H, W] or [H, W].
-            the output channel is the same as the input channel.
-            If D is None for 3D images, the z-axis is not cropped
-        foreground_focus (bool): If true, allow crop around the foreground.
-        foreground_ratio (float): Specifying the probability of foreground 
-            focus cropping when foreground_focus is true.
-        mask_label (None, or tuple / list): Specifying the foreground labels for foreground 
-            focus cropping
-        """
-        # super(RandomCrop, self).__init__(params)
         self.output_size = params['RandomCrop_output_size'.lower()]
         self.fg_focus    = params.get('RandomCrop_foreground_focus'.lower(), False)
         self.fg_ratio    = params.get('RandomCrop_foreground_ratio'.lower(), 0.5)
@@ -180,7 +193,7 @@ class RandomCrop(CenterCrop):
         if(self.mask_label is not None):
             assert isinstance(self.mask_label, (list, tuple))
 
-    def get_crop_param(self, sample):
+    def _get_crop_param(self, sample):
         image       = sample['image']
         input_shape = image.shape
         input_dim   = len(input_shape) - 1
@@ -217,7 +230,7 @@ class RandomCrop(CenterCrop):
         sample['RandomCrop_Param'] = json.dumps((input_shape, crop_min, crop_max))
         return sample, crop_min, crop_max
 
-    def get_param_for_inverse_transform(self, sample):
+    def _get_param_for_inverse_transform(self, sample):
         if(isinstance(sample['RandomCrop_Param'], list) or \
             isinstance(sample['RandomCrop_Param'], tuple)):
             params = json.loads(sample['RandomCrop_Param'][0]) 
@@ -226,26 +239,31 @@ class RandomCrop(CenterCrop):
         return params
 
 class RandomResizedCrop(CenterCrop):
-    """Randomly crop the input image (shape [C, H, W])
-       Only 2D images are supported 
+    """
+    Randomly crop the input image (shape [C, H, W]). Only 2D images are supported.
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `RandomResizedCrop_output_size`: (list/tuple) Desired output size [H, W].
+        The output channel is the same as the input channel. 
+    :param `RandomResizedCrop_scale`: (list/tuple) Range of scale, e.g. (0.08, 1.0).
+    :param `RandomResizedCrop_ratio`: (list/tuple) Range of aspect ratio, e.g. (0.75, 1.33).
+    :param `RandomResizedCrop_inverse`: (optional, bool) Is inverse transform needed for inference.
+        Default is `False`. Currently, the inverse transform is not supported, and 
+        this transform is assumed to be used only during training stage. 
     """
     def __init__(self, params):
-        """
-        output_size (tuple or list): Desired output size [H, W].
-            the output channel is the same as the input channel.
-        scale (tuple or list): range of scale, e.g. (0.08, 1.0)
-        ratio (tuple or list): range of aspect ratio, e.g. (0.75, 1.33)
-        """
         self.output_size = params['RandomResizedCrop_output_size'.lower()]
         self.scale       = params['RandomResizedCrop_scale'.lower()]
         self.ratio       = params['RandomResizedCrop_ratio'.lower()]
-        self.inverse     = params.get('RandomResizedCrop_inverse'.lower(), True)
+        self.inverse     = params.get('RandomResizedCrop_inverse'.lower(), False)
         self.task        = params['Task'.lower()]
         assert isinstance(self.output_size, (list, tuple))
         assert isinstance(self.scale, (list, tuple))
         assert isinstance(self.ratio, (list, tuple))
         
-    def get_crop_param(self, sample):
+    def _get_crop_param(self, sample):
         image = sample['image']
         input_shape = image.shape
         input_dim   = len(input_shape) - 1
@@ -273,7 +291,7 @@ class RandomResizedCrop(CenterCrop):
         image = sample['image']
         input_shape = image.shape
         input_dim   = len(input_shape) - 1
-        sample, crop_min, crop_max = self.get_crop_param(sample)
+        sample, crop_min, crop_max = self._get_crop_param(sample)
 
         image_t = crop_ND_volume_with_bounding_box(image, crop_min, crop_max)
         crp_shape = image_t.shape
@@ -295,9 +313,3 @@ class RandomResizedCrop(CenterCrop):
             weight = ndimage.interpolation.zoom(weight, scale, order = 1)
             sample['pixel_weight'] = weight
         return sample
-
-    def inverse_transform_for_prediction(self, sample):
-        """
-        not implemented
-        """
-        raise(ValueError("not implemented"))

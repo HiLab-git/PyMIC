@@ -13,12 +13,21 @@ from pymic.util.ramps import get_rampup_ratio
 
 class SSLURPC(SSLSegAgent):
     """
-    Uncertainty-Rectified Pyramid Consistency according to the following paper:
-    Xiangde Luo, Guotai Wang*, Wenjun Liao, Jieneng Chen, Tao Song, Yinan Chen, 
-    Shichuan Zhang, Dimitris N. Metaxas, Shaoting Zhang. 
-    Semi-Supervised Medical Image Segmentation via Uncertainty Rectified Pyramid Consistency .
-    Medical Image Analysis 2022.
-    https://doi.org/10.1016/j.media.2022.102517
+    Uncertainty-Rectified Pyramid Consistency for semi-supervised segmentation.
+    
+    * Reference: Xiangde Luo, Guotai Wang*, Wenjun Liao, Jieneng Chen, Tao Song, Yinan Chen, 
+      Shichuan Zhang, Dimitris N. Metaxas, Shaoting Zhang. 
+      Semi-Supervised Medical Image Segmentation via Uncertainty Rectified Pyramid Consistency .
+      `Medical Image Analysis 2022. <https://doi.org/10.1016/j.media.2022.102517>`_
+    
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `semi_supervised_learning` is needed. See :doc:`usage.ssl` for details.
     """
     def training(self):
         class_num   = self.config['network']['class_num']

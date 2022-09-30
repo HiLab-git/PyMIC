@@ -1,14 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Implementation of Co-teaching for learning from noisy samples for 
-segmentation tasks according to the following paper:
-    Bo Han et al., Co-teaching: Robust Training of Deep NeuralNetworks
-    with Extremely Noisy Labels, NeurIPS, 2018
-The author's original implementation was:
-https://github.com/bhanML/Co-teaching 
 
-
-"""
 from __future__ import print_function, division
 import logging
 import os
@@ -45,9 +36,20 @@ class BiNet(nn.Module):
 
 class NLLCoTeaching(SegmentationAgent):
     """
-    Co-teaching: Robust Training of Deep Neural Networks with Extremely 
-    Noisy Labels
-    https://arxiv.org/abs/1804.06872
+    Co-teaching for noisy-label learning. 
+
+    * Reference: Bo Han, Quanming Yao, Xingrui Yu, Gang Niu, Miao Xu, Weihua Hu, 
+      Ivor Tsang, Masashi Sugiyama.  Co-teaching: Robust Training of Deep Neural Networks with Extremely 
+      Noisy Labels. `NeurIPS 201. <https://arxiv.org/abs/1804.06872>`_
+    
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `noisy_label_learning` is needed. See :doc:`usage.nll` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(NLLCoTeaching, self).__init__(config, stage)

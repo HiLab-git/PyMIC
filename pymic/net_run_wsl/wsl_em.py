@@ -14,7 +14,20 @@ from pymic.util.ramps import get_rampup_ratio
 
 class WSLEntropyMinimization(WSLSegAgent):
     """
-    Weakly suepervised segmentation with Entropy Minimization Regularization.
+    Weakly supervised segmentation based on Entropy Minimization.
+
+    * Reference: Yves Grandvalet and Yoshua Bengio:
+      Semi-supervised Learningby Entropy Minimization.
+      `NeurIPS, 2005. <https://papers.nips.cc/paper/2004/file/96f2b50b5d3613adf9c27049b2a888c7-Paper.pdf>`_ 
+    
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `weakly_supervised_learning` is needed. See :doc:`usage.wsl` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(WSLEntropyMinimization, self).__init__(config, stage)

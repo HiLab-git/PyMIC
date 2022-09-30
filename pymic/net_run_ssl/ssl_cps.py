@@ -30,11 +30,20 @@ class BiNet(nn.Module):
 
 class SSLCPS(SSLSegAgent):
     """
-    Using cross pseudo supervision according to the following paper:
-    Xiaokang Chen, Yuhui Yuan, Gang Zeng, Jingdong Wang, 
-    Semi-Supervised Semantic Segmentation with Cross Pseudo Supervision,
-    CVPR 2021, pp. 2613-2022.
-    https://arxiv.org/abs/2106.01226 
+    Using cross pseudo supervision for semi-supervised segmentation.
+
+    * Reference: Xiaokang Chen, Yuhui Yuan, Gang Zeng, Jingdong Wang, 
+      Semi-Supervised Semantic Segmentation with Cross Pseudo Supervision,
+      `CVPR 2021 <https://arxiv.org/abs/2106.01226>`_, pp. 2613-2022.
+    
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `semi_supervised_learning` is needed. See :doc:`usage.ssl` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(SSLCPS, self).__init__(config, stage)

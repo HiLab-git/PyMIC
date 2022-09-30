@@ -12,11 +12,20 @@ from pymic.util.ramps import get_rampup_ratio
 
 class SSLUncertaintyAwareMeanTeacher(SSLMeanTeacher):
     """
-    Uncertainty Aware Mean Teacher according to the following paper:
-    Lequan Yu, Shujun Wang, Xiaomeng Li, Chi-Wing Fu, and Pheng-Ann Heng.
-    Uncertainty-aware Self-ensembling Model for Semi-supervised 3D Left 
-    Atrium Segmentation, MICCAI 2019.
-    https://arxiv.org/abs/1907.07034 
+    Uncertainty Aware Mean Teacher for semi-supervised segmentation.
+
+    * Reference: Lequan Yu, Shujun Wang, Xiaomeng Li, Chi-Wing Fu, and Pheng-Ann Heng.
+      Uncertainty-aware Self-ensembling Model for Semi-supervised 3D Left Atrium 
+      Segmentation, `MICCAI 2019. <https://arxiv.org/abs/1907.07034>`_ 
+    
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `semi_supervised_learning` is needed. See :doc:`usage.ssl` for details.
     """
     def training(self):
         class_num   = self.config['network']['class_num']
