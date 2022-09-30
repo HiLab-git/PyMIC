@@ -115,3 +115,51 @@ file used for segmentation of lung from radiograph, which can be find in
    label_source = [0, 1]
    label_target = [0, 255]
 
+
+Evaluation
+----------
+
+To evaluate a model's prediction results compared with the ground truth, 
+use the ``pymic_eval_seg`` and  ``pymic_eval_cls`` commands for segmentation
+and classfication tasks, respectively. Both of them accept a configuration 
+file to specify the evaluation metrics, predicted results, ground truth and
+other information. 
+
+For example, for segmentation tasks, run:
+
+.. code-block:: none
+
+   pymic_eval_seg evaluation.cfg 
+
+The configuration file is like (an example from ``PYMIC_examples/seg_ssl/ACDC``):
+
+.. code-block:: none
+
+   [evaluation]
+   metric = dice
+   label_list = [1,2,3]
+   organ_name = heart
+
+   ground_truth_folder_root  = ../../PyMIC_data/ACDC/preprocess
+   segmentation_folder_root  = result/unet2d_em
+   evaluation_image_pair     = config/data/image_test_gt_seg.csv
+
+See :mod:`pymic.util.evaluation_seg.evaluation` for details of the configuration required.
+
+For classification tasks, run:
+
+.. code-block:: none
+
+   pymic_eval_cls evaluation.cfg 
+
+The configuration file is like (an example from ``PYMIC_examples/classification/CHNCXR``):
+
+.. code-block:: none
+
+   [evaluation]
+   metric_list = [accuracy, auc]
+   ground_truth_csv = config/cxr_test.csv
+   predict_csv   = result/resnet18.csv
+   predict_prob_csv   = result/resnet18_prob.csv
+
+See :mod:`pymic.util.evaluation_cls.main` for details of the configuration required.

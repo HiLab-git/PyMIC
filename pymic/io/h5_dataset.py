@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 
 from logging import root
-import os
-from re import S 
+import os 
 import torch
 import random
 import h5py 
 import pandas as pd
-from scipy import ndimage
 from torch.utils.data import Dataset
 from torch.utils.data.sampler import Sampler
 
@@ -40,7 +38,6 @@ class H5DataSet(Dataset):
         sample = {'image': image, 'label': label}
         if self.transform:
             sample = self.transform(sample)
-        # sample["idx"] = idx
         return sample
     
 class TwoStreamBatchSampler(Sampler):
