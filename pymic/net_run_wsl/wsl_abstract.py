@@ -5,13 +5,19 @@ from pymic.net_run.agent_seg import SegmentationAgent
 
 class WSLSegAgent(SegmentationAgent):
     """
-    Training and testing agent for weakly supervised segmentation
+    Abstract agent for weakly supervised segmentation.
+
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `weakly_supervised_learning` is needed. See :doc:`usage.wsl` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(WSLSegAgent, self).__init__(config, stage)
-
-    def training(self):
-        pass
         
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         loss_scalar ={'train':train_scalars['loss'], 

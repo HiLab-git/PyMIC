@@ -8,6 +8,9 @@ from pymic.net_run.agent_cls import ClassificationAgent
 from pymic.net_run.agent_seg import SegmentationAgent
 
 def main():
+    """
+    The main function for running a network for training or inference.
+    """
     if(len(sys.argv) < 3):
         print('Number of arguments should be 3. e.g.')
         print('   pymic_run train config.cfg')

@@ -14,12 +14,21 @@ from pymic.util.ramps import get_rampup_ratio
 
 class WSLDMPLS(WSLSegAgent):
     """
-    Implementation of the following paper:
-        Xiangde Luo, Minhao Hu, Wenjun Liao, Shuwei Zhai, Tao Song, Guotai Wang,
-        Shaoting Zhang. ScribblScribble-Supervised Medical Image Segmentation via 
-        Dual-Branch Network and Dynamically Mixed Pseudo Labels Supervision.
-        MICCAI 2022. 
-        https://arxiv.org/abs/2203.02106 
+    Weakly supervised segmentation based on Dynamically Mixed Pseudo Labels Supervision.
+
+    * Reference: Xiangde Luo, Minhao Hu, Wenjun Liao, Shuwei Zhai, Tao Song, Guotai Wang,
+      Shaoting Zhang. ScribblScribble-Supervised Medical Image Segmentation via 
+      Dual-Branch Network and Dynamically Mixed Pseudo Labels Supervision.
+      `MICCAI 2022. <https://arxiv.org/abs/2203.02106>`_ 
+    
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `weakly_supervised_learning` is needed. See :doc:`usage.wsl` for details.
     """
     def __init__(self, config, stage = 'train'):
         net_type = config['network']['net_type']

@@ -12,7 +12,7 @@ from pymic.util.image_process import *
 
 class ReduceLabelDim(AbstractTransform):
     """
-    remove the first dimension of label tensor
+    Remove the first dimension of label tensor.
     """
     def __init__(self, params):
         super(ReduceLabelDim, self).__init__(params)
@@ -25,12 +25,18 @@ class ReduceLabelDim(AbstractTransform):
         return sample
 
 class LabelConvert(AbstractTransform):
-    """ Convert a list of labels to another list"""
+    """ 
+    Convert the label based on a source list and target list. 
+    
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `LabelConvert_source_list`: (list) A list of labels to be converted.
+    :param `LabelConvert_target_list`: (list) The target label list.
+    :param `LabelConvert_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
+    """
     def __init__(self, params):
-        """
-        source_list (tuple/list): A list of labels to be converted
-        target_list (tuple/list): The target label list
-        """
         super(LabelConvert, self).__init__(params)
         self.source_list = params['LabelConvert_source_list'.lower()]
         self.target_list = params['LabelConvert_target_list'.lower()]
@@ -44,7 +50,9 @@ class LabelConvert(AbstractTransform):
         return sample
 
 class LabelConvertNonzero(AbstractTransform):
-    """ Convert label into binary (nonzero as 1)"""
+    """ 
+    Convert label into binary, i.e., setting nonzero labels as 1.
+    """
     def __init__(self, params):
         super(LabelConvertNonzero, self).__init__(params)
         self.inverse = params.get('LabelConvertNonzero_inverse'.lower(), False)
@@ -56,11 +64,17 @@ class LabelConvertNonzero(AbstractTransform):
         return sample
 
 class LabelToProbability(AbstractTransform):
-    """Convert one-channel label map to one-hot multi-channel probability map"""
+    """
+    Convert one-channel label map to one-hot multi-channel probability map.
+    
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `LabelToProbability_class_num`: (int) The class number in the label map.
+    :param `LabelToProbability_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
+    """
     def __init__(self, params): 
-        """
-        class_num (int): the class number in the label map
-        """
         super(LabelToProbability, self).__init__(params)
         self.class_num = params['LabelToProbability_class_num'.lower()]
         self.inverse   = params.get('LabelToProbability_inverse'.lower(), False)
@@ -81,15 +95,21 @@ class LabelToProbability(AbstractTransform):
 
 
 class PartialLabelToProbability(AbstractTransform):
-    """Convert one-channel label map to one-hot multi-channel probability map
-    Note that the label map represents partial labels.
-    For segmentation tasks only. 
-    0: background
-    1 to C-1: foreground (C-classes)
-    C: unknown label. 
-    the output consists of:
-    label_prob: one-hot probability map
-    pixel_weight: weigh of pixels, 0 if the label is unknown
+    """
+    Convert one-channel partial label map to one-hot multi-channel probability map.
+    This is used for segmentation tasks only. In the input label map, 0 represents the
+    background class, 1 to C-1 represent the foreground classes, and C represents 
+    unlabeled pixels. In the output dictionary, `label_prob` is the one-hot probability 
+    map, and `pixel_weight` represents a weighting map, where the weight for a pixel
+    is 0 if the label is unkown. 
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `PartialLabelToProbability_class_num`: (int) The class number for the 
+        segmentation task.  
+    :param `PartialLabelToProbability_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
     """
     def __init__(self, params): 
         """
@@ -107,11 +127,6 @@ class PartialLabelToProbability(AbstractTransform):
             label_prob[i] = label == i*np.ones_like(label)
         sample['label_prob'] = label_prob
         sample['pixel_weight'] = 1.0 - np.asarray([label == self.class_num], np.float32)
-
-        # # for gated CRF loss
-        # scribble = label - 1
-        # scribble[label == 0] = 255
-        # sample['scribbles'] = scribble
         return sample
 
 

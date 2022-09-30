@@ -1,14 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Caculating the confidence map of labels of training samples,
-which is used in the method of SLSR.
-    Minqing Zhang et al., Characterizing Label Errors: Confident Learning
-    for Noisy-Labeled Image Segmentation, MICCAI 2020.  
-    https://link.springer.com/chapter/10.1007/978-3-030-59710-8_70  
-"""
-
 from __future__ import print_function, division
-import cleanlab
 import logging
 import os
 import scipy
@@ -27,9 +18,16 @@ from pymic.net_run.infer_func import Inferer
 
 def get_confident_map(gt, pred, CL_type = 'both'):
     """
-    gt: ground truth label (one-hot) with shape of NXC
-    pred: digit prediction of network with shape of NXC
+    Get the confidence map based on the label and prediction. 
+
+    :param gt: (tensor) One-hot label with shape of NXC.
+    :param pred: (tensor) Digit prediction of network with shape of NXC.
+    :param CL_type: (str) A string in {'both', 'Qij', 'Cij', 'intersection',
+        'union', 'prune_by_class', 'prune_by_noise_rate'}.
+
+    :return: A tensor representing the noisiness of each pixel.
     """
+    import cleanlab
     prob = scipy.special.softmax(pred, axis = 1)
     if CL_type in ['both', 'Qij']:
         noise = cleanlab.pruning.get_noise_indices(gt, prob, prune_method='both', n_jobs=1)
@@ -48,10 +46,24 @@ def get_confident_map(gt, pred, CL_type = 'both'):
     return noise
 
 class NLLCLSLSR(SegmentationAgent):
+    """
+    An agent to estimatate the confidence of noisy labels during inference. 
+
+    * Reference: Minqing Zhang et al., Characterizing Label Errors: Confident Learning
+      for Noisy-Labeled Image Segmentation, 
+      `MICCAI 2020. <https://link.springer.com/chapter/10.1007/978-3-030-59710-8_70>`_
+
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    """
     def __init__(self, config, stage = 'test'):
         super(NLLCLSLSR, self).__init__(config, stage)
 
     def infer_with_cl(self):
+        """
+        Inference with confidence estimation.
+        """
         device_ids = self.config['testing']['gpus']
         device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(device)
@@ -135,9 +147,12 @@ class NLLCLSLSR(SegmentationAgent):
             conf_map.save(dst_path)
 
 def get_confidence_map():
+    """
+    The main function to get the confidence map during inference.
+    """
     if(len(sys.argv) < 2):
         print('Number of arguments should be 3. e.g.')
-        print('   python nll_cl.py config.cfg')
+        print('   python nll_clslsr.py config.cfg')
         exit()
     cfg_file = str(sys.argv[1])
     config   = parse_config(cfg_file)

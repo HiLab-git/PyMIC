@@ -9,16 +9,26 @@ from pymic.loss.seg.util import reshape_tensor_to_2D
 
 class EntropyLoss(nn.Module):
     """
-    Minimize the entropy for each pixel
+    Entropy Minimization for segmentation tasks.
+    The parameters should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not. 
     """
     def __init__(self, params = None):
-        super(EntropyLoss, self).__init__()
-        if(params is None):
-            self.softmax = True
-        else:
-            self.softmax = params.get('loss_softmax', True)
+        super(EntropyLoss, self).__init__(params)
         
     def forward(self, loss_input_dict):
+        """
+        Forward pass for calculating the loss.
+        The arguments should be written in the `loss_input_dict` dictionary, 
+        and it has the following fields:
+
+        :param `prediction`: (tensor) Prediction of a network, with the 
+            shape of [N, C, D, H, W] or [N, C, H, W].
+
+        :return: Loss function value.
+        """
         predict = loss_input_dict['prediction']
 
         if(isinstance(predict, (list, tuple))):
@@ -35,16 +45,26 @@ class EntropyLoss(nn.Module):
     
 class TotalVariationLoss(nn.Module):
     """
-    Minimize the total variation of a segmentation
+    Total Variation Loss for segmentation tasks.
+    The parameters should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not. 
     """
     def __init__(self, params = None):
-        super(TotalVariationLoss, self).__init__()
-        if(params is None):
-            self.softmax = True
-        else:
-            self.softmax = params.get('loss_softmax', True)
+        super(TotalVariationLoss, self).__init__(params)
         
     def forward(self, loss_input_dict):
+        """
+        Forward pass for calculating the loss.
+        The arguments should be written in the `loss_input_dict` dictionary, 
+        and it has the following fields:
+
+        :param `prediction`: (tensor) Prediction of a network, with the 
+            shape of [N, C, D, H, W] or [N, C, H, W].
+
+        :return: Loss function value.
+        """
         predict = loss_input_dict['prediction']
 
         if(isinstance(predict, (list, tuple))):

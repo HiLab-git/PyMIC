@@ -14,7 +14,16 @@ from pymic.util.general import keyword_match
 
 class WSLTotalVariation(WSLSegAgent):
     """
-    Weakly suepervised segmentation with Total Variation Regularization.
+    Weakly suepervised segmentation with Total Variation regularization.
+
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `weakly_supervised_learning` is needed. See :doc:`usage.wsl` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(WSLTotalVariation, self).__init__(config, stage)

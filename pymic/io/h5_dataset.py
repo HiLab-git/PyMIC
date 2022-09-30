@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
 
 from logging import root
-import os
-from re import S 
+import os 
 import torch
 import random
 import h5py 
 import pandas as pd
-from scipy import ndimage
 from torch.utils.data import Dataset
 from torch.utils.data.sampler import Sampler
 
-class H5DataSets(Dataset):
+class H5DataSet(Dataset):
     """
     Dataset for loading images stored in h5 format. It generates 
     4D tensors with dimention order [C, D, H, W] for 3D images, and 
     3D tensors with dimention order [C, H, W] for 2D images
+
+    Args:
+        root_dir (str): thr root dir of images. \n
+        sample_list_name (str): a file name for sample list. \n
+        tranform (list): A list of transform objects applied on a sample.
     """
     def __init__(self, root_dir, sample_list_name, transform = None):
         self.root_dir = root_dir 
@@ -35,7 +38,6 @@ class H5DataSets(Dataset):
         sample = {'image': image, 'label': label}
         if self.transform:
             sample = self.transform(sample)
-        # sample["idx"] = idx
         return sample
     
 class TwoStreamBatchSampler(Sampler):
@@ -90,7 +92,7 @@ def grouper(iterable, n):
 if __name__ == "__main__":
     root_dir = "/home/guotai/disk2t/projects/semi_supervise/SSL4MIS/data/ACDC/data/slices"
     file_name = "/home/guotai/disk2t/projects/semi_supervise/slices.txt"
-    dataset = H5DataSets(root_dir, file_name)
+    dataset = H5DataSet(root_dir, file_name)
     train_loader = torch.utils.data.DataLoader(dataset, 
                 batch_size = 4, shuffle=True, num_workers= 1)
     for sample in train_loader:

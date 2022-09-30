@@ -62,12 +62,23 @@ unsup_loss_dict = {"MSE": softmax_mse_loss,
 
 class SSLCCT(SSLSegAgent):
     """
-    Cross-Consistency Training according to the following paper:
-        Yassine Ouali, Celine Hudelot and Myriam Tami:
-        Semi-Supervised Semantic Segmentation With Cross-Consistency Training. 
-        CVPR 2020.
-        https://arxiv.org/abs/2003.09005          
-    Code adapted from: https://github.com/yassouali/CCT
+    Cross-Consistency Training for semi-supervised segmentation. It requires a network 
+    with multiple decoders for learning, such as `pymic.net.net2d.unet2d_cct.UNet2D_CCT`.
+
+    * Reference: Yassine Ouali, Celine Hudelot and Myriam Tami:
+      Semi-Supervised Semantic Segmentation With Cross-Consistency Training. 
+      `CVPR 2020. <https://arxiv.org/abs/2003.09005>`_
+
+    The Code is adapted from `Github <https://github.com/yassouali/CCT>`_
+
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `semi_supervised_learning` is needed. See :doc:`usage.ssl` for details.
     """
     def training(self):
         class_num   = self.config['network']['class_num']

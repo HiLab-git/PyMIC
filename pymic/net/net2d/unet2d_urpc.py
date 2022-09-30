@@ -1,15 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-An modification the U-Net to obtain multi-scale prediction according to 
-the URPC paper (MICCAI 2021):
-    Xiangde Luo, Wenjun Liao, Jienneg Chen, Tao Song, Yinan Chen, 
-    Shichuan Zhang, Nianyong Chen, Guotai Wang, Shaoting Zhang:
-    Efficient Semi-Supervised Gross Target Volume of Nasopharyngeal Carcinoma 
-    Segmentation via Uncertainty Rectified Pyramid Consistency. 
-    MICCAI 2021: 318-329
-    https://link.springer.com/chapter/10.1007/978-3-030-87196-3_30 
-Also see: https://github.com/HiLab-git/SSL4MIS/blob/master/code/networks/unet.py
-"""
 from __future__ import print_function, division
 
 import torch
@@ -44,14 +33,37 @@ class FeatureNoise(nn.Module):
         return x
 
 class UNet2D_URPC(nn.Module):
+    """
+    An modification the U-Net to obtain multi-scale prediction according to 
+    the URPC paper.
+
+    * Reference: Xiangde Luo, Guotai Wang*, Wenjun Liao, Jieneng Chen, Tao Song, Yinan Chen, 
+      Shichuan Zhang, Dimitris N. Metaxas, Shaoting Zhang. 
+      Semi-Supervised Medical Image Segmentation via Uncertainty Rectified Pyramid Consistency .
+      `Medical Image Analysis 2022. <https://doi.org/10.1016/j.media.2022.102517>`_
+
+    Also see: https://github.com/HiLab-git/SSL4MIS/blob/master/code/networks/unet.py
+    
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    :param class_num: (int) The class number for segmentation task. 
+    :param bilinear: (bool) Using bilinear for up-sampling or not. 
+        If False, deconvolution will be used for up-sampling.
+    """
     def __init__(self, params):
         super(UNet2D_URPC, self).__init__()
         self.params    = params
         self.in_chns   = self.params['in_chns']
         self.ft_chns   = self.params['feature_chns']
+        self.dropout   = self.params['dropout']
         self.n_class   = self.params['class_num']
         self.bilinear  = self.params['bilinear']
-        self.dropout   = self.params['dropout']
         assert(len(self.ft_chns) == 5)
 
         self.in_conv= ConvBlock(self.in_chns, self.ft_chns[0], self.dropout[0])

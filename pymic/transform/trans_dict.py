@@ -1,9 +1,36 @@
 # -*- coding: utf-8 -*-
+"""
+The built-in transforms in PyMIC are:
+
+.. code-block:: none
+
+    'ChannelWiseThreshold': ChannelWiseThreshold,
+    'ChannelWiseThresholdWithNormalize': ChannelWiseThresholdWithNormalize,
+    'CropWithBoundingBox': CropWithBoundingBox,
+    'CenterCrop': CenterCrop,
+    'GrayscaleToRGB': GrayscaleToRGB,
+    'GammaCorrection': GammaCorrection,
+    'GaussianNoise': GaussianNoise,
+    'LabelConvert': LabelConvert,
+    'LabelConvertNonzero': LabelConvertNonzero,
+    'LabelToProbability': LabelToProbability,
+    'NormalizeWithMeanStd': NormalizeWithMeanStd,
+    'NormalizeWithMinMax': NormalizeWithMinMax,
+    'NormalizeWithPercentiles': NormalizeWithPercentiles,
+    'PartialLabelToProbability':PartialLabelToProbability,
+    'RandomCrop': RandomCrop,
+    'RandomResizedCrop': RandomResizedCrop,
+    'RandomRescale': RandomRescale,
+    'RandomFlip': RandomFlip,
+    'RandomRotate': RandomRotate,
+    'ReduceLabelDim': ReduceLabelDim,
+    'Rescale': Rescale,
+    'Pad': Pad.
+
+"""
 from __future__ import print_function, division
 from pymic.transform.intensity import  *
-from pymic.transform.gray2rgb import GrayscaleToRGB
 from pymic.transform.flip import RandomFlip
-from pymic.transform.intensity import GaussianNoise
 from pymic.transform.pad import Pad
 from pymic.transform.rotate import RandomRotate
 from pymic.transform.rescale import Rescale, RandomRescale  

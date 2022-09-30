@@ -5,7 +5,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import SimpleITK as sitk
+
 class SpaceToChannel3D(nn.Module):
+    """
+    Space to channel transform for 3D input."""
     def __init__(self):
         super(SpaceToChannel3D, self).__init__()
 
@@ -34,6 +37,8 @@ class SpaceToChannel3D(nn.Module):
         return x7
 
 class ChannelToSpace3D(nn.Module):
+    """
+    Channel to space transform for 3D input."""
     def __init__(self):
         super(ChannelToSpace3D, self).__init__()
 

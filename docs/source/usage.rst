@@ -1,34 +1,25 @@
 Usage
 =====
 
-.. _installation:
+This usage gives details of how to use PyMIC. 
+Beginners can easily start with training a deep learning 
+model with configure files. When you are more familar with
+the PyMIC pipeline, you can define your customized modules 
+and reuse the remaining parts of the pipeline, with minimal
+workload. 
 
-Installation
-------------
+.. toctree::
+    :maxdepth: 2
 
-To use Lumache, first install it using pip:
+    usage.quickstart
+    usage.fsl
+    usage.ssl
+    usage.wsl
+    usage.nll
 
-.. code-block:: console
 
-   (.venv) $ pip install lumache
 
-Creating recipes
-----------------
 
-To retrieve a list of random ingredients,
-you can use the ``lumache.get_random_ingredients()`` function:
 
-.. autofunction:: lumache.get_random_ingredients
 
-The ``kind`` parameter should be either ``"meat"``, ``"fish"``,
-or ``"veggies"``. Otherwise, :py:func:`lumache.get_random_ingredients`
-will raise an exception.
-
-.. autoexception:: lumache.InvalidKindError
-
-For example:
-
->>> import lumache
->>> lumache.get_random_ingredients()
-['shells', 'gorgonzola', 'parsley']
-
+ 

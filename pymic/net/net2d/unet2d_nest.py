@@ -1,24 +1,36 @@
 # -*- coding: utf-8 -*-
-"""
-An implementation of the Nested U-Net paper:
-    Zongwei Zhou, et al.:
-    UNet++: A Nested U-Net Architecture for Medical Image Segmentation. 
-    MICCAI DLMIA workshop, 2018: 3-11.
-Note that there are some modifications from the original paper, such as
-the use of dropout and leaky relu here.
-"""
 import torch
 import torch.nn as nn
 from pymic.net.net2d.unet2d import *
 
 class NestedUNet2D(nn.Module):
+    """
+    An implementation of the Nested U-Net.
+
+    * Reference: Zongwei Zhou, et al.: `UNet++: A Nested U-Net Architecture for Medical Image Segmentation.
+      <https://link.springer.com/chapter/10.1007/978-3-030-00889-5_1>`_ 
+      MICCAI DLMIA workshop, 2018: 3-11.
+    
+    Note that there are some modifications from the original paper, such as
+    the use of dropout and leaky relu here.
+
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 4 or 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    :param class_num: (int) The class number for segmentation task. 
+    """
     def __init__(self, params):
         super(NestedUNet2D, self).__init__()
         self.params  = params
         self.in_chns = self.params['in_chns']
         self.filters = self.params['feature_chns'] 
-        self.n_class = self.params['class_num']
         self.dropout = self.params['dropout']
+        self.n_class = self.params['class_num']
 
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.Up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)

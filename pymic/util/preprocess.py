@@ -6,6 +6,9 @@ from pymic.transform.trans_dict import TransformDict
 from pymic.util.parse_config import parse_config
 
 def get_transform_list(trans_config_file):
+    """
+    Create a list of transforms given a configuration file.
+    """
     config   = parse_config(trans_config_file)
     transform_list = []
 
@@ -21,11 +24,18 @@ def get_transform_list(trans_config_file):
     return transform_list
 
 def preprocess_with_transform(transforms, img_in_name, img_out_name, 
-    lab_in_name = None, lab_out_name = None):
+        lab_in_name = None, lab_out_name = None):
     """
-    using data transforms for preprocessing, such as image normalization, 
-    cropping, etc. 
+    Using a list of data transforms for preprocessing, 
+    such as image normalization, cropping, etc. 
     TODO: support multip-modality preprocessing.
+
+    :param transforms: (list) A list of transform objects.
+    :param img_in_name: (str) Input file name. 
+    :param img_out_name: (str) Output file name.
+    :param lab_in_name: (optional, str) If None, load the image's
+        corresponding label for preprocessing as well. 
+    :param lab_out_name: (optional, str) The output label name.       
     """
     image_dict = load_image_as_nd_array(img_in_name)
     sample = {'image': np.asarray(image_dict['data_array'], np.float32), 

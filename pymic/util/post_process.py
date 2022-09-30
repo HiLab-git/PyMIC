@@ -7,6 +7,9 @@ import SimpleITK as sitk
 from pymic.util.image_process import get_largest_k_components
 
 class PostProcess(object):
+    """
+    The abastract class for post processing.
+    """
     def __init__(self, params):
         self.params = params
 
@@ -14,13 +17,19 @@ class PostProcess(object):
         return seg
 
 class PostKeepLargestComponent(PostProcess):
+    """
+    Post process by keeping the largest component.
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `KeepLargestComponent_mode`: (int)
+        `1` means keep the largest component of the union of foreground classes. 
+        `2` means keep the largest component for each foreground class.
+    """
     def __init__(self, params):
         super(PostKeepLargestComponent, self).__init__(params)
         self.mode = params.get("KeepLargestComponent_mode".lower(), 1)
-        """
-        mode = 1: keep the largest component of the union of foreground classes. 
-        mode = 2: keep the largest component for each foreground class.
-        """
 
     def __call__(self, seg):
         if(self.mode == 1):

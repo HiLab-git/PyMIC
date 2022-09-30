@@ -2,10 +2,22 @@
 from __future__ import print_function, division
 
 import torch.nn as nn
+from pymic.loss.seg.abstract import AbstractSegLoss
 
-class DeepSuperviseLoss(nn.Module):
+class DeepSuperviseLoss(AbstractSegLoss):
+    '''
+    Combine deep supervision with a basic loss function.  
+    Arguments should be provided in the `params` dictionary, and it has the 
+    following fields:
+
+    :param `loss_softmax`: (optional, bool) 
+        Apply softmax to the prediction of network or not. Default is True.
+    :param `deep_suervise_weight`: (list) A list of weight for each deep supervision scale. \n
+    :param `base_loss`: (nn.Module) The basic function used for each scale.
+
+    '''
     def __init__(self, params):
-        super(DeepSuperviseLoss, self).__init__()
+        super(DeepSuperviseLoss, self).__init__(params)
         self.deep_sup_weight = params.get('deep_suervise_weight', None)
         self.base_loss = params['base_loss']
 

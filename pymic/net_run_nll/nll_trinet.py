@@ -1,12 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Implementation of trinet for learning from noisy samples for 
-segmentation tasks according to the following paper:
-    Tianwei Zhang, Lequan Yu, Na Hu, Su Lv, Shi Gu:
-    Robust Medical Image Segmentation from Non-expert Annotations with Tri-network.
-    MICCAI 2020.
-    https://link.springer.com/chapter/10.1007/978-3-030-59719-1_25 
-"""
+
 from __future__ import print_function, division
 import logging
 import os
@@ -24,8 +17,6 @@ from pymic.net_run.agent_seg import SegmentationAgent
 from pymic.net.net_dict_seg import SegNetDict
 from pymic.util.parse_config import *
 from pymic.util.ramps import get_rampup_ratio
-
-
 
 class TriNet(nn.Module):
     def __init__(self, params):
@@ -46,6 +37,23 @@ class TriNet(nn.Module):
           return (out1 + out2 + out3) / 3
 
 class NLLTriNet(SegmentationAgent):
+    """
+    Implementation of trinet for learning from noisy samples for 
+    segmentation tasks.
+
+    * Reference: Tianwei Zhang, Lequan Yu, Na Hu, Su Lv, Shi Gu:
+      Robust Medical Image Segmentation from Non-expert Annotations with Tri-network.
+      `MICCAI 2020. <https://link.springer.com/chapter/10.1007/978-3-030-59719-1_25>`_
+         
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `noisy_label_learning` is needed. See :doc:`usage.nll` for details.
+    """
     def __init__(self, config, stage = 'train'):
         super(NLLTriNet, self).__init__(config, stage)
        

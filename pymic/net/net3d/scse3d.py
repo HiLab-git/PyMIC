@@ -1,11 +1,13 @@
 """
-3D implementation of Spacial channel Squeeze and Excitation 
-   <https://arxiv.org/abs/1709.01507>`_
-`Spatial Squeeze and Excitation <https://arxiv.org/abs/1803.02579>`
-*****************************
+3D implementation of: \n
+1. Channel Squeeze and Excitation \n
+2. Spatial Squeeze and Excitation \n
+3. Concurrent Spatial and Channel Squeeze & Excitation
 
-oringinal file: https://github.com/maodong2056/squeeze_and_excitation/blob/master/squeeze_and_excitation/squeeze_and_excitation.py
+Oringinal file is on `Github.
+<https://github.com/maodong2056/squeeze_and_excitation/blob/master/squeeze_and_excitation/squeeze_and_excitation.py>`_
 """
+from __future__ import print_function, division
 
 from enum import Enum
 import torch
@@ -14,15 +16,15 @@ import torch.nn.functional as F
 
 class ChannelSELayer3D(nn.Module):
     """
-    3D implementation of Squeeze-and-Excitation (SE) block described in:
-        *Hu et al., Squeeze-and-Excitation Networks, arXiv:1709.01507*
-    """
-    def __init__(self, num_channels, reduction_ratio=2):
+    3D implementation of Squeeze-and-Excitation (SE) block.
+    
+    * Reference: Jie Hu, Li Shen, Gang Sun: Squeeze-and-Excitation Networks.
+      `CVPR 2018. <https://ieeexplore.ieee.org/document/8578843>`_
 
-        """
-        :param num_channels: No of input channels
-        :param reduction_ratio: By how much should the num_channels should be reduced
-        """
+    :param num_channels: Number of input channels
+    :param reduction_ratio: By how much should the num_channels should be reduced
+    """
+    def __init__(self, num_channels, reduction_ratio=2):       
         super(ChannelSELayer3D, self).__init__()
         num_channels_reduced = num_channels // reduction_ratio
         self.reduction_ratio = reduction_ratio
@@ -53,12 +55,12 @@ class SpatialSELayer3D(nn.Module):
     """
     3D Re-implementation of SE block -- squeezing spatially and exciting channel-wise described in:
 
-        *Roy et al., Concurrent Spatial and Channel Squeeze & Excitation in Fully Convolutional Networks, MICCAI 2018*
+    * Reference: Roy et al., Concurrent Spatial and Channel Squeeze & Excitation in 
+      Fully Convolutional Networks, MICCAI 2018.
+    
+    :param num_channels: Number of input channels
     """
     def __init__(self, num_channels):
-        """
-        :param num_channels: No of input channels
-        """
         super(SpatialSELayer3D, self).__init__()
         self.conv = nn.Conv3d(num_channels, 1, 1)
         self.sigmoid = nn.Sigmoid()
@@ -90,14 +92,15 @@ class SpatialSELayer3D(nn.Module):
 
 class ChannelSpatialSELayer3D(nn.Module):
     """
-    3D Re-implementation of concurrent spatial and channel squeeze & excitation:
-        *Roy et al., Concurrent Spatial and Channel Squeeze & Excitation in Fully Convolutional Networks, MICCAI 2018, arXiv:1803.02579*
+    3D Re-implementation of concurrent spatial and channel squeeze & excitation.
+
+    * Reference: Roy et al., Concurrent Spatial and Channel Squeeze & Excitation in 
+      Fully Convolutional Networks, MICCAI 2018.
+    
+    :param num_channels: Number of input channels
+    :param reduction_ratio: By how much should the num_channels should be reduced
     """
     def __init__(self, num_channels, reduction_ratio=2):
-        """
-        :param num_channels: No of input channels
-        :param reduction_ratio: By how much should the num_channels should be reduced
-        """
         super(ChannelSpatialSELayer3D, self).__init__()
         self.cSE = ChannelSELayer3D(num_channels, reduction_ratio)
         self.sSE = SpatialSELayer3D(num_channels)

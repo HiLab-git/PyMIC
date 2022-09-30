@@ -7,10 +7,15 @@ import SimpleITK as sitk
 from PIL import Image
 
 def load_nifty_volume_as_4d_array(filename):
-    """Read a nifty image and return a dictionay storing data array, spacing and direction
-    output['data_array'] 4d array with shape [C, D, H, W]
-    output['spacing']    a list of spacing in z, y, x axis 
-    output['direction']  a 3x3 matrix for direction
+    """
+    Read a nifty image and return a dictionay storing data array, origin, 
+    spacing and direction.\n
+    output['data_array'] 4D array with shape [C, D, H, W];\n
+    output['spacing']    A list of spacing in z, y, x axis;\n
+    output['direction']  A 3x3 matrix for direction.
+
+    :param filename: (str) The input file name
+    :return: A dictionay storing data array, origin, spacing and direction.
     """
     img_obj    = sitk.ReadImage(filename)
     data_array = sitk.GetArrayFromImage(img_obj)
@@ -32,6 +37,16 @@ def load_nifty_volume_as_4d_array(filename):
     return output
 
 def load_rgb_image_as_3d_array(filename):
+    """
+    Read an RGB image and return a dictionay storing data array, origin, 
+    spacing and direction. \n
+    output['data_array'] 3D array with shape [D, H, W]; \n
+    output['spacing']    a list of spacing in z, y, x axis;  \n
+    output['direction']  a 3x3 matrix for direction.
+
+    :param filename: (str) The input file name
+    :return: A dictionay storing data array, origin, spacing and direction.
+    """
     image = np.asarray(Image.open(filename))
     image_shape = image.shape
     image_dim   = len(image_shape)
@@ -53,7 +68,11 @@ def load_rgb_image_as_3d_array(filename):
 
 def load_image_as_nd_array(image_name):
     """
-    return a 4D array with shape [C, D, H, W], or 3D array with shape [C, H, W]
+    Load an image and return a 4D array with shape [C, D, H, W], 
+    or 3D array with shape [C, H, W].
+
+    :param filename: (str) The input file name
+    :return: A dictionay storing data array, origin, spacing and direction.
     """
     if (image_name.endswith(".nii.gz") or image_name.endswith(".nii") or
         image_name.endswith(".mha")):
@@ -67,12 +86,12 @@ def load_image_as_nd_array(image_name):
 
 def save_array_as_nifty_volume(data, image_name, reference_name = None):
     """
-    save a numpy array as nifty image
-    inputs:
-        data: a numpy array with shape [Depth, Height, Width]
-        image_name: the ouput file name
-        reference_name: file name of the reference image of which affine and header are used
-    outputs: None
+    Save a numpy array as nifty image
+
+    :param data:  (numpy.ndarray) A numpy array with shape [Depth, Height, Width].
+    :param image_name:  (str) The ouput file name.
+    :param reference_name:  (str) File name of the reference image of which 
+        meta information is used.
     """
     img = sitk.GetImageFromArray(data)
     if(reference_name is not None):
@@ -85,11 +104,11 @@ def save_array_as_nifty_volume(data, image_name, reference_name = None):
 
 def save_array_as_rgb_image(data, image_name):
     """
-    save a numpy array as rgb image
-    inputs:
-        data: a numpy array with shape [3, H, W] or [H, W, 3] or [H, W]
-        image_name: the output file name
-    outputs: None
+    Save a numpy array as rgb image.
+
+    :param data:  (numpy.ndarray) A numpy array with shape [3, H, W] or
+        [H, W, 3] or [H, W]. 
+    :param image_name:  (str) The output file name.
     """
     data_dim = len(data.shape)
     if(data_dim == 3):
@@ -101,11 +120,12 @@ def save_array_as_rgb_image(data, image_name):
 
 def save_nd_array_as_image(data, image_name, reference_name = None):
     """
-    save a 3D or 2D numpy array as medical image or RGB image
-    inputs:
-        data: a numpy array with shape [D, H, W] or [C, H, W]
-        image_name: the output file name 
-    outputs: None
+    Save a 3D or 2D numpy array as medical image or RGB image
+    
+    :param data:  (numpy.ndarray) A numpy array with shape [3, H, W] or
+        [H, W, 3] or [H, W]. 
+    :param reference_name: (str) File name of the reference image of which 
+        meta information is used.
     """
     data_dim = len(data.shape)
     assert(data_dim == 2 or data_dim == 3)
@@ -124,10 +144,17 @@ def save_nd_array_as_image(data, image_name, reference_name = None):
 
 def rotate_nifty_volume_to_LPS(filename_or_image_dict, origin = None, direction = None):
     '''
-    filename_or_image_dict: filename of the nifty file (str) or image dictionary 
+    Rotate the axis of a 3D volume to LPS
+
+    :param filename_or_image_dict: (str) Filename of the nifty file (str) or image dictionary 
         returned by load_nifty_volume_as_4d_array. If supplied with the former, 
         the flipped image data will be saved to override the original file. 
-        If supplied with the later, only flipped image data will be returned.
+        If supplied with the later, only flipped image data will be returned.\n
+    :param origin: (list/tuple) The origin of the image.
+    :param direction: (list or tuple) The direction of the image.
+
+    :return: A dictionary for image data and meta info, with ``data_array``,
+        ``origin``, ``direction`` and ``spacing``.
     '''
 
     if type(filename_or_image_dict) == str:

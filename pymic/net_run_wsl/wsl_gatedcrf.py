@@ -7,18 +7,26 @@ from torch.optim import lr_scheduler
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.loss.seg.gatedcrf import ModelLossSemsegGatedCRF
+from pymic.loss.seg.gatedcrf import GatedCRFLoss
 from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
 from pymic.util.ramps import get_rampup_ratio
 
 class WSLGatedCRF(WSLSegAgent):
     """
-    Implementation of the Gated CRF Loss for Weakly Supervised Semantic Image Segmentation.
-        Anton Obukhov, Stamatios Georgoulis, Dengxin Dai, Luc Van Gool:
-        Gated CRF Loss for Weakly Supervised Semantic Image Segmentation.
-        CoRR, abs/1906.04651, 2019
-        http://arxiv.org/abs/1906.04651
-    }
+    Implementation of the Gated CRF loss for weakly supervised segmentation.
+        
+    * Reference: Anton Obukhov, Stamatios Georgoulis, Dengxin Dai, Luc Van Gool:
+      Gated CRF Loss for Weakly Supervised Semantic Image Segmentation.
+      `CoRR <http://arxiv.org/abs/1906.04651>`_, abs/1906.04651, 2019.
+        
+    :param config: (dict) A dictionary containing the configuration.
+    :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
+
+    .. note::
+
+        In the configuration dictionary, in addition to the four sections (`dataset`,
+        `network`, `training` and `inference`) used in fully supervised learning, an 
+        extra section `weakly_supervised_learning` is needed. See :doc:`usage.wsl` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(WSLGatedCRF, self).__init__(config, stage)
@@ -46,7 +54,7 @@ class WSLGatedCRF(WSLSegAgent):
         train_loss_reg = 0
         train_dice_list = []
 
-        gatecrf_loss = ModelLossSemsegGatedCRF()
+        gatecrf_loss = GatedCRFLoss()
         self.net.train()
         for it in range(iter_valid):
             try:

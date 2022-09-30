@@ -3,10 +3,22 @@ from __future__ import print_function, division
 
 import torch
 import torch.nn as nn
+from pymic.loss.seg.abstract import AbstractSegLoss
 
-class CombinedLoss(nn.Module):
+class CombinedLoss(AbstractSegLoss):
+    '''
+    A combination of a list of loss functions. 
+    Parameters should be saved in the `params` dictionary. 
+
+    :param `loss_softmax`: (optional, bool) 
+        Apply softmax to the prediction of network or not. Default is True.
+    :param `loss_type`: (list) A list of loss function name.
+    :param `loss_weight`: (list) A list of weights for each loss fucntion. 
+    :param loss_dict: (dictionary) A dictionary of avaiable loss functions.
+
+    '''
     def __init__(self, params, loss_dict):
-        super(CombinedLoss, self).__init__()
+        super(CombinedLoss, self).__init__(params)
         loss_names  = params['loss_type']
         self.loss_weight = params['loss_weight']
         assert (len(loss_names) == len(self.loss_weight))

@@ -6,25 +6,36 @@ import torch.nn as nn
 
 class MumfordShahLoss(nn.Module):
     """
-    Implementation of Mumford Shah Loss in this paper:
-        Boah Kim and Jong Chul Ye: Mumford–Shah Loss Functional 
-        for Image Segmentation With Deep Learning. IEEE TIP, 2019.
-    The oringial implementation is availabel at:
-    https://github.com/jongcye/CNN_MumfordShah_Loss 
+    Implementation of Mumford Shah Loss for weakly supervised learning.
+
+    * Reference: Boah Kim and Jong Chul Ye: Mumford–Shah Loss Functional 
+      for Image Segmentation With Deep Learning. IEEE TIP, 2019.
+    
+    The oringial implementation is availabel at `Github. 
+    <https://github.com/jongcye/CNN_MumfordShah_Loss>`_ 
     Currently only 2D version is supported.
+
+    The parameters should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `loss_softmax`: (bool) Apply softmax to the prediction of network or not. 
+    :param `MumfordShahLoss_penalty`: (optional, str) `l1` or `l2`. Default is `l1`.
+    :param `MumfordShahLoss_lambda`: (optional, float) Hyper-parameter lambda, default is 1.0.
     """
     def __init__(self, params = None):
         super(MumfordShahLoss, self).__init__()
         if(params is None):
             params = {}
-        self.softmax = params.get('loss_softmax', True)
         self.penalty = params.get('MumfordShahLoss_penalty', "l1")
         self.grad_w  = params.get('MumfordShahLoss_lambda', 1.0)
 
     def get_levelset_loss(self, output, target):
         """
-        output: softmax output of a network
-        target: the input image
+        Get the level set loss value. 
+
+        :param `output`: (tensor) softmax output of a network.
+        :param `target`: (tensor) the input image. 
+        :return: the level set loss.
         """
         outshape = output.shape
         tarshape = target.shape
@@ -49,6 +60,18 @@ class MumfordShahLoss(nn.Module):
         return loss
 
     def forward(self, loss_input_dict):
+        """
+        Forward pass for calculating the loss.
+        The arguments should be written in the `loss_input_dict` dictionary, 
+        and it has the following fields:
+
+        :param `prediction`: (tensor) Prediction of a network, with the 
+            shape of [N, C, D, H, W] or [N, C, H, W].
+        :param `image`: (tensor) Image, with the 
+            shape of [N, C, D, H, W] or [N, C, H, W]. 
+        
+        :return: Loss function value.
+        """
         predict = loss_input_dict['prediction']
         image   = loss_input_dict['image']
         if(isinstance(predict, (list, tuple))):
