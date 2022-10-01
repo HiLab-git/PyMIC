@@ -145,7 +145,8 @@ class ClassificationAgent(NetRunAgent):
             self.optimizer.zero_grad()
             # forward + backward + optimize
             outputs = self.net(inputs)
-            loss = self.get_loss_value(data, inputs, outputs, labels)
+            
+            loss = self.get_loss_value(data, outputs, labels)
             loss.backward()
             self.optimizer.step()
             self.scheduler.step()
@@ -175,7 +176,7 @@ class ClassificationAgent(NetRunAgent):
                 self.optimizer.zero_grad()
                 # forward + backward + optimize
                 outputs = self.net(inputs)
-                loss = self.get_loss_value(data, inputs, outputs, labels)
+                loss = self.get_loss_value(data, outputs, labels)
                                 
                 # statistics
                 sample_num   += labels.size(0)
@@ -243,10 +244,11 @@ class ClassificationAgent(NetRunAgent):
         logging.info("{0:} training start".format(str(datetime.now())[:-7]))
         self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
         for it in range(iter_start, iter_max, iter_valid):
+            lr_value = self.optimizer.param_groups[0]['lr']
             train_scalars = self.training()
             valid_scalars = self.validation()
             glob_it = it + iter_valid
-            self.write_scalars(train_scalars, valid_scalars, glob_it)
+            self.write_scalars(train_scalars, valid_scalars, lr_value, glob_it)
 
             if(valid_scalars[metrics] > self.max_val_score):
                 self.max_val_score = valid_scalars[metrics]
