@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from datetime import datetime
+from random import random
 from torch.optim import lr_scheduler
 from torchvision import transforms
 from tensorboardX import SummaryWriter
@@ -17,6 +18,7 @@ from pymic.loss.loss_dict_cls import PyMICClsLossDict
 from pymic.net.net_dict_cls import TorchClsNetDict
 from pymic.transform.trans_dict import TransformDict
 from pymic.net_run.agent_abstract import NetRunAgent
+from pymic.util.general import mixup
 import warnings
 warnings.filterwarnings('ignore', '.*output shape of zoom.*')
 
@@ -111,16 +113,17 @@ class ClassificationAgent(NetRunAgent):
         """
         Get evaluation score for a prediction.
 
-        :param outputs: (tensor) Prediction obtained by a network. 
-        :param labels: (tensor) The ground truth.
+        :param outputs: (tensor) Prediction obtained by a network with size N X C. 
+        :param labels: (tensor) The ground truth with size N X C.
         """
         metrics = self.config['training'].get("evaluation_metric", "accuracy")
         if(metrics != "accuracy"): # default classification accuracy
             raise ValueError("Not implemeted for metric {0:}".format(metrics))
         if(self.task_type == "cls"):
-            _, preds = torch.max(outputs, 1)
-            consis= self.convert_tensor_type(preds ==  labels.data)
-            score = torch.mean(consis)
+            out_argmax = torch.argmax(outputs, 1)
+            lab_argmax = torch.argmax(labels, 1)
+            consis = self.convert_tensor_type(out_argmax ==  lab_argmax)
+            score  = torch.mean(consis) 
         elif(self.task_type == "cls_nexcl"): #nonexclusive classification
             preds = self.convert_tensor_type(outputs > 0.5)
             consis= self.convert_tensor_type(preds ==  labels.data)
@@ -129,6 +132,7 @@ class ClassificationAgent(NetRunAgent):
 
     def training(self):
         iter_valid   = self.config['training']['iter_valid']
+        mixup_prob   = self.config['training'].get('mixup_probability', 0.5)
         sample_num   = 0
         running_loss = 0
         running_score= 0
@@ -140,8 +144,11 @@ class ClassificationAgent(NetRunAgent):
                 self.trainIter = iter(self.train_loader)
                 data = next(self.trainIter)
             inputs = self.convert_tensor_type(data['image'])
-            labels = data['label'].long()         
+            labels = self.convert_tensor_type(data['label_prob'])  
+            if(random() < mixup_prob):
+                inputs, labels = mixup(inputs, labels)    
             inputs, labels = inputs.to(self.device), labels.to(self.device)
+
             # zero the parameter gradients
             self.optimizer.zero_grad()
             # forward + backward + optimize
@@ -174,7 +181,7 @@ class ClassificationAgent(NetRunAgent):
             self.net.eval()
             for data in validIter:
                 inputs = self.convert_tensor_type(data['image'])
-                labels = data['label'].long()             
+                labels = self.convert_tensor_type(data['label_prob'])            
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 self.optimizer.zero_grad()
                 # forward + backward + optimize

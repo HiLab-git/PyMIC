@@ -65,10 +65,7 @@ class L1Loss(AbstractClassificationLoss):
         labels  = loss_input_dict['ground_truth'][:, None] # reshape to N, 1
         softmax = nn.Softmax(dim = 1)
         predict = softmax(predict)
-        num_class  = list(predict.size())[1]
-        data_type = 'float' if(predict.dtype is torch.float32) else 'double'
-        soft_y = get_soft_label(labels, num_class, data_type)
-        loss = self.l1_loss(predict, soft_y)
+        loss = self.l1_loss(predict, labels)
         return loss
 
 class MSELoss(AbstractClassificationLoss):
@@ -84,10 +81,7 @@ class MSELoss(AbstractClassificationLoss):
         labels  = loss_input_dict['ground_truth'][:, None] # reshape to N, 1
         softmax = nn.Softmax(dim = 1)
         predict = softmax(predict)
-        num_class  = list(predict.size())[1]
-        data_type = 'float' if(predict.dtype is torch.float32) else 'double'
-        soft_y = get_soft_label(labels, num_class, data_type)
-        loss = self.mse_loss(predict, soft_y)
+        loss = self.mse_loss(predict, labels)
         return loss
 
 class NLLLoss(AbstractClassificationLoss):
