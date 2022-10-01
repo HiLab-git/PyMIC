@@ -75,7 +75,7 @@ class ResNet18(BuiltInNet):
     def get_parameters_to_update(self):
         if(self.update_mode == "all"):
             return self.net.parameters()
-        elif(self.update_layers == "last"):
+        elif(self.update_mode == "last"):
             params = self.net.fc.parameters()
             if(self.in_chns !=3):
                 # combining the two iterables into a single one 
@@ -119,7 +119,7 @@ class VGG16(BuiltInNet):
             params = self.net.classifier[-1].parameters()
             if(self.in_chns !=3):
                 params = itertools.chain()
-                for pram in [self.net.classifier[-1].parameters(), self.net.net.features[0].parameters()]:
+                for pram in [self.net.classifier[-1].parameters(), self.net.features[0].parameters()]:
                     params = itertools.chain(params, pram)
             return  params
         else:
@@ -138,7 +138,7 @@ class MobileNetV2(BuiltInNet):
         as well as the first layer when `input_chns` is not 3.
     """
     def __init__(self, params):
-        super(MobileNetV2, self).__init__()
+        super(MobileNetV2, self).__init__(params)
         self.net = models.mobilenet_v2(pretrained = self.pretrain)
         
         # replace the last layer 
@@ -157,7 +157,7 @@ class MobileNetV2(BuiltInNet):
             params = self.net.classifier[-1].parameters()
             if(self.in_chns !=3):
                 params = itertools.chain()
-                for pram in [self.net.classifier[-1].parameters(), self.net.net.features[0][0].parameters()]:
+                for pram in [self.net.classifier[-1].parameters(), self.net.features[0][0].parameters()]:
                     params = itertools.chain(params, pram)
             return  params
         else:
