@@ -5,11 +5,12 @@ import copy
 import csv
 import logging
 import time
-import torch
-from torchvision import transforms
 import numpy as np
+import torch
 import torch.nn as nn
 from datetime import datetime
+from torch.optim import lr_scheduler
+from torchvision import transforms
 from tensorboardX import SummaryWriter
 from pymic.io.nifty_dataset import ClassificationDataset
 from pymic.loss.loss_dict_cls import PyMICClsLossDict
@@ -149,7 +150,9 @@ class ClassificationAgent(NetRunAgent):
             loss = self.get_loss_value(data, outputs, labels)
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
+            if(self.scheduler is not None and \
+                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
+                self.scheduler.step()
             
             # statistics
             sample_num   += labels.size(0)
@@ -185,7 +188,9 @@ class ClassificationAgent(NetRunAgent):
 
         avg_loss = running_loss / sample_num
         avg_score= running_score.double() / sample_num
-        metrics =self.config['training'].get("evaluation_metric", "accuracy")
+        metrics  = self.config['training'].get("evaluation_metric", "accuracy")
+        if(isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
+            self.scheduler.step(avg_score)
         valid_scalers = {'loss': avg_loss, metrics: avg_score}
         return valid_scalers
 
@@ -222,7 +227,15 @@ class ClassificationAgent(NetRunAgent):
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training']['iter_save']
+        early_stop_it = self.config['training'].get('early_stop_patience', None)
         metrics     = self.config['training'].get("evaluation_metric", "accuracy")
+        if(iter_save is None):
+            iter_save_list = [iter_max]
+        elif(isinstance(iter_save, (tuple, list))):
+            iter_save_list = iter_save
+        else:
+            iter_save_list = range(0, iter_max + 1, iter_save)
+        
         self.max_val_score  = 0.0
         self.max_val_it     = 0
         self.best_model_wts = None 
@@ -243,29 +256,35 @@ class ClassificationAgent(NetRunAgent):
 
         logging.info("{0:} training start".format(str(datetime.now())[:-7]))
         self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
+        self.glob_it = iter_start
         for it in range(iter_start, iter_max, iter_valid):
             lr_value = self.optimizer.param_groups[0]['lr']
             train_scalars = self.training()
             valid_scalars = self.validation()
-            glob_it = it + iter_valid
-            self.write_scalars(train_scalars, valid_scalars, lr_value, glob_it)
+            self.glob_it = it + iter_valid
+            self.write_scalars(train_scalars, valid_scalars, lr_value, self.glob_it)
 
             if(valid_scalars[metrics] > self.max_val_score):
                 self.max_val_score = valid_scalars[metrics]
-                self.max_val_it    = glob_it
+                self.max_val_it    = self.glob_it
                 self.best_model_wts = copy.deepcopy(self.net.state_dict())
             
-            if (glob_it % iter_save ==  0):
-                save_dict = {'iteration': glob_it,
+            stop_now = True if(early_stop_it is not None and \
+                self.glob_it - self.max_val_it > early_stop_it) else False
+
+            if ((self.glob_it in iter_save_list) or stop_now):
+                save_dict = {'iteration': self.glob_it,
                              'valid_pred': valid_scalars[metrics],
                              'model_state_dict': self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
-                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, glob_it)
+                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, self.glob_it)
                 torch.save(save_dict, save_name) 
                 txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefix), 'wt')
-                txt_file.write(str(glob_it))
+                txt_file.write(str(self.glob_it))
                 txt_file.close()
-
+            if(stop_now):
+                logging.info("The training is early stopped")
+                break
         # save the best performing checkpoint
         save_dict = {'iteration': self.max_val_it,
                     'valid_pred': self.max_val_score,

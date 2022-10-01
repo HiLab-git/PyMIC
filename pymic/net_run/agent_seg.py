@@ -10,9 +10,9 @@ import torchvision.transforms as transforms
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
 import torch.nn.functional as F
 from datetime import datetime
+from torch.optim import lr_scheduler
 from tensorboardX import SummaryWriter
 from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.io.nifty_dataset import NiftyDataset
