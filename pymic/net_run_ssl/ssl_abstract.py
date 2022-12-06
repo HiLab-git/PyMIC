@@ -73,7 +73,7 @@ class SSLSegAgent(SegmentationAgent):
                 worker_init = None
 
             bn_train_unlab = self.config['dataset']['train_batch_size_unlab']
-            num_worker = self.config['dataset'].get('num_workder', 16)
+            num_worker = self.config['dataset'].get('num_worker', 16)
             self.train_loader_unlab = torch.utils.data.DataLoader(self.train_set_unlab, 
                 batch_size = bn_train_unlab, shuffle=True, num_workers= num_worker,
                 worker_init_fn=worker_init)
