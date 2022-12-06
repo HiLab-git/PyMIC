@@ -11,7 +11,7 @@ with open('README.md', encoding='utf-8') as f:
 
 setuptools.setup(
     name    = 'PYMIC',
-    version = "0.3.1",
+    version = "0.3.2.2",
     author  ='PyMIC Consortium',
     author_email = 'wguotai@gmail.com',
     description  = description,
@@ -28,8 +28,8 @@ setuptools.setup(
         "scikit-learn>=0.22",
         "scipy>=1.3.3",
         "SimpleITK>=2.0.0",
-        "tensorboard>=2.1.0",
-        "tensorboardX>=1.9",
+        "tensorboard",
+        "tensorboardX",
     ],
     classifiers=[
         'License :: OSI Approved :: Apache Software License',

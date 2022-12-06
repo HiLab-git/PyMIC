@@ -6,11 +6,7 @@ from __future__ import absolute_import, print_function
 import csv
 import os
 import sys
-import math
 import pandas as pd
-import random
-import GeodisTK
-import configparser
 import numpy as np
 from scipy import ndimage
 from pymic.io.image_read_write import *
@@ -90,7 +86,7 @@ def get_edge_points(img):
         strt = ndimage.generate_binary_structure(2,1)
     else:
         strt = ndimage.generate_binary_structure(3,1)
-    ero  = ndimage.morphology.binary_erosion(img, strt)
+    ero  = ndimage.binary_erosion(img, strt)
     edge = np.asarray(img, np.uint8) - np.asarray(ero, np.uint8) 
     return edge 
 
@@ -114,14 +110,9 @@ def binary_hd95(s, g, spacing = None):
         spacing = [1.0] * image_dim
     else:
         assert(image_dim == len(spacing))
-    img = np.zeros_like(s)
-    if(image_dim == 2):
-        s_dis = GeodisTK.geodesic2d_raster_scan(img, s_edge, 0.0, 2)
-        g_dis = GeodisTK.geodesic2d_raster_scan(img, g_edge, 0.0, 2)
-    elif(image_dim ==3):
-        s_dis = GeodisTK.geodesic3d_raster_scan(img, s_edge, spacing, 0.0, 2)
-        g_dis = GeodisTK.geodesic3d_raster_scan(img, g_edge, spacing, 0.0, 2)
-
+    s_dis = ndimage.distance_transform_edt(1-s_edge, sampling = spacing)
+    g_dis = ndimage.distance_transform_edt(1-g_edge, sampling = spacing)
+  
     dist_list1 = s_dis[g_edge > 0]
     dist_list1 = sorted(dist_list1)
     dist1 = dist_list1[int(len(dist_list1)*0.95)]
@@ -150,13 +141,8 @@ def binary_assd(s, g, spacing = None):
         spacing = [1.0] * image_dim
     else:
         assert(image_dim == len(spacing))
-    img = np.zeros_like(s)
-    if(image_dim == 2):
-        s_dis = GeodisTK.geodesic2d_raster_scan(img, s_edge, 0.0, 2)
-        g_dis = GeodisTK.geodesic2d_raster_scan(img, g_edge, 0.0, 2)
-    elif(image_dim ==3):
-        s_dis = GeodisTK.geodesic3d_raster_scan(img, s_edge, spacing, 0.0, 2)
-        g_dis = GeodisTK.geodesic3d_raster_scan(img, g_edge, spacing, 0.0, 2)
+    s_dis = ndimage.distance_transform_edt(1-s_edge, sampling = spacing)
+    g_dis = ndimage.distance_transform_edt(1-g_edge, sampling = spacing)
 
     ns = s_edge.sum()
     ng = g_edge.sum()
