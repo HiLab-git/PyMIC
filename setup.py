@@ -11,7 +11,7 @@ with open('README.md', encoding='utf-8') as f:
 
 setuptools.setup(
     name    = 'PYMIC',
-    version = "0.3.0",
+    version = "0.3.1",
     author  ='PyMIC Consortium',
     author_email = 'wguotai@gmail.com',
     description  = description,
@@ -20,6 +20,17 @@ setuptools.setup(
     url      = 'https://github.com/HiLab-git/PyMIC',
     license  = 'Apache 2.0',
     packages = setuptools.find_packages(),
+    install_requires=[
+        "matplotlib>=3.1.2",
+        "numpy>=1.17.4",
+        "pandas>=0.25.3",
+        "scikit-image>=0.16.2",
+        "scikit-learn>=0.22",
+        "scipy>=1.3.3",
+        "SimpleITK>=2.0.0",
+        "tensorboard",
+        "tensorboardX",
+    ],
     classifiers=[
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python',

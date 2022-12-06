@@ -18,7 +18,6 @@ class CrossEntropyLoss(AbstractSegLoss):
     """
     def __init__(self, params = None):
         super(CrossEntropyLoss, self).__init__(params)
-        
     
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']

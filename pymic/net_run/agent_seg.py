@@ -10,9 +10,10 @@ import torchvision.transforms as transforms
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
 import torch.nn.functional as F
 from datetime import datetime
+from random import random
+from torch.optim import lr_scheduler
 from tensorboardX import SummaryWriter
 from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.io.nifty_dataset import NiftyDataset
@@ -28,6 +29,7 @@ from pymic.loss.seg.util import get_classwise_dice
 from pymic.transform.trans_dict import TransformDict
 from pymic.util.post_process import PostProcessDict
 from pymic.util.image_process import convert_label
+from pymic.util.general import mixup
 
 class SegmentationAgent(NetRunAgent):
     def __init__(self, config, stage = 'train'):
@@ -120,6 +122,7 @@ class SegmentationAgent(NetRunAgent):
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
+        mixup_prob  = self.config['training'].get('mixup_probability', 0.5)
         train_loss  = 0
         train_dice_list = []
         self.net.train()
@@ -132,7 +135,9 @@ class SegmentationAgent(NetRunAgent):
             # get the inputs
             inputs      = self.convert_tensor_type(data['image'])
             labels_prob = self.convert_tensor_type(data['label_prob'])                 
-            
+            if(random() < mixup_prob):
+                inputs, labels_prob = mixup(inputs, labels_prob) 
+                   
             # # for debug
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
