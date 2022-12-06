@@ -260,14 +260,15 @@ def evaluation(config):
     Run evaluation of segmentation results based on a configuration dictionary `config`.
     The following fields should be provided in `config`:
 
-    :param metric: (str) The metric for evaluation. 
+    :param metric_list: (list) The list of metrics for evaluation. 
         The metric options are {`dice`, `iou`, `assd`, `hd95`, `rve`, `volume`}. 
     :param label_list: (list) The list of labels for evaluation. 
     :param label_fuse: (option, bool) If true, fuse the labels in the `label_list`
         as the foreground, and other labels as the background. Default is False. 
     :param organ_name: (str) The name of the organ for segmentation.
     :param ground_truth_folder_root: (str) The root dir of ground truth images. 
-    :param segmentation_folder_root: (str) The root dir of segmentation images. 
+    :param segmentation_folder_root: (str or list) The root dir of segmentation images. 
+        When a list is given, each list element should be the root dir of the results of one method. 
     :param evaluation_image_pair: (str) The csv file that provide the segmentation 
         images and the corresponding ground truth images. 
     :param ground_truth_label_convert_source: (optional, list) The list of source
@@ -280,7 +281,7 @@ def evaluation(config):
         labels for label conversion in the segmentation.     
     """
     
-    metric = config['metric']
+    metric_list = config['metric_list']
     label_list = config['label_list']
     label_fuse = config.get('label_fuse', False)
     organ_name = config['organ_name']
@@ -295,60 +296,62 @@ def evaluation(config):
     segmentation_label_convert_target = config.get('segmentation_label_convert_target', None)
 
     image_items = pd.read_csv(image_pair_csv)
-    item_num = len(image_items)
-    for seg_root_n in seg_root:
-        score_all_data = []
-        name_score_list= []
-        for i in range(item_num):
-            gt_name  = image_items.iloc[i, 0]
-            seg_name = image_items.iloc[i, 1]
-            # seg_name = seg_name.replace(".nii.gz", "_pred.nii.gz")
-            gt_full_name  = gt_root  + '/' + gt_name
-            seg_full_name = seg_root_n + '/' + seg_name
-            
-            s_dict = load_image_as_nd_array(seg_full_name)
-            g_dict = load_image_as_nd_array(gt_full_name)
-            s_volume = s_dict["data_array"]; s_spacing = s_dict["spacing"]
-            g_volume = g_dict["data_array"]; g_spacing = g_dict["spacing"]
-            # for dim in range(len(s_spacing)):
-            #     assert(s_spacing[dim] == g_spacing[dim])
-            if((ground_truth_label_convert_source is not None) and \
-                ground_truth_label_convert_target is not None):
-                g_volume = convert_label(g_volume, ground_truth_label_convert_source, \
-                    ground_truth_label_convert_target)
-
-            if((segmentation_label_convert_source is not None) and \
-                segmentation_label_convert_target is not None):
-                s_volume = convert_label(s_volume, segmentation_label_convert_source, \
-                    segmentation_label_convert_target)
-
-            score_vector = get_multi_class_evaluation_score(s_volume, g_volume, label_list, 
-                label_fuse, s_spacing, metric )
-            if(len(label_list) > 1):
-                score_vector.append(np.asarray(score_vector).mean())
-            score_all_data.append(score_vector)
-            name_score_list.append([seg_name] + score_vector)
-            print(seg_name, score_vector)
-        score_all_data = np.asarray(score_all_data)
-        score_mean = score_all_data.mean(axis = 0)
-        score_std  = score_all_data.std(axis = 0)
-        name_score_list.append(['mean'] + list(score_mean))
-        name_score_list.append(['std'] + list(score_std))
+    item_num    = len(image_items)
     
-        # save the result as csv 
-        score_csv = "{0:}/{1:}_{2:}_all.csv".format(seg_root_n, organ_name, metric)
-        with open(score_csv, mode='w') as csv_file:
-            csv_writer = csv.writer(csv_file, delimiter=',', 
-                            quotechar='"',quoting=csv.QUOTE_MINIMAL)
-            head = ['image'] + ["class_{0:}".format(i) for i in label_list]
-            if(len(label_list) > 1):
-                head = head + ["average"]
-            csv_writer.writerow(head)
-            for item in name_score_list:
-                csv_writer.writerow(item)
+    for seg_root_n in seg_root: # for each segmentation method
+        for metric in metric_list:
+            score_all_data = []
+            name_score_list= []
+            for i in range(item_num):
+                gt_name  = image_items.iloc[i, 0]
+                seg_name = image_items.iloc[i, 1]
+                # seg_name = seg_name.replace(".nii.gz", "_pred.nii.gz")
+                gt_full_name  = gt_root  + '/' + gt_name
+                seg_full_name = seg_root_n + '/' + seg_name
+                
+                s_dict = load_image_as_nd_array(seg_full_name)
+                g_dict = load_image_as_nd_array(gt_full_name)
+                s_volume = s_dict["data_array"]; s_spacing = s_dict["spacing"]
+                g_volume = g_dict["data_array"]; g_spacing = g_dict["spacing"]
+                # for dim in range(len(s_spacing)):
+                #     assert(s_spacing[dim] == g_spacing[dim])
+                if((ground_truth_label_convert_source is not None) and \
+                    ground_truth_label_convert_target is not None):
+                    g_volume = convert_label(g_volume, ground_truth_label_convert_source, \
+                        ground_truth_label_convert_target)
 
-        print("{0:} mean ".format(metric), score_mean)
-        print("{0:} std  ".format(metric), score_std) 
+                if((segmentation_label_convert_source is not None) and \
+                    segmentation_label_convert_target is not None):
+                    s_volume = convert_label(s_volume, segmentation_label_convert_source, \
+                        segmentation_label_convert_target)
+
+                score_vector = get_multi_class_evaluation_score(s_volume, g_volume, label_list, 
+                    label_fuse, s_spacing, metric )
+                if(len(label_list) > 1):
+                    score_vector.append(np.asarray(score_vector).mean())
+                score_all_data.append(score_vector)
+                name_score_list.append([seg_name] + score_vector)
+                print(seg_name, score_vector)
+            score_all_data = np.asarray(score_all_data)
+            score_mean = score_all_data.mean(axis = 0)
+            score_std  = score_all_data.std(axis = 0)
+            name_score_list.append(['mean'] + list(score_mean))
+            name_score_list.append(['std'] + list(score_std))
+        
+            # save the result as csv 
+            score_csv = "{0:}/{1:}_{2:}_all.csv".format(seg_root_n, organ_name, metric)
+            with open(score_csv, mode='w') as csv_file:
+                csv_writer = csv.writer(csv_file, delimiter=',', 
+                                quotechar='"',quoting=csv.QUOTE_MINIMAL)
+                head = ['image'] + ["class_{0:}".format(i) for i in label_list]
+                if(len(label_list) > 1):
+                    head = head + ["average"]
+                csv_writer.writerow(head)
+                for item in name_score_list:
+                    csv_writer.writerow(item)
+
+            print("{0:} mean ".format(metric), score_mean)
+            print("{0:} std  ".format(metric), score_std) 
 
 def main():
     """

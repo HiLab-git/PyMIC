@@ -43,6 +43,7 @@ class PostKeepLargestComponent(PostProcess):
                 seg_c  = np.asarray(seg == c, np.uint8)
                 seg_c  = get_largest_k_components(seg_c) 
                 output = output + seg_c * c
+            seg = output
         return seg
 
 PostProcessDict = {
