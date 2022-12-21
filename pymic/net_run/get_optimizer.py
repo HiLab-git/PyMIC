@@ -38,20 +38,28 @@ def get_optimizer(name, net_params, optim_params):
 
 def get_lr_scheduler(optimizer, sched_params):
     name = sched_params["lr_scheduler"]
+    val_it = sched_params["iter_valid"]
     if(name is None):
         return None
-    lr_gamma = sched_params["lr_gamma"]
     if(keyword_match(name, "ReduceLROnPlateau")):
         patience_it = sched_params["ReduceLROnPlateau_patience".lower()]
-        val_it = sched_params["iter_valid"]
-        patience = patience_it / val_it
+        patience = patience_it / val_it   
+        lr_gamma = sched_params["lr_gamma"]
         scheduler = lr_scheduler.ReduceLROnPlateau(optimizer,
             mode = "max", factor=lr_gamma, patience = patience)
     elif(keyword_match(name, "MultiStepLR")):
         lr_milestones = sched_params["lr_milestones"]
-        last_iter     = sched_params["last_iter"]
+        lr_milestones = [int(item / val_it) for item in lr_milestones]
+        epoch_last    = sched_params["last_iter"] / val_it
+        lr_gamma  = sched_params["lr_gamma"]
         scheduler = lr_scheduler.MultiStepLR(optimizer,
-                    lr_milestones, lr_gamma, last_iter)
+                    lr_milestones, lr_gamma, epoch_last)
+    elif(keyword_match(name, "CosineAnnealingLR")):
+        epoch_max  = sched_params["iter_max"] / val_it
+        epoch_last = sched_params["last_iter"] / val_it
+        lr_min = sched_params.get("lr_min", 0)
+        scheduler = lr_scheduler.CosineAnnealingLR(optimizer,
+                    epoch_max, lr_min, epoch_last)
     else:
         raise ValueError("unsupported lr scheduler {0:}".format(name))
     return scheduler

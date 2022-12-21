@@ -239,9 +239,6 @@ class NLLDAST(SegmentationAgent):
 
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
 
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()

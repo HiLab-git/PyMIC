@@ -162,10 +162,6 @@ class SegmentationAgent(NetRunAgent):
             loss = self.get_loss_value(data, outputs, labels_prob)
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
-
             train_loss = train_loss + loss.item()
             # get dice evaluation for each class
             if(isinstance(outputs, tuple) or isinstance(outputs, list)):
@@ -219,10 +215,6 @@ class SegmentationAgent(NetRunAgent):
         valid_avg_loss = np.asarray(valid_loss_list).mean()
         valid_cls_dice = np.asarray(valid_dice_list).mean(axis = 0)
         valid_avg_dice = valid_cls_dice.mean()
-        
-        if(isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-            self.scheduler.step(valid_avg_dice)
-
         valid_scalers = {'loss': valid_avg_loss, 'avg_dice': valid_avg_dice,\
             'class_dice': valid_cls_dice}
         return valid_scalers
@@ -300,9 +292,13 @@ class SegmentationAgent(NetRunAgent):
             t0 = time.time()
             train_scalars = self.training()
             t1 = time.time()
-            
             valid_scalars = self.validation()
             t2 = time.time()
+            if(isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
+                self.scheduler.step(valid_scalars['avg_dice'])
+            else:
+                self.scheduler.step()
+
             self.glob_it = it + iter_valid
             logging.info("\n{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
             logging.info('learning rate {0:}'.format(lr_value))

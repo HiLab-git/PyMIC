@@ -4,7 +4,6 @@ import logging
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.optim import lr_scheduler
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
@@ -26,7 +25,7 @@ class BiNet(nn.Module):
         if(self.training):
           return out1, out2
         else:
-          return (out1 + out2) / 3
+          return (out1 + out2) / 2
 
 class SSLCPS(SSLSegAgent):
     """
@@ -117,9 +116,6 @@ class SSLCPS(SSLSegAgent):
 
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
 
             train_loss = train_loss + loss.item()
             train_loss_sup1  = train_loss_sup1 + loss_sup1.item()
