@@ -10,28 +10,30 @@ def get_optimizer(name, net_params, optim_params):
     lr = optim_params['learning_rate']
     momentum = optim_params['momentum']
     weight_decay = optim_params['weight_decay']
+    # see https://www.codeleading.com/article/44815584159/
+    param_group = [{'params': net_params, 'initial_lr': lr}]
     if(keyword_match(name, "SGD")):
-        return optim.SGD(net_params, lr, 
+        return optim.SGD(param_group, lr, 
             momentum = momentum, weight_decay = weight_decay)
     elif(keyword_match(name, "Adam")):
-        return optim.Adam(net_params, lr, weight_decay = weight_decay)
+        return optim.Adam(param_group, lr, weight_decay = weight_decay)
     elif(keyword_match(name, "SparseAdam")):
-        return optim.SparseAdam(net_params, lr)
+        return optim.SparseAdam(param_group, lr)
     elif(keyword_match(name, "Adadelta")):
-        return optim.Adadelta(net_params, lr, weight_decay = weight_decay)
+        return optim.Adadelta(param_group, lr, weight_decay = weight_decay)
     elif(keyword_match(name, "Adagrad")): 
-        return optim.Adagrad(net_params, lr, weight_decay = weight_decay)
+        return optim.Adagrad(param_group, lr, weight_decay = weight_decay)
     elif(keyword_match(name, "Adamax")): 
-        return optim.Adamax(net_params, lr, weight_decay = weight_decay)
+        return optim.Adamax(param_group, lr, weight_decay = weight_decay)
     elif(keyword_match(name, "ASGD")): 
-        return optim.ASGD(net_params, lr, weight_decay = weight_decay)
+        return optim.ASGD(param_group, lr, weight_decay = weight_decay)
     elif(keyword_match(name, "LBFGS")): 
-        return optim.LBFGS(net_params, lr)
+        return optim.LBFGS(param_group, lr)
     elif(keyword_match(name, "RMSprop")): 
-        return optim.RMSprop(net_params, lr, momentum = momentum,
+        return optim.RMSprop(param_group, lr, momentum = momentum,
             weight_decay = weight_decay)
     elif(keyword_match(name, "Rprop")): 
-        return optim.Rprop(net_params, lr)
+        return optim.Rprop(param_group, lr)
     else:
         raise ValueError("unsupported optimizer {0:}".format(name))
 
@@ -57,7 +59,7 @@ def get_lr_scheduler(optimizer, sched_params):
     elif(keyword_match(name, "CosineAnnealingLR")):
         epoch_max  = sched_params["iter_max"] / val_it
         epoch_last = sched_params["last_iter"] / val_it
-        lr_min = sched_params.get("lr_min", 0)
+        lr_min     = sched_params.get("lr_min", 0)
         scheduler = lr_scheduler.CosineAnnealingLR(optimizer,
                     epoch_max, lr_min, epoch_last)
     else:

@@ -27,6 +27,8 @@ class RandomRotate(AbstractTransform):
     :param `RandomRotate_angle_range_w`: (list/tuple or None) 
         Rotation angle (degree) range along width axis (y-z plane), e.g., (-90, 90).
         If None, no rotation along this axis. Only used for 3D images. 
+    :param `RandomRotate_probability`: (optional, float) 
+        The probability of applying RandomRotate. Default is 0.5.
     :param `RandomRotate_inverse`: (optional, bool) 
         Is inverse transform needed for inference. Default is `True`.
     """
@@ -35,6 +37,7 @@ class RandomRotate(AbstractTransform):
         self.angle_range_d  = params['RandomRotate_angle_range_d'.lower()]
         self.angle_range_h  = params['RandomRotate_angle_range_h'.lower()]
         self.angle_range_w  = params['RandomRotate_angle_range_w'.lower()]
+        self.prob = params.get('RandomRotate_probability'.lower(), 0.5)
         self.inverse = params.get('RandomRotate_inverse'.lower(), True)
 
     def __apply_transformation(self, image, transform_param_list, order = 1):
@@ -50,6 +53,11 @@ class RandomRotate(AbstractTransform):
         return image
 
     def __call__(self, sample):
+        if(np.random.uniform() > self.prob):
+            sample['RandomRotate_triggered'] = False
+            return sample
+        else:
+            sample['RandomRotate_triggered'] = True
         image = sample['image']
         input_shape = image.shape
         input_dim = len(input_shape) - 1
@@ -79,6 +87,8 @@ class RandomRotate(AbstractTransform):
         return sample
 
     def  inverse_transform_for_prediction(self, sample):
+        if(not sample['RandomRotate_triggered']):
+            return sample
         if(isinstance(sample['RandomRotate_Param'], list) or \
             isinstance(sample['RandomRotate_Param'], tuple)):
             transform_param_list = json.loads(sample['RandomRotate_Param'][0]) 
