@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 
-import torch
 import json
-import math
 import random
 import numpy as np
 from scipy import ndimage
@@ -104,11 +102,13 @@ class RandomRescale(AbstractTransform):
         assert isinstance(self.ratio1, (float, list, tuple))
 
     def __call__(self, sample):
-        if(np.random.uniform() > self.prob):
-            sample['RandomRescale_triggered'] = False
-            return sample
-        else:
-            sample['RandomRescale_triggered'] = True
+        # if(random.random() > self.prob):
+        #     print("rescale not started")
+        #     sample['RandomRescale_triggered'] = False
+        #     return sample
+        # else:
+        #     print("rescale started")
+        #     sample['RandomRescale_triggered'] = True
         image = sample['image']
         input_shape = image.shape
         input_dim   = len(input_shape) - 1
@@ -125,7 +125,7 @@ class RandomRescale(AbstractTransform):
         image_t = ndimage.interpolation.zoom(image, scale, order = 1)
 
         sample['image'] = image_t
-        sample['RandomRescale_origin_shape'] = json.dumps(input_shape)
+        sample['RandomRescale_Param'] = json.dumps(input_shape)
         if('label' in sample and self.task == 'segmentation'):
             label = sample['label']
             label = ndimage.interpolation.zoom(label, scale, order = 0)
@@ -140,11 +140,11 @@ class RandomRescale(AbstractTransform):
     def inverse_transform_for_prediction(self, sample):
         if(not sample['RandomRescale_triggered']):
             return sample
-        if(isinstance(sample['RandomRescale_origin_shape'], list) or \
-            isinstance(sample['RandomRescale_origin_shape'], tuple)):
-            origin_shape = json.loads(sample['RandomRescale_origin_shape'][0])
+        if(isinstance(sample['RandomRescale_Param'], list) or \
+            isinstance(sample['RandomRescale_Param'], tuple)):
+            origin_shape = json.loads(sample['RandomRescale_Param'][0])
         else:
-            origin_shape = json.loads(sample['RandomRescale_origin_shape'])
+            origin_shape = json.loads(sample['RandomRescale_Param'])
         origin_dim   = len(origin_shape) - 1
         predict = sample['predict']
         input_shape = predict.shape

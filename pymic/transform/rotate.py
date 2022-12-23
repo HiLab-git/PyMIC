@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 
-import torch
 import json
-import math
 import random
 import numpy as np
 from scipy import ndimage
@@ -53,11 +51,11 @@ class RandomRotate(AbstractTransform):
         return image
 
     def __call__(self, sample):
-        if(np.random.uniform() > self.prob):
-            sample['RandomRotate_triggered'] = False
-            return sample
-        else:
-            sample['RandomRotate_triggered'] = True
+        # if(random.random() > self.prob):
+        #     sample['RandomRotate_triggered'] = False
+        #     return sample
+        # else:
+        #     sample['RandomRotate_triggered'] = True
         image = sample['image']
         input_shape = image.shape
         input_dim = len(input_shape) - 1
@@ -74,7 +72,9 @@ class RandomRotate(AbstractTransform):
                 angle_w = np.random.uniform(self.angle_range_w[0], self.angle_range_w[1])
                 transform_param_list.append([angle_w, (-2, -3)])
         assert(len(transform_param_list) > 0)
-
+        # select a random transform from the possible list rather than 
+        # use a combination for higher efficiency
+        transform_param_list = [random.choice(transform_param_list)]
         sample['RandomRotate_Param'] = json.dumps(transform_param_list)
         image_t = self.__apply_transformation(image, transform_param_list, 1)
         sample['image'] = image_t

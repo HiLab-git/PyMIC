@@ -77,6 +77,93 @@ class UpBlock(nn.Module):
         x = torch.cat([x2, x1], dim=1)
         return self.conv(x)
 
+class Encoder(nn.Module):
+    """
+    Encoder of 3D UNet.
+
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 4 or 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    """
+    def __init__(self, params):
+        super(Encoder, self).__init__()
+        self.params    = params
+        self.in_chns   = self.params['in_chns']
+        self.ft_chns   = self.params['feature_chns']
+        self.dropout   = self.params['dropout']
+        assert(len(self.ft_chns) == 5 or len(self.ft_chns) == 4)
+
+        self.in_conv= ConvBlock(self.in_chns, self.ft_chns[0], self.dropout[0])
+        self.down1  = DownBlock(self.ft_chns[0], self.ft_chns[1], self.dropout[1])
+        self.down2  = DownBlock(self.ft_chns[1], self.ft_chns[2], self.dropout[2])
+        self.down3  = DownBlock(self.ft_chns[2], self.ft_chns[3], self.dropout[3])
+        if(len(self.ft_chns) == 5):
+            self.down4  = DownBlock(self.ft_chns[3], self.ft_chns[4], self.dropout[4])
+
+    def forward(self, x):
+        x0 = self.in_conv(x)
+        x1 = self.down1(x0)
+        x2 = self.down2(x1)
+        x3 = self.down3(x2)
+        output = [x0, x1, x2, x3]
+        if(len(self.ft_chns) == 5):
+          x4 = self.down4(x3)
+          output.append(x4)
+        return output
+
+class Decoder(nn.Module):
+    """
+    Decoder of 3D UNet.
+
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 4 or 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    :param class_num: (int) The class number for segmentation task. 
+    :param trilinear: (bool) Using bilinear for up-sampling or not. 
+        If False, deconvolution will be used for up-sampling.
+    """
+    def __init__(self, params):
+        super(Decoder, self).__init__()
+        self.params    = params
+        self.in_chns   = self.params['in_chns']
+        self.ft_chns   = self.params['feature_chns']
+        self.dropout   = self.params['dropout']
+        self.n_class   = self.params['class_num']
+        self.trilinear = self.params['trilinear']
+
+        assert(len(self.ft_chns) == 5 or len(self.ft_chns) == 4)
+
+        if(len(self.ft_chns) == 5):
+            self.up1 = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], self.dropout[3], self.bilinear) 
+        self.up2 = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], self.dropout[2], self.bilinear) 
+        self.up3 = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], self.dropout[1], self.bilinear) 
+        self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], self.dropout[0], self.bilinear) 
+        self.out_conv = nn.Conv3d(self.ft_chns[0], self.n_class, kernel_size = 1)
+
+    def forward(self, x):
+        if(len(self.ft_chns) == 5):
+            assert(len(x) == 5)
+            x0, x1, x2, x3, x4 = x 
+            x_d3 = self.up1(x4, x3)
+        else:
+            assert(len(x) == 4)
+            x0, x1, x2, x3 = x 
+            x_d3 = x3
+        x_d2 = self.up2(x_d3, x2)
+        x_d1 = self.up3(x_d2, x1)
+        x_d0 = self.up4(x_d1, x0)
+        output = self.out_conv(x_d0)
+        return output
 
 class UNet3D(nn.Module):
     """
