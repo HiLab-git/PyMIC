@@ -240,18 +240,14 @@ class UNet2D(nn.Module):
         x_d0 = self.up4(x_d1, x0)
         output = self.out_conv(x_d0)
         if(self.deep_sup):
-            out_shape = list(output.shape)[2:]
             output1 = self.out_conv1(x_d1)
-            output1 = interpolate(output1, out_shape, mode = 'bilinear')
             output2 = self.out_conv2(x_d2)
-            output2 = interpolate(output2, out_shape, mode = 'bilinear')
             output3 = self.out_conv3(x_d3)
-            output3 = interpolate(output3, out_shape, mode = 'bilinear')
             output = [output, output1, output2, output3]
 
             if(len(x_shape) == 5):
-                new_shape = [N, D] + list(output[0].shape)[1:]
                 for i in range(len(output)):
+                    new_shape = [N, D] + list(output[i].shape)[1:]
                     output[i] = torch.transpose(torch.reshape(output[i], new_shape), 1, 2)
         elif(len(x_shape) == 5):
             new_shape = [N, D] + list(output.shape)[1:]
