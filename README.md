@@ -4,8 +4,8 @@ PyMIC is a pytorch-based toolkit for medical image computing with annotation-eff
 
 Currently PyMIC supports 2D/3D medical image classification and segmentation, and it is still under development. If you use this toolkit, please cite the following paper:
 
-* G. Wang, X. Luo, R. Gu, S. Yang, Y. Qu, S. Zhai, Q. Zhao, K. Li, S. Zhang. (2022). 
-[PyMIC: A deep learning toolkit for annotation-efficient medical image segmentation.][arxiv2022] arXiv, 2208.09350.
+* G. Wang, X. Luo, R. Gu, S. Yang, Y. Qu, S. Zhai, Q. Zhao, K. Li, S. Zhang. (2023). 
+[PyMIC: A deep learning toolkit for annotation-efficient medical image segmentation.][arxiv2022] Computer Methods and Programs in Biomedicine (CMPB). February 2023, 107398.
 
 [arxiv2022]:http://arxiv.org/abs/2208.09350
 
@@ -14,11 +14,11 @@ BibTeX entry:
     @article{Wang2022pymic,
     author = {Guotai Wang and Xiangde Luo and Ran Gu and Shuojue Yang and Yijie Qu and Shuwei Zhai and Qianfei Zhao and Kang Li and Shaoting Zhang},
     title = {{PyMIC: A deep learning toolkit for annotation-efficient medical image segmentation}},
-    year = {2022},
+    year = {2023},
     url = {http://arxiv.org/abs/2208.09350},
-    journal = {arXiv},
-    volume = {2208.09350},
-    pages = {1-10},
+    journal = {Computer Methods and Programs in Biomedicine},
+    volume = {February},
+    pages = {107398},
     }
 
 # Features
