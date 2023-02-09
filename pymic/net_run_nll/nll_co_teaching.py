@@ -128,9 +128,6 @@ class NLLCoTeaching(SegmentationAgent):
 
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
 
             train_loss_no_select1 = train_loss_no_select1 + loss1.mean().item()
             train_loss_no_select2 = train_loss_no_select2 + loss2.mean().item()

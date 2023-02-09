@@ -156,7 +156,7 @@ class NLLDAST(SegmentationAgent):
                 worker_init = None
 
             bn_train_noise = self.config['dataset']['train_batch_size_noise']
-            num_worker = self.config['dataset'].get('num_workder', 16)
+            num_worker = self.config['dataset'].get('num_worker', 16)
             self.train_loader_noise = torch.utils.data.DataLoader(self.train_set_noise, 
                 batch_size = bn_train_noise, shuffle=True, num_workers= num_worker,
                 worker_init_fn=worker_init)
@@ -239,9 +239,6 @@ class NLLDAST(SegmentationAgent):
 
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
 
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()

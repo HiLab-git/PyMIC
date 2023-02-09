@@ -5,7 +5,6 @@ import numpy as np
 import random
 import torch
 import torch.nn.functional as F
-from torch.optim import lr_scheduler
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
@@ -121,9 +120,6 @@ class WSLUSTM(WSLSegAgent):
 
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
 
             # update EMA
             alpha = wsl_cfg.get('ema_decay', 0.99)

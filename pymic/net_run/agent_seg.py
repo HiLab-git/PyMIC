@@ -162,10 +162,6 @@ class SegmentationAgent(NetRunAgent):
             loss = self.get_loss_value(data, outputs, labels_prob)
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
-
             train_loss = train_loss + loss.item()
             # get dice evaluation for each class
             if(isinstance(outputs, tuple) or isinstance(outputs, list)):
@@ -177,9 +173,9 @@ class SegmentationAgent(NetRunAgent):
             train_dice_list.append(dice_list.cpu().numpy())
         train_avg_loss = train_loss / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice.mean()
+        train_avg_dice = train_cls_dice[1:].mean()
 
-        train_scalers = {'loss': train_avg_loss, 'avg_dice':train_avg_dice,\
+        train_scalers = {'loss': train_avg_loss, 'avg_fg_dice':train_avg_dice,\
             'class_dice': train_cls_dice}
         return train_scalers
         
@@ -218,18 +214,14 @@ class SegmentationAgent(NetRunAgent):
 
         valid_avg_loss = np.asarray(valid_loss_list).mean()
         valid_cls_dice = np.asarray(valid_dice_list).mean(axis = 0)
-        valid_avg_dice = valid_cls_dice.mean()
-        
-        if(isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-            self.scheduler.step(valid_avg_dice)
-
-        valid_scalers = {'loss': valid_avg_loss, 'avg_dice': valid_avg_dice,\
+        valid_avg_dice = valid_cls_dice[1:].mean()
+        valid_scalers = {'loss': valid_avg_loss, 'avg_fg_dice': valid_avg_dice,\
             'class_dice': valid_cls_dice}
         return valid_scalers
 
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         loss_scalar ={'train':train_scalars['loss'], 'valid':valid_scalars['loss']}
-        dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
+        dice_scalar ={'train':train_scalars['avg_fg_dice'], 'valid':valid_scalars['avg_fg_dice']}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
         self.summ_writer.add_scalars('lr', {"lr": lr_value}, glob_it)
@@ -239,11 +231,11 @@ class SegmentationAgent(NetRunAgent):
                 'valid':valid_scalars['class_dice'][c]}
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
        
-        logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
-            train_scalars['loss'], train_scalars['avg_dice']) + "[" + \
+        logging.info('train loss {0:.4f}, avg foreground dice {1:.4f} '.format(
+            train_scalars['loss'], train_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
-        logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']) + "[" + \
+        logging.info('valid loss {0:.4f}, avg foreground dice {1:.4f} '.format(
+            valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")        
 
     def train_valid(self):
@@ -300,16 +292,20 @@ class SegmentationAgent(NetRunAgent):
             t0 = time.time()
             train_scalars = self.training()
             t1 = time.time()
-            
             valid_scalars = self.validation()
             t2 = time.time()
+            if(isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
+                self.scheduler.step(valid_scalars['avg_fg_dice'])
+            else:
+                self.scheduler.step()
+
             self.glob_it = it + iter_valid
             logging.info("\n{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
             logging.info('learning rate {0:}'.format(lr_value))
             logging.info("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
             self.write_scalars(train_scalars, valid_scalars, lr_value, self.glob_it)
-            if(valid_scalars['avg_dice'] > self.max_val_dice):
-                self.max_val_dice = valid_scalars['avg_dice']
+            if(valid_scalars['avg_fg_dice'] > self.max_val_dice):
+                self.max_val_dice = valid_scalars['avg_fg_dice']
                 self.max_val_it   = self.glob_it
                 if(len(device_ids) > 1):
                     self.best_model_wts = copy.deepcopy(self.net.module.state_dict())
@@ -320,7 +316,7 @@ class SegmentationAgent(NetRunAgent):
                 self.glob_it - self.max_val_it > early_stop_it) else False
             if ((self.glob_it in iter_save_list) or stop_now):
                 save_dict = {'iteration': self.glob_it,
-                             'valid_pred': valid_scalars['avg_dice'],
+                             'valid_pred': valid_scalars['avg_fg_dice'],
                              'model_state_dict': self.net.module.state_dict() \
                                  if len(device_ids) > 1 else self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}

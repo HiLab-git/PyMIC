@@ -4,7 +4,6 @@ import logging
 import torch
 import torch.nn as nn
 import numpy as np
-from torch.optim import lr_scheduler
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
@@ -96,9 +95,7 @@ class SSLURPC(SSLSegAgent):
 
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
+
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()
             train_loss_reg = train_loss_reg + loss_reg.item() 

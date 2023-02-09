@@ -259,7 +259,7 @@ class NetRunAgent(object):
 
             bn_train = self.config['dataset']['train_batch_size']
             bn_valid = self.config['dataset'].get('valid_batch_size', 1)
-            num_worker = self.config['dataset'].get('num_workder', 16)
+            num_worker = self.config['dataset'].get('num_worker', 16)
             g_train, g_valid = torch.Generator(), torch.Generator()
             g_train.manual_seed(self.random_seed)
             g_valid.manual_seed(self.random_seed)

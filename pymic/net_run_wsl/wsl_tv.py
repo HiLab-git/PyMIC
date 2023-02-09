@@ -3,7 +3,6 @@ from __future__ import print_function, division
 import logging
 import numpy as np
 import torch
-from torch.optim import lr_scheduler
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
@@ -68,9 +67,6 @@ class WSLTotalVariation(WSLSegAgent):
             # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
 
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()

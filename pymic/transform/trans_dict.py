@@ -34,6 +34,7 @@ from pymic.transform.flip import RandomFlip
 from pymic.transform.pad import Pad
 from pymic.transform.rotate import RandomRotate
 from pymic.transform.rescale import Rescale, RandomRescale  
+from pymic.transform.transpose import RandomTranspose
 from pymic.transform.threshold import * 
 from pymic.transform.normalize import *
 from pymic.transform.crop import *
@@ -57,6 +58,7 @@ TransformDict = {
     'RandomCrop': RandomCrop,
     'RandomResizedCrop': RandomResizedCrop,
     'RandomRescale': RandomRescale,
+    'RandomTranspose': RandomTranspose,
     'RandomFlip': RandomFlip,
     'RandomRotate': RandomRotate,
     'ReduceLabelDim': ReduceLabelDim,
