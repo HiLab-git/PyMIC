@@ -32,7 +32,7 @@ class BiNet(nn.Module):
         if(self.training):
           return out1, out2
         else:
-          return (out1 + out2) / 3
+          return (out1 + out2) / 2
 
 class NLLCoTeaching(SegmentationAgent):
     """
