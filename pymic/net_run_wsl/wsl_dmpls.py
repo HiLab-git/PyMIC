@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import random
 import torch
+from torch.optim import lr_scheduler
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
@@ -90,7 +91,7 @@ class WSLDMPLS(WSLSegAgent):
 
             loss.backward()
             self.optimizer.step()
-
+ 
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()
             train_loss_reg = train_loss_reg + loss_reg.item() 
@@ -106,10 +107,11 @@ class WSLDMPLS(WSLSegAgent):
         train_avg_loss_sup = train_loss_sup / iter_valid
         train_avg_loss_reg = train_loss_reg / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice.mean()
+        train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
             'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
-            'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
+            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice}
+
         return train_scalers
         

@@ -137,12 +137,12 @@ class SSLCPS(SSLSegAgent):
         train_avg_loss_pse_sup1 = train_loss_pseudo_sup1 / iter_valid 
         train_avg_loss_pse_sup2 = train_loss_pseudo_sup2 / iter_valid 
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice.mean()
+        train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': train_avg_loss, 
             'loss_sup1':train_avg_loss_sup1, 'loss_sup2': train_avg_loss_sup2,
             'loss_pse_sup1':train_avg_loss_pse_sup1, 'loss_pse_sup2': train_avg_loss_pse_sup2,
-            'regular_w':regular_w, 'avg_dice':train_avg_dice, 'class_dice': train_cls_dice}
+            'regular_w':regular_w, 'avg_fg_dice':train_avg_dice, 'class_dice': train_cls_dice}
         return train_scalers
   
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
@@ -152,7 +152,7 @@ class SSLCPS(SSLSegAgent):
                             'net2':train_scalars['loss_sup2']}
         loss_pse_sup_scalar = {'net1':train_scalars['loss_pse_sup1'],
                                'net2':train_scalars['loss_pse_sup2']}
-        dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
+        dice_scalar ={'train':train_scalars['avg_fg_dice'], 'valid':valid_scalars['avg_fg_dice']}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars('loss_sup', loss_sup_scalar, glob_it)
         self.summ_writer.add_scalars('loss_pseudo_sup', loss_pse_sup_scalar, glob_it)
