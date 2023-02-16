@@ -15,9 +15,9 @@ BibTeX entry:
     author = {Guotai Wang and Xiangde Luo and Ran Gu and Shuojue Yang and Yijie Qu and Shuwei Zhai and Qianfei Zhao and Kang Li and Shaoting Zhang},
     title = {{PyMIC: A deep learning toolkit for annotation-efficient medical image segmentation}},
     year = {2023},
-    url = {http://arxiv.org/abs/2208.09350},
+    url = {https://doi.org/10.1016/j.cmpb.2023.107398},
     journal = {Computer Methods and Programs in Biomedicine},
-    volume = {February},
+    volume = {231},
     pages = {107398},
     }
 

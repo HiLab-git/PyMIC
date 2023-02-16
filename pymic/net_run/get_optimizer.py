@@ -59,7 +59,7 @@ def get_lr_scheduler(optimizer, sched_params):
         scheduler = lr_scheduler.MultiStepLR(optimizer,
                     lr_milestones, lr_gamma, epoch_last)
     elif(keyword_match(name, "StepLR")):
-        lr_step = sched_params["lr_step"] / val_it
+        lr_step   = sched_params["lr_step"] / val_it
         lr_gamma  = sched_params["lr_gamma"]
         scheduler = lr_scheduler.StepLR(optimizer,
                     lr_step, lr_gamma, epoch_last)

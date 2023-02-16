@@ -21,6 +21,7 @@ setuptools.setup(
     license  = 'Apache 2.0',
     packages = setuptools.find_packages(),
     install_requires=[
+        "h5py",
         "matplotlib>=3.1.2",
         "numpy>=1.17.4",
         "pandas>=0.25.3",

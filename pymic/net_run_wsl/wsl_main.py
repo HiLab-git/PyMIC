@@ -34,8 +34,12 @@ def main():
     log_dir  = config['training']['ckpt_save_dir']
     if(not os.path.exists(log_dir)):
         os.mkdir(log_dir)
-    logging.basicConfig(filename=log_dir+"/log_{0:}.txt".format(stage), level=logging.INFO,
-                        format='%(message)s')
+    if sys.version.startswith("3.9"):
+        logging.basicConfig(filename=log_dir+"/log_{0:}.txt".format(stage), level=logging.INFO,
+                            format='%(message)s', force=True) # for python 3.9
+    else:
+        logging.basicConfig(filename=log_dir+"/log_{0:}.txt".format(stage), level=logging.INFO,
+                            format='%(message)s') # for python 3.6
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging_config(config)
     wsl_method = config['weakly_supervised_learning']['wsl_method']

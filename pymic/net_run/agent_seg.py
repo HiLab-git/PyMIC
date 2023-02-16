@@ -96,9 +96,12 @@ class SegmentationAgent(NetRunAgent):
             raise ValueError("Undefined loss function {0:}".format(loss_name))
         else:
             base_loss = self.loss_dict[loss_name](self.config['training'])
-        if(self.config['network'].get('deep_supervise', False)):
-            weight = self.config['network'].get('deep_supervise_weight', None)
-            params = {'deep_supervise_weight': weight, 'base_loss':base_loss}
+        if(self.config['training'].get('deep_supervise', False)):
+            weight = self.config['training'].get('deep_supervise_weight', None)
+            mode   = self.config['training'].get('deep_supervise_mode', 2)
+            params = {'deep_supervise_weight': weight, 
+                      'deep_supervise_mode': mode, 
+                      'base_loss':base_loss}
             self.loss_calculator = DeepSuperviseLoss(params)
         else:
             self.loss_calculator = base_loss
@@ -106,7 +109,10 @@ class SegmentationAgent(NetRunAgent):
     def get_loss_value(self, data, pred, gt, param = None):
         loss_input_dict = {'prediction':pred, 'ground_truth': gt}
         if data.get('pixel_weight', None) is not None:
-            loss_input_dict['pixel_weight'] = data['pixel_weight'].to(pred.device)
+            if(isinstance(pred, tuple) or isinstance(pred, list)):
+                loss_input_dict['pixel_weight'] = data['pixel_weight'].to(pred[0].device)
+            else:
+                loss_input_dict['pixel_weight'] = data['pixel_weight'].to(pred.device)
         loss_value = self.loss_calculator(loss_input_dict)
         return loss_value
     
@@ -122,7 +128,7 @@ class SegmentationAgent(NetRunAgent):
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
-        mixup_prob  = self.config['training'].get('mixup_probability', 0.5)
+        mixup_prob  = self.config['training'].get('mixup_probability', 0.0)
         train_loss  = 0
         train_dice_list = []
         self.net.train()
@@ -135,7 +141,7 @@ class SegmentationAgent(NetRunAgent):
             # get the inputs
             inputs      = self.convert_tensor_type(data['image'])
             labels_prob = self.convert_tensor_type(data['label_prob'])                 
-            if(random() < mixup_prob):
+            if(mixup_prob > 0 and random() < mixup_prob):
                 inputs, labels_prob = mixup(inputs, labels_prob) 
                    
             # # for debug
@@ -246,7 +252,10 @@ class SegmentationAgent(NetRunAgent):
         else:
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
+        
         ckpt_dir    = self.config['training']['ckpt_save_dir']
+        if(ckpt_dir[-1] == "/"):
+            ckpt_dir = ckpt_dir[:-1]
         ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
         if(ckpt_prefix is None):
             ckpt_prefix = ckpt_dir.split('/')[-1]
