@@ -71,8 +71,11 @@ class SSLURPC(SSLSegAgent):
             p0 = [output_i[:n0] for output_i in outputs_list]
             loss_sup = self.get_loss_value(data_lab, p0, y0)
 
-            # get average probability across scales
+            # resize to the same shape, and get average probability across scales
             outputs_soft_list = [torch.softmax(item, dim=1) for item in outputs_list]
+            for i in range(1, len(outputs_soft_list)):
+                outputs_soft_list[i] = nn.functional.interpolate(outputs_soft_list[i],
+                    outputs_soft_list[0].shape[2:])
             outputs_soft_avg  = torch.mean(torch.stack(outputs_soft_list),dim = 0)
             p1_avg = outputs_soft_avg[n0:] * 0.99 + 0.005 # for unannotated images
 

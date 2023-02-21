@@ -166,8 +166,8 @@ class SSLCPS(SSLSegAgent):
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
 
         logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
-            train_scalars['loss'], train_scalars['avg_dice']) + "[" + \
+            train_scalars['loss'], train_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
         logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']) + "[" + \
+            valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]") 

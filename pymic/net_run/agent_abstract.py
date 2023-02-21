@@ -276,7 +276,7 @@ class NetRunAgent(object):
             self.test_loader = torch.utils.data.DataLoader(self.test_set, 
                 batch_size = bn_test, shuffle=False, num_workers= bn_test)
        
-    def create_optimizer(self, params):
+    def create_optimizer(self, params, checkpoint = None):
         """
         Create optimizer based on configuration. 
 
@@ -288,9 +288,9 @@ class NetRunAgent(object):
             self.optimizer = get_optimizer(opt_params['optimizer'],
                     params, opt_params)
         last_iter = -1
-        if(self.checkpoint is not None):
-            self.optimizer.load_state_dict(self.checkpoint['optimizer_state_dict'])
-            last_iter = self.checkpoint['iteration'] - 1
+        if(checkpoint is not None):
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            last_iter = checkpoint['iteration'] - 1
         if(self.scheduler is None):
             opt_params["last_iter"] = last_iter
             self.scheduler = get_lr_scheduler(self.optimizer, opt_params)

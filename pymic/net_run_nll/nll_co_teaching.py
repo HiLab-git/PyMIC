@@ -32,7 +32,7 @@ class BiNet(nn.Module):
         if(self.training):
           return out1, out2
         else:
-          return (out1 + out2) / 3
+          return (out1 + out2) / 2
 
 class NLLCoTeaching(SegmentationAgent):
     """
@@ -144,13 +144,13 @@ class NLLCoTeaching(SegmentationAgent):
         train_avg_loss1 = train_loss1 / iter_valid
         train_avg_loss2 = train_loss2 / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice.mean()
+        train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': (train_avg_loss1 + train_avg_loss2) / 2, 
             'loss1':train_avg_loss1, 'loss2': train_avg_loss2,
             'loss_no_select1':train_avg_loss_no_select1, 
             'loss_no_select2':train_avg_loss_no_select2,
-            'select_ratio':remb_ratio, 'avg_dice':train_avg_dice, 'class_dice': train_cls_dice}
+            'select_ratio':remb_ratio, 'avg_fg_dice':train_avg_dice, 'class_dice': train_cls_dice}
         return train_scalers
     
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
@@ -159,7 +159,7 @@ class NLLCoTeaching(SegmentationAgent):
         loss_no_select_scalar  = {'net1':train_scalars['loss_no_select1'],
                                   'net2':train_scalars['loss_no_select2']}
 
-        dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
+        dice_scalar ={'train':train_scalars['avg_fg_dice'], 'valid':valid_scalars['avg_fg_dice']}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars('loss_no_select', loss_no_select_scalar, glob_it)
         self.summ_writer.add_scalars('select_ratio', {'select_ratio':train_scalars['select_ratio']}, glob_it)
@@ -171,9 +171,9 @@ class NLLCoTeaching(SegmentationAgent):
                 'valid':valid_scalars['class_dice'][c]}
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
 
-        logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
-            train_scalars['loss'], train_scalars['avg_dice']) + "[" + \
+        logging.info('train loss {0:.4f}, avg foreground dice {1:.4f} '.format(
+            train_scalars['loss'], train_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
-        logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']) + "[" + \
+        logging.info('valid loss {0:.4f}, avg foreground dice {1:.4f} '.format(
+            valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]") 
