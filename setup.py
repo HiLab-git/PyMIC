@@ -11,7 +11,7 @@ with open('README.md', encoding='utf-8') as f:
 
 setuptools.setup(
     name    = 'PYMIC',
-    version = "0.3.1",
+    version = "0.3.1.1",
     author  ='PyMIC Consortium',
     author_email = 'wguotai@gmail.com',
     description  = description,
@@ -42,7 +42,8 @@ setuptools.setup(
     entry_points = {
         'console_scripts': [
             'pymic_run  = pymic.net_run.net_run:main',
-            'pymic_ssl  = pymic.net_run_ssl.ssl_main:main',
+            'pymic_semi_sl = pymic.net_run_ssl.ssl_main:main',
+            'pymic_self_sl = pymic.net_run_self_sl.self_sl_main:main',
             'pymic_wsl  = pymic.net_run_wsl.wsl_main:main',
             'pymic_nll  = pymic.net_run_nll.nll_main:main',
             'pymic_eval_cls = pymic.util.evaluation_cls:main',

@@ -23,7 +23,7 @@ BibTeX entry:
 
 # Features
 PyMIC provides flixible modules for medical image computing tasks including classification and segmentation. It currently provides the following functions:
-* Support for annotation-efficient image segmentation, especially for semi-supervised, weakly-supervised and noisy-label learning.
+* Support for annotation-efficient image segmentation, especially for semi-supervised, self-supervised, weakly-supervised and noisy-label learning.
 * User friendly: For beginners, you only need to edit the configuration files for model training and inference, without writing code. For advanced users, you can customize different modules (networks, loss functions, training pipeline, etc) and easily integrate them into PyMIC.
 * Easy-to-use I/O interface to read and write different 2D and 3D images.
 * Various data pre-processing/transformation methods before sending a tensor into a network.
