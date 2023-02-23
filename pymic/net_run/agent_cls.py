@@ -327,8 +327,8 @@ class ClassificationAgent(NetRunAgent):
         
         if(self.config['testing'].get('evaluation_mode', True)):
             self.net.eval()
-            
-        output_csv   = self.config['testing']['output_csv']
+        
+        output_csv   = self.config['testing']['output_dir'] + '/' + self.config['testing']['output_csv']
         class_num    = self.config['network']['class_num']
         save_probability = self.config['testing'].get('save_probability', False)
         

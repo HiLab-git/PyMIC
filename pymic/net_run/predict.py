@@ -17,6 +17,8 @@ def main():
         print('   pymic_test config.cfg')
         exit()
     cfg_file = str(sys.argv[1])
+    if(not os.path.isfile(cfg_file)):
+        raise ValueError("The config file does not exist: " + cfg_file)
     config   = parse_config(cfg_file)
     config   = synchronize_config(config)
     log_dir  = config['testing']['output_dir']
