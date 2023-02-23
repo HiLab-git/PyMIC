@@ -41,11 +41,8 @@ setuptools.setup(
     python_requires = '>=3.6',
     entry_points = {
         'console_scripts': [
-            'pymic_run  = pymic.net_run.net_run:main',
-            'pymic_semi_sl = pymic.net_run_ssl.ssl_main:main',
-            'pymic_self_sl = pymic.net_run_self_sl.self_sl_main:main',
-            'pymic_wsl  = pymic.net_run_wsl.wsl_main:main',
-            'pymic_nll  = pymic.net_run_nll.nll_main:main',
+            'pymic_train  = pymic.net_run.train:main',
+            'pymic_test   = pymic.net_run.predict:main',
             'pymic_eval_cls = pymic.util.evaluation_cls:main',
             'pymic_eval_seg = pymic.util.evaluation_seg:main'
         ],

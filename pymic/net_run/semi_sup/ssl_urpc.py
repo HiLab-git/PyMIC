@@ -7,7 +7,7 @@ import numpy as np
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
+from pymic.net_run.semi_sup import SSLSegAgent
 from pymic.util.ramps import get_rampup_ratio
 
 class SSLURPC(SSLSegAgent):

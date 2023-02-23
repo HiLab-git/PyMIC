@@ -9,7 +9,7 @@ from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.loss.seg.dice import DiceLoss
-from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
+from pymic.net_run.weak_sup import WSLSegAgent
 from pymic.util.ramps import get_rampup_ratio
 
 class WSLDMPLS(WSLSegAgent):

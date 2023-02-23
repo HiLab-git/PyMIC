@@ -6,18 +6,19 @@ import torch
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.loss.seg.mumford_shah import MumfordShahLoss
-from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
+from pymic.loss.seg.ssl import EntropyLoss
+from pymic.net_run.agent_seg import SegmentationAgent
+from pymic.net_run.weak_sup import WSLSegAgent
 from pymic.util.ramps import get_rampup_ratio
 
-class WSLMumfordShah(WSLSegAgent):
+class WSLEntropyMinimization(WSLSegAgent):
     """
-    Weakly supervised learning with Mumford Shah Loss.
+    Weakly supervised segmentation based on Entropy Minimization.
 
-    * Reference: Boah Kim and Jong Chul Ye: Mumford–Shah Loss Functional 
-      for Image Segmentation With Deep Learning. 
-      `IEEE TIP <https://doi.org/10.1109/TIP.2019.2941265>`_, 2019.
-         
+    * Reference: Yves Grandvalet and Yoshua Bengio:
+      Semi-supervised Learningby Entropy Minimization.
+      `NeurIPS, 2005. <https://papers.nips.cc/paper/2004/file/96f2b50b5d3613adf9c27049b2a888c7-Paper.pdf>`_ 
+    
     :param config: (dict) A dictionary containing the configuration.
     :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
 
@@ -28,7 +29,7 @@ class WSLMumfordShah(WSLSegAgent):
         extra section `weakly_supervised_learning` is needed. See :doc:`usage.wsl` for details.
     """
     def __init__(self, config, stage = 'train'):
-        super(WSLMumfordShah, self).__init__(config, stage)
+        super(WSLEntropyMinimization, self).__init__(config, stage)
 
     def training(self):
         class_num   = self.config['network']['class_num']
@@ -41,8 +42,6 @@ class WSLMumfordShah(WSLSegAgent):
         train_loss_sup = 0
         train_loss_reg = 0
         train_dice_list = []
-
-        reg_loss_calculator = MumfordShahLoss(wsl_cfg)
         self.net.train()
         for it in range(iter_valid):
             try:
@@ -63,13 +62,13 @@ class WSLMumfordShah(WSLSegAgent):
             # forward + backward + optimize
             outputs = self.net(inputs)
             loss_sup = self.get_loss_value(data, outputs, y)
-            loss_dict = {"prediction":outputs, 'image':inputs}
-            loss_reg = reg_loss_calculator(loss_dict)
+            loss_dict= {"prediction":outputs, 'softmax':True}
+            loss_reg = EntropyLoss()(loss_dict)
             
             rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end, "sigmoid")
             regular_w = wsl_cfg.get('regularize_w', 0.1) * rampup_ratio
             loss = loss_sup + regular_w*loss_reg
-            # if (self.config['training']['use'])
+
             loss.backward()
             self.optimizer.step()
 
@@ -94,4 +93,3 @@ class WSLMumfordShah(WSLSegAgent):
             'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
             'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers
-        
