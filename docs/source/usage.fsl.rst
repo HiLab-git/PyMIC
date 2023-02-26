@@ -28,8 +28,8 @@ configuration file for running.
 .. tip::
 
    If you use the built-in modules such as ``UNet`` and ``Dice`` + ``CrossEntropy`` loss 
-   for segmentation, you don't need to write the above code. Just just use the ``pymic_run``
-   command. 
+   for segmentation, you don't need to write the above code. Just just use the ``pymic_train``
+   command. See examples in `PyMIC_examples/segmentation/ <https://github.com/HiLab-git/PyMIC_examples/tree/main/segmentation/>`_.
 
 Dataset
 -------
@@ -207,7 +207,7 @@ hyper-parameters. For example, the following is a configuration for using ``2DUN
    feature_chns  = [16, 32, 64, 128, 256]
    dropout       = [0,  0,  0.3, 0.4, 0.5]
    bilinear      = False
-   deep_supervise= False
+   multiscale_pred = False
 
 The ``SegNetDict`` in :mod:`pymic.net.net_dict_seg` lists all the built-in network 
 structures currently implemented in PyMIC. 
@@ -299,9 +299,6 @@ Itreations
 For training iterations, the following parameters need to be specified in 
 the configuration file:
 
-* ``iter_start``: the start iteration, by default is 0. None zero value means the
-  iteration where a pre-trained model stopped for continuing with the trainnig.
-
 * ``iter_max``: the maximal allowed iteration for training. 
 
 * ``iter_valid``: if the value is K, it means evaluating the performance on the 
@@ -321,9 +318,9 @@ Optimizer
 For optimizer, users need to set ``optimizer``, ``learning_rate``,
 ``momentum`` and ``weight_decay``. The built-in optimizers include ``SGD``,
 ``Adam``, ``SparseAdam``, ``Adadelta``, ``Adagrad``, ``Adamax``, ``ASGD``,
-``LBFGS``, ``RMSprop`` and ``Rprop`` that are implemented in :mod:`torch.optim`. 
+``LBFGS``, ``RMSprop`` and ``Rprop`` that are implemented in `torch.optim`. 
 
-You can also use customized optimizers via :mod:`SegmentationAgent.set_optimizer()`.
+You can also use customized optimizers via `SegmentationAgent.set_optimizer()`.
 
 Learning Rate Scheduler
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -335,7 +332,7 @@ the configuration file.
 Parameters related to  ``ReduceLROnPlateau`` include ``lr_gamma``.  
 Parameters related to  ``MultiStepLR`` include ``lr_gamma`` and ``lr_milestones``. 
 
-You can also use customized lr schedulers via :mod:`SegmentationAgent.set_scheduler()`.
+You can also use customized lr schedulers via `SegmentationAgent.set_scheduler()`.
 
 Other Options
 ^^^^^^^^^^^^^
@@ -373,8 +370,8 @@ test-time augmentation, etc. The following is a list of options availble for inf
 * ``ckpt_name`` (string, optinal): the full path to the checkpoint if ckpt_mode = 2.
 
 * ``post_process`` (string, default is None): the post process method after inference. 
-  The current available post processing is :mod:`PostKeepLargestComponent`. Uses can also 
-  specify customized post process methods via :mod:`SegmentationAgent.set_postprocessor()`.
+  The current available post processing is :mod:`pymic.util.post_process.PostKeepLargestComponent`. 
+  Uses can also specify customized post process methods via `SegmentationAgent.set_postprocessor()`.
 
 * ``sliding_window_enable`` (bool, default is False): use sliding window for inference or not.
 
@@ -390,14 +387,14 @@ test-time augmentation, etc. The following is a list of options availble for inf
 * ``ignore_dir`` (bool, default is True): if the input image name has a `/`, it will be replaced
   with `_` in the output file name. 
 
-* ``save_probability`` (boold, default is False): save the output probability for each class. 
+* ``save_probability`` (bool, default is False): save the output probability for each class. 
 
 * ``label_source`` (list, default is None): a list of label to be converted after prediction. For example,
-  :mod:`label_source` = [0, 1] and :mod:`label_target` = [0, 255] will convert label value from 1 to 255. 
+  `label_source` = [0, 1] and `label_target` = [0, 255] will convert label value from 1 to 255. 
 
-* ``label_target`` (list, default is None): a list of label after conversion. Use this with :mod:`label_source`.
+* ``label_target`` (list, default is None): a list of label after conversion. Use this with `label_source`.
 
 * ``filename_replace_source`` (string, default is None): the substring in the filename will be replaced with 
-  a new substring specified by :mod:`filename_replace_target`.
+  a new substring specified by `filename_replace_target`.
 
-* ``filename_replace_target`` (string, default is None): work with :mod:`filename_replace_source`.
+* ``filename_replace_target`` (string, default is None): work with `filename_replace_source`.

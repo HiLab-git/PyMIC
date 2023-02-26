@@ -282,6 +282,7 @@ class NetRunAgent(object):
 
         :param params: network parameters for optimization. Usually it is obtained by 
             `self.get_parameters_to_update()`.
+        :param checkpoint: A previous checkpoint to load. Default is `None`.
         """
         opt_params = self.config['training']
         if(self.optimizer is None):

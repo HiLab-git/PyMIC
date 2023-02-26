@@ -3,37 +3,22 @@
 Semi-Supervised Learning
 =========================
 
-pymic_ssl
----------
-
-:mod:`pymic_ssl` is the command for using built-in semi-supervised methods for training. 
-Similarly to :mod:`pymic_run`, it should be followed by two parameters, specifying the 
-stage and configuration file, respectively. The training and testing commands are:
-
-.. code-block:: bash
-
-    pymic_ssl train myconfig_ssl.cfg
-    pymic_ssl test  myconfig_ssl.cfg
-
-.. tip::
-
-   If the SSL method only involves one network, either ``pymic_ssl`` or  ``pymic_run``
-   can be used for inference. Their difference only exists in the training stage. 
-
 SSL Configurations
 ------------------
 
-In the configuration file for ``pymic_ssl``, in addition to those used in fully 
+In the configuration file for semi-supervised segmentation, in addition to those used in fully 
 supervised learning, there are some items specificalized for semi-supervised learning.
 
 Users should provide values for the following items in ``dataset`` section of 
 the configuration file:
 
+* ``supervise_type`` (string): The value should be "`semi_sup`".  
+
 * ``train_csv_unlab`` (string): the csv file for unlabeled dataset. 
   Note that ``train_csv`` is only used for labeled dataset.  
 
 * ``train_batch_size_unlab`` (int): the batch size for unlabeled dataset. 
-  Note that ``train_batch_size`` means the batch size for the labeled dataset. 
+  Note that  `train_batch_size` means the batch size for the labeled dataset. 
 
 * ``train_transform_unlab`` (list): a list of transforms used for unlabeled data. 
 
@@ -43,7 +28,12 @@ The following is an example of the ``dataset`` section for semi-supervised learn
 .. code-block:: none
 
     ...
-    root_dir  =../../PyMIC_data/ACDC/preprocess/
+
+    tensor_type    = float
+    task_type      = seg
+    supervise_type = semi_sup
+
+    root_dir  = ../../PyMIC_data/ACDC/preprocess/
     train_csv = config/data/image_train_r10_lab.csv
     train_csv_unlab = config/data/image_train_r10_unlab.csv
     valid_csv = config/data/image_valid.csv
@@ -60,14 +50,14 @@ The following is an example of the ``dataset`` section for semi-supervised learn
     ...
 
 In addition, there is a ``semi_supervised_learning`` section that is specifically designed
-for SSL methods. In that section, users need to specify the ``ssl_method`` and configurations
+for SSL methods. In that section, users need to specify the ``method_name`` and configurations
 related to the SSL method. For example, the correspoinding configuration for CPS is:
 
 .. code-block:: none
 
     ...
     [semi_supervised_learning]
-    ssl_method     = CPS
+    method_name    = CPS
     regularize_w   = 0.1
     rampup_start   = 1000
     rampup_end     = 20000
@@ -76,14 +66,15 @@ related to the SSL method. For example, the correspoinding configuration for CPS
 .. note::
 
    The configuration items vary with different SSL methods. Please refer to the API 
-   of each built-in SSL method for details of the correspoinding configuration.  
+   of each built-in SSL method for details of the correspoinding configuration. 
+   See  examples in `PyMIC_examples/seg_ssl/ <https://github.com/HiLab-git/PyMIC_examples/tree/main/seg_ssl/>`_.
 
 Built-in SSL Methods
 --------------------
 
-:mod:`pymic.net_run_ssl.ssl_abstract.SSLSegAgent` is the abstract class used for 
-semi-supervised learning. The built-in SSL methods are child classes of  :mod:`SSLSegAgent`.
-The available SSL methods implemnted in PyMIC are listed in :mod:`pymic.net_run_ssl.ssl_main.SSLMethodDict`, 
+:mod:`pymic.net_run.semi_sup.ssl_abstract.SSLSegAgent` is the abstract class used for 
+semi-supervised learning. The built-in SSL methods are child classes of  `SSLSegAgent`.
+The available SSL methods implemnted in PyMIC are listed in `pymic.net_run.semi_sup.SSLMethodDict`, 
 and they are:
 
 * ``EntropyMinimization``: (`NeurIPS 2005 <https://papers.nips.cc/paper/2004/file/96f2b50b5d3613adf9c27049b2a888c7-Paper.pdf>`_)
@@ -103,13 +94,13 @@ and they are:
 Customized SSL Methods
 ----------------------
 
-PyMIC alo supports customizing SSL methods by inheriting the :mod:`SSLSegAgent` class. 
-You may only need to rewrite the :mod:`training()` method and reuse most part of the 
+PyMIC alo supports customizing SSL methods by inheriting the  `SSLSegAgent` class. 
+You may only need to rewrite the  `training()` method and reuse most part of the 
 existing pipeline, such as data loading, validation and inference methods. For example:
 
 .. code-block:: none
 
-    from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
+    from pymic.net_run.semi_sup import SSLSegAgent
 
     class MySSLMethod(SSLSegAgent):
       def __init__(self, config, stage = 'train'):

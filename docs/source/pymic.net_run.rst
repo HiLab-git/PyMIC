@@ -54,14 +54,6 @@ pymic.net\_run.infer\_func module
    :undoc-members:
    :show-inheritance:
 
-pymic.net\_run.semi\_sup module
-------------------------------
-
-.. automodule:: pymic.net_run.semi_sup
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Module contents
 ---------------
 

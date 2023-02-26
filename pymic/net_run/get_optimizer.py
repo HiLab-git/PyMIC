@@ -7,6 +7,15 @@ from torch.optim import lr_scheduler
 from pymic.util.general import keyword_match
 
 def get_optimizer(name, net_params, optim_params):
+    """
+    Create an optimizer for learnable parameters. 
+
+    :param name: (string) Name of the optimizer. Should be one of {`SGD`, `Adam`,
+        `SparseAdam`, `Adadelta`, `Adagrad`, `Adamax`, `ASGD`, `LBFGS`, `RMSprop`, `Rprop`}.
+    :param net_params: Learnable parameters that need to be set for an optimizer. 
+    :param optim_params: (dict) The parameters required for the target optimizer.
+    :return: An instance of the target optimizer.
+    """
     lr = optim_params['learning_rate']
     momentum = optim_params['momentum']
     weight_decay = optim_params['weight_decay']
@@ -39,6 +48,13 @@ def get_optimizer(name, net_params, optim_params):
 
 
 def get_lr_scheduler(optimizer, sched_params):
+    """
+    Create learning rate scheduler for an optimizer 
+
+    :param optimizer: An optimizer instance. 
+    :param sched_params: (dict) The parameters required for the scheduler.
+    :return: An instance of the target learning rate scheduler.
+    """
     name       = sched_params["lr_scheduler"]
     val_it     = sched_params["iter_valid"]
     epoch_last = sched_params["last_iter"] 

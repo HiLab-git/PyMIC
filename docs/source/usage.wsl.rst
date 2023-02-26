@@ -3,23 +3,6 @@
 Weakly-Supervised Learning
 ==========================
 
-pymic_wsl
----------
-
-:mod:`pymic_wsl` is the command for using built-in weakly-supervised methods for training. 
-Similarly to :mod:`pymic_run`, it should be followed by two parameters, specifying the 
-stage and configuration file, respectively. The training and testing commands are:
-
-.. code-block:: bash
-
-    pymic_wsl train myconfig_wsl.cfg
-    pymic_wsl test  myconfig_wsl.cfg
-
-.. tip::
-
-   If the WSL method only involves one network, either ``pymic_wsl`` or  ``pymic_run``
-   can be used for inference. Their difference only exists in the training stage. 
-
 .. note::
 
    Currently, the weakly supervised methods supported by PyMIC are only for learning 
@@ -31,17 +14,19 @@ stage and configuration file, respectively. The training and testing commands ar
 WSL Configurations
 ------------------
 
-In the configuration file for ``pymic_wsl``, in addition to those used in fully 
+In the configuration file for weakly supervised learning, in addition to those used in fully 
 supervised learning, there are some items specificalized for weakly-supervised learning.
 
-First, in the :mod:`train_transform` list, a special transform named :mod:`PartialLabelToProbability`
+First, ``supervise_type`` should be set as "`weak_sup`" in the ``dataset`` section.
+
+Second, in the ``train_transform`` list, a special transform named `PartialLabelToProbability`
 should be used to transform patial labels into a one-hot probability map and a weighting 
 map of pixels (i.e., the weight of a pixel is 1 if labeled and 0 otherwise). The patial
 cross entropy loss on labeled pixels is actually implemented by a weighted cross entropy loss.
 The loss setting is `loss_type = CrossEntropyLoss`.
 
-Second, there is a ``weakly_supervised_learning`` section that is specifically designed
-for WSL methods. In that section, users need to specify the ``wsl_method`` and configurations
+Thirdly, there is a ``weakly_supervised_learning`` section that is specifically designed
+for WSL methods. In that section, users need to specify the ``method_name`` and configurations
 related to the WSL method. For example, the correspoinding configuration for GatedCRF is:
 
 
@@ -50,6 +35,7 @@ related to the WSL method. For example, the correspoinding configuration for Gat
 
     [dataset]
     ...
+    supervise_type = weak_sup
     root_dir  = ../../PyMIC_data/ACDC/preprocess
     train_csv = config/data/image_train.csv
     valid_csv = config/data/image_valid.csv
@@ -72,7 +58,7 @@ related to the WSL method. For example, the correspoinding configuration for Gat
     ...
 
     [weakly_supervised_learning]
-    wsl_method     = GatedCRF
+    method_name    = GatedCRF
     regularize_w   = 0.1
     rampup_start   = 2000
     rampup_end     = 15000
@@ -90,13 +76,14 @@ related to the WSL method. For example, the correspoinding configuration for Gat
 
    The configuration items vary with different WSL methods. Please refer to the API 
    of each built-in WSL method for details of the correspoinding configuration.  
+   See examples in `PyMIC_examples/seg_wsl/ <https://github.com/HiLab-git/PyMIC_examples/tree/main/seg_wsl/>`_.
 
 Built-in WSL Methods
 --------------------
 
-:mod:`pymic.net_run_wsl.wsl_abstract.WSLSegAgent` is the abstract class used for 
-weakly-supervised learning. The built-in WSL methods are child classes of  :mod:`WSLSegAgent`.
-The available WSL methods implemnted in PyMIC are listed in :mod:`pymic.net_run_wsl.wsl_main.WSLMethodDict`, 
+:mod:`pymic.net_run.weak_sup.wsl_abstract.WSLSegAgent` is the abstract class used for 
+weakly-supervised learning. The built-in WSL methods are child classes of  `WSLSegAgent`.
+The available WSL methods implemnted in PyMIC are listed in `pymic.net_run.weak_sup.WSLMethodDict`, 
 and they are:
 
 * ``EntropyMinimization``: (`NeurIPS 2005 <https://papers.nips.cc/paper/2004/file/96f2b50b5d3613adf9c27049b2a888c7-Paper.pdf>`_)
@@ -120,13 +107,13 @@ and they are:
 Customized WSL Methods
 ----------------------
 
-PyMIC alo supports customizing WSL methods by inheriting the :mod:`WSLSegAgent` class. 
-You may only need to rewrite the :mod:`training()` method and reuse most part of the 
+PyMIC alo supports customizing WSL methods by inheriting the `WSLSegAgent` class. 
+You may only need to rewrite the `training()` method and reuse most part of the 
 existing pipeline, such as data loading, validation and inference methods. For example:
 
 .. code-block:: none
 
-    from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
+    from pymic.net_run.weak_sup import WSLSegAgent
 
     class MyWSLMethod(WSLSegAgent):
       def __init__(self, config, stage = 'train'):
