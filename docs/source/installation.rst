@@ -17,7 +17,8 @@ Alternatively, you can download or clone the code from `GitHub <https://github.c
     python setup.py install
 
 
-PyMIC requires Python 3.6 (or higher) and depends on the following packages:
+PyMIC requires Python 3.6 (or higher) and depends on the following packages. 
+They will be automatically installed when using `pip install`. 
 
  - `pandas <https://pandas.pydata.org/>`_
  - `h5py <https://www.h5py.org/>`_

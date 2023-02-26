@@ -9,8 +9,8 @@ project = 'PyMIC'
 copyright = '2021, HiLab'
 author = 'HiLab'
 
-release = '0.1'
-version = '0.1.0'
+release = '0.4'
+version = '0.4.0'
 
 # -- General configuration
 

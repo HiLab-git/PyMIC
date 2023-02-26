@@ -12,13 +12,13 @@ for segmentation with full supervision, run the fullowing command:
 
 .. code-block:: bash
 
-    pymic_run train myconfig.cfg 
+    pymic_train myconfig.cfg 
 
 After training, run the following command for testing:
 
 .. code-block:: bash
 
-    pymic_run test myconfig.cfg
+    pymic_test myconfig.cfg
 
 .. tip::
 
@@ -51,11 +51,13 @@ file used for segmentation of lung from radiograph, which can be find in
    [dataset]
    # tensor type (float or double)
    tensor_type = float
+
    task_type = seg
    root_dir  = ../../PyMIC_data/JSRT
    train_csv = config/jsrt_train.csv
    valid_csv = config/jsrt_valid.csv
    test_csv  = config/jsrt_test.csv
+
    train_batch_size = 4
 
    # data transforms
@@ -69,19 +71,26 @@ file used for segmentation of lung from radiograph, which can be find in
    LabelConvert_source_list = [0, 255]
    LabelConvert_target_list = [0, 1]
 
+
    [network]
+   # this section gives parameters for network
+   # the keys may be different for different networks
+
+   # type of network
    net_type = UNet2D
-   # Parameters for UNet2D
+
+   # number of class, required for segmentation task
    class_num     = 2
    in_chns       = 1
    feature_chns  = [16, 32, 64, 128, 256]
    dropout       = [0,  0,  0.3, 0.4, 0.5]
    bilinear      = False
-   deep_supervise= False
+   multiscale_pred = False
 
    [training]
    # list of gpus
    gpus = [0]
+
    loss_type     = DiceLoss
 
    # for optimizers
@@ -95,8 +104,8 @@ file used for segmentation of lung from radiograph, which can be find in
    lr_gamma      = 0.5
    lr_milestones = [2000, 4000, 6000]
 
-   ckpt_save_dir = model/unet_dice_loss
-   ckpt_prefix   = unet
+   ckpt_save_dir    = model/unet
+   ckpt_prefix = unet
 
    # start iter
    iter_start = 0
@@ -107,9 +116,10 @@ file used for segmentation of lung from radiograph, which can be find in
    [testing]
    # list of gpus
    gpus       = [0]
+
    # checkpoint mode can be [0-latest, 1-best, 2-specified]
-   ckpt_mode  = 0
-   output_dir = result
+   ckpt_mode         = 0
+   output_dir        = result/unet
 
    # convert the label of prediction output
    label_source = [0, 1]
@@ -131,17 +141,18 @@ For example, for segmentation tasks, run:
 
    pymic_eval_seg evaluation.cfg 
 
-The configuration file is like (an example from ``PYMIC_examples/seg_ssl/ACDC``):
+The configuration file is like (an example from 
+`PyMIC_examples/seg_ssl/ACDC <https://github.com/HiLab-git/PyMIC_examples/tree/main/seg_ssl/ACDC>`_):
 
 .. code-block:: none
 
    [evaluation]
-   metric = dice
+   metric_list = [dice, hd95]
    label_list = [1,2,3]
    organ_name = heart
 
    ground_truth_folder_root  = ../../PyMIC_data/ACDC/preprocess
-   segmentation_folder_root  = result/unet2d_em
+   segmentation_folder_root  = result/unet2d_urpc
    evaluation_image_pair     = config/data/image_test_gt_seg.csv
 
 See :mod:`pymic.util.evaluation_seg.evaluation` for details of the configuration required.
@@ -152,7 +163,8 @@ For classification tasks, run:
 
    pymic_eval_cls evaluation.cfg 
 
-The configuration file is like (an example from ``PYMIC_examples/classification/CHNCXR``):
+The configuration file is like (an example from 
+`PyMIC_examples/classification/CHNCXR <https://github.com/HiLab-git/PyMIC_examples/tree/main/classification/CHNCXR>`_):
 
 .. code-block:: none
 

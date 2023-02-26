@@ -1,6 +1,16 @@
 pymic.net\_run package
 ======================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   pymic.net_run.semi_sup
+   pymic.net_run.weak_sup
+   pymic.net_run.noisy_label
+
 Submodules
 ----------
 
@@ -44,10 +54,10 @@ pymic.net\_run.infer\_func module
    :undoc-members:
    :show-inheritance:
 
-pymic.net\_run.net\_run module
+pymic.net\_run.semi\_sup module
 ------------------------------
 
-.. automodule:: pymic.net_run.net_run
+.. automodule:: pymic.net_run.semi_sup
    :members:
    :undoc-members:
    :show-inheritance:
