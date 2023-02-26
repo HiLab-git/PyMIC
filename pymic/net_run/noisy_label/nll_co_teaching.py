@@ -18,33 +18,30 @@ from pymic.net.net_dict_seg import SegNetDict
 from pymic.util.parse_config import *
 from pymic.util.ramps import get_rampup_ratio
 
-class TriNet(nn.Module):
+class BiNet(nn.Module):
     def __init__(self, params):
-        super(TriNet, self).__init__()
+        super(BiNet, self).__init__()
         net_name  = params['net_type']
         self.net1 = SegNetDict[net_name](params)
-        self.net2 = SegNetDict[net_name](params)
-        self.net3 = SegNetDict[net_name](params)    
+        self.net2 = SegNetDict[net_name](params)   
 
     def forward(self, x):
         out1 = self.net1(x)
         out2 = self.net2(x)
-        out3 = self.net3(x)
 
         if(self.training):
-          return out1, out2, out3
+          return out1, out2
         else:
-          return (out1 + out2 + out3) / 3
+          return (out1 + out2) / 2
 
-class NLLTriNet(SegmentationAgent):
+class NLLCoTeaching(SegmentationAgent):
     """
-    Implementation of trinet for learning from noisy samples for 
-    segmentation tasks.
+    Co-teaching for noisy-label learning. 
 
-    * Reference: Tianwei Zhang, Lequan Yu, Na Hu, Su Lv, Shi Gu:
-      Robust Medical Image Segmentation from Non-expert Annotations with Tri-network.
-      `MICCAI 2020. <https://link.springer.com/chapter/10.1007/978-3-030-59719-1_25>`_
-         
+    * Reference: Bo Han, Quanming Yao, Xingrui Yu, Gang Niu, Miao Xu, Weihua Hu, 
+      Ivor Tsang, Masashi Sugiyama.  Co-teaching: Robust Training of Deep Neural Networks with Extremely 
+      Noisy Labels. `NeurIPS 201. <https://arxiv.org/abs/1804.06872>`_
+    
     :param config: (dict) A dictionary containing the configuration.
     :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
 
@@ -55,39 +52,33 @@ class NLLTriNet(SegmentationAgent):
         extra section `noisy_label_learning` is needed. See :doc:`usage.nll` for details.
     """
     def __init__(self, config, stage = 'train'):
-        super(NLLTriNet, self).__init__(config, stage)
-       
+        super(NLLCoTeaching, self).__init__(config, stage)
+        loss_type = config['training']["loss_type"]
+        if(loss_type != "CrossEntropyLoss"):
+            logging.warn("only CrossEntropyLoss supported for" +  
+            " coteaching, the specified loss {0:} is ingored".format(loss_type))
+
     def create_network(self):
         if(self.net is None):
-            self.net = TriNet(self.config['network'])
+            self.net = BiNet(self.config['network'])
         if(self.tensor_type == 'float'):
             self.net.float()
         else:
             self.net.double()
 
-    def get_loss_and_confident_mask(self, pred, labels_prob, conf_ratio):
-        prob = nn.Softmax(dim = 1)(pred)
-        prob_2d = reshape_tensor_to_2D(prob) * 0.999 + 5e-4
-        y_2d  = reshape_tensor_to_2D(labels_prob)
-
-        loss = - y_2d* torch.log(prob_2d)
-        loss = torch.sum(loss, dim = 1) # shape is [N]
-        threshold   = torch.quantile(loss, conf_ratio)
-        mask = loss < threshold
-        return loss, mask
-
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
         nll_cfg     = self.config['noisy_label_learning']
+        select_ratio = nll_cfg['co_teaching_select_ratio']
         iter_max     = self.config['training']['iter_max']
-        select_ratio = nll_cfg['trinet_select_ratio']
         rampup_start = nll_cfg.get('rampup_start', 0)
         rampup_end   = nll_cfg.get('rampup_end', iter_max)
 
-        train_loss_no_select1 = 0
-        train_loss_no_select2 = 0
-        train_loss1, train_loss2, train_loss3 = 0, 0, 0
+        train_loss_no_select1  = 0
+        train_loss_no_select2  = 0
+        train_loss1 = 0
+        train_loss2 = 0
         train_dice_list = []
         self.net.train()
         for it in range(iter_valid):
@@ -106,33 +97,42 @@ class NLLTriNet(SegmentationAgent):
             self.optimizer.zero_grad()
                 
             # forward + backward + optimize
-            outputs1, outputs2, outputs3 = self.net(inputs)
+            outputs1, outputs2 = self.net(inputs)
 
-            rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end)
+            prob1 = nn.Softmax(dim = 1)(outputs1)
+            prob2 = nn.Softmax(dim = 1)(outputs2)
+            prob1_2d = reshape_tensor_to_2D(prob1) * 0.999 + 5e-4
+            prob2_2d = reshape_tensor_to_2D(prob2) * 0.999 + 5e-4
+            y_2d  = reshape_tensor_to_2D(labels_prob)
+
+            loss1 = - y_2d* torch.log(prob1_2d)
+            loss1 = torch.sum(loss1, dim = 1) # shape is [N]
+            ind_1_sorted = torch.argsort(loss1)
+
+            loss2 = - y_2d* torch.log(prob2_2d)
+            loss2 = torch.sum(loss2, dim = 1) # shape is [N]
+            ind_2_sorted = torch.argsort(loss2)
+
+            rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end, "sigmoid")
             forget_ratio = (1 - select_ratio) * rampup_ratio
             remb_ratio   = 1 - forget_ratio
+            num_remb = int(remb_ratio * len(loss1))
 
-            loss1, mask1 = self.get_loss_and_confident_mask(outputs1, labels_prob, remb_ratio)
-            loss2, mask2 = self.get_loss_and_confident_mask(outputs2, labels_prob, remb_ratio)
-            loss3, mask3 = self.get_loss_and_confident_mask(outputs3, labels_prob, remb_ratio)
-            mask12, mask13, mask23 = mask1 * mask2, mask1 * mask3, mask2 * mask3 
-            mask12, mask13, mask23 = mask12.detach(), mask13.detach(), mask23.detach()
+            ind_1_update = ind_1_sorted[:num_remb]
+            ind_2_update = ind_2_sorted[:num_remb]
 
-            loss1_avg = torch.sum(loss1 * mask23) / mask23.sum()
-            loss2_avg = torch.sum(loss2 * mask13) / mask13.sum()
-            loss3_avg = torch.sum(loss3 * mask12) / mask12.sum()
-            loss = (loss1_avg + loss2_avg + loss3_avg) / 3
+            loss1_select = loss1[ind_2_update]
+            loss2_select = loss2[ind_1_update]
+            
+            loss = loss1_select.mean() + loss2_select.mean()
 
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
 
             train_loss_no_select1 = train_loss_no_select1 + loss1.mean().item()
             train_loss_no_select2 = train_loss_no_select2 + loss2.mean().item()
-            train_loss1 = train_loss1 + loss1_avg.item()
-            train_loss2 = train_loss2 + loss2_avg.item()
+            train_loss1 = train_loss1 + loss1_select.mean().item()
+            train_loss2 = train_loss2 + loss2_select.mean().item()
 
             outputs1_argmax = torch.argmax(outputs1, dim = 1, keepdim = True)
             soft_out1       = get_soft_label(outputs1_argmax, class_num, self.tensor_type)
@@ -144,13 +144,13 @@ class NLLTriNet(SegmentationAgent):
         train_avg_loss1 = train_loss1 / iter_valid
         train_avg_loss2 = train_loss2 / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice.mean()
+        train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': (train_avg_loss1 + train_avg_loss2) / 2, 
             'loss1':train_avg_loss1, 'loss2': train_avg_loss2,
             'loss_no_select1':train_avg_loss_no_select1, 
             'loss_no_select2':train_avg_loss_no_select2,
-            'select_ratio':remb_ratio, 'avg_dice':train_avg_dice, 'class_dice': train_cls_dice}
+            'select_ratio':remb_ratio, 'avg_fg_dice':train_avg_dice, 'class_dice': train_cls_dice}
         return train_scalers
     
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
@@ -159,7 +159,7 @@ class NLLTriNet(SegmentationAgent):
         loss_no_select_scalar  = {'net1':train_scalars['loss_no_select1'],
                                   'net2':train_scalars['loss_no_select2']}
 
-        dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
+        dice_scalar ={'train':train_scalars['avg_fg_dice'], 'valid':valid_scalars['avg_fg_dice']}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars('loss_no_select', loss_no_select_scalar, glob_it)
         self.summ_writer.add_scalars('select_ratio', {'select_ratio':train_scalars['select_ratio']}, glob_it)
@@ -171,9 +171,9 @@ class NLLTriNet(SegmentationAgent):
                 'valid':valid_scalars['class_dice'][c]}
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
 
-        logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
-            train_scalars['loss'], train_scalars['avg_dice']) + "[" + \
+        logging.info('train loss {0:.4f}, avg foreground dice {1:.4f} '.format(
+            train_scalars['loss'], train_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
-        logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']) + "[" + \
+        logging.info('valid loss {0:.4f}, avg foreground dice {1:.4f} '.format(
+            valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]") 

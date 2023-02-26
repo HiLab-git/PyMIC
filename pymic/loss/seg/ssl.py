@@ -6,8 +6,9 @@ import torch
 import torch.nn as nn
 import numpy as np 
 from pymic.loss.seg.util import reshape_tensor_to_2D
+from pymic.loss.seg.abstract import AbstractSegLoss
 
-class EntropyLoss(nn.Module):
+class EntropyLoss(AbstractSegLoss):
     """
     Entropy Minimization for segmentation tasks.
     The parameters should be written in the `params` dictionary, and it has the
@@ -43,7 +44,7 @@ class EntropyLoss(nn.Module):
         avg_ent = torch.mean(entropy)
         return avg_ent
     
-class TotalVariationLoss(nn.Module):
+class TotalVariationLoss(AbstractSegLoss):
     """
     Total Variation Loss for segmentation tasks.
     The parameters should be written in the `params` dictionary, and it has the

@@ -3,7 +3,6 @@ from __future__ import print_function, division
 import logging
 import os
 import scipy
-import sys
 import torch
 import numpy as np 
 import pandas as pd
@@ -27,7 +26,11 @@ def get_confident_map(gt, pred, CL_type = 'both'):
 
     :return: A tensor representing the noisiness of each pixel.
     """
-    import cleanlab
+    try:
+        import cleanlab
+        assert(cleanlab.__version__ == '1.0.1')
+    except:
+        raise ValueError("Error: cleanlab 1.0.1 required. Please install it by `pip install cleanlab==1.0.1`")
     prob = scipy.special.softmax(pred, axis = 1)
     if CL_type in ['both', 'Qij']:
         noise = cleanlab.pruning.get_noise_indices(gt, prob, prune_method='both', n_jobs=1)
@@ -146,15 +149,7 @@ class NLLCLSLSR(SegmentationAgent):
             dst_path = os.path.join(save_dir, filename)
             conf_map.save(dst_path)
 
-def get_confidence_map():
-    """
-    The main function to get the confidence map during inference.
-    """
-    if(len(sys.argv) < 2):
-        print('Number of arguments should be 3. e.g.')
-        print('   python nll_clslsr.py config.cfg')
-        exit()
-    cfg_file = str(sys.argv[1])
+def get_confidence_map(cfg_file):
     config   = parse_config(cfg_file)
     config   = synchronize_config(config)
 
@@ -173,7 +168,7 @@ def get_confidence_map():
             one_transform = transform_dict[name](transform_param)
             transform_list.append(one_transform)
         data_transform = transforms.Compose(transform_list)
-    print('transform list', transform_list)
+
     csv_file  = config['dataset']['train_csv']
     modal_num = config['dataset'].get('modal_num', 1)
     dataset  = NiftyDataset(root_dir  = config['dataset']['root_dir'],
@@ -202,6 +197,3 @@ def get_confidence_map():
     train_cl_csv = csv_file.replace(".csv", "_clslsr.csv")
     df_cl = pd.DataFrame.from_dict(train_cl_dict)
     df_cl.to_csv(train_cl_csv, index = False)
-
-if __name__ == "__main__":
-    get_confidence_map()

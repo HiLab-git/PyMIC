@@ -5,7 +5,6 @@ import torch
 import numpy as np 
 import torch.nn as nn
 import torchvision.transforms as transforms
-from torch.optim import lr_scheduler
 from pymic.io.nifty_dataset import NiftyDataset
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
@@ -156,7 +155,7 @@ class NLLDAST(SegmentationAgent):
                 worker_init = None
 
             bn_train_noise = self.config['dataset']['train_batch_size_noise']
-            num_worker = self.config['dataset'].get('num_workder', 16)
+            num_worker = self.config['dataset'].get('num_worker', 16)
             self.train_loader_noise = torch.utils.data.DataLoader(self.train_set_noise, 
                 batch_size = bn_train_noise, shuffle=True, num_workers= num_worker,
                 worker_init_fn=worker_init)
@@ -239,9 +238,6 @@ class NLLDAST(SegmentationAgent):
 
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
 
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()
@@ -260,11 +256,11 @@ class NLLDAST(SegmentationAgent):
         train_avg_loss_sup = train_loss_sup / iter_valid
         train_avg_loss_reg = train_loss_reg / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice.mean()
+        train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
             'loss_reg':train_avg_loss_reg, 'regular_w':w_dbc,
-            'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
+            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers
 
     def train_valid(self):
