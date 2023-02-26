@@ -29,7 +29,7 @@ from pymic.loss.seg.util import get_classwise_dice
 from pymic.transform.trans_dict import TransformDict
 from pymic.util.post_process import PostProcessDict
 from pymic.util.image_process import convert_label
-from pymic.util.general import mixup
+from pymic.util.general import mixup, tensor_shape_match
 
 class SegmentationAgent(NetRunAgent):
     def __init__(self, config, stage = 'train'):
@@ -96,9 +96,12 @@ class SegmentationAgent(NetRunAgent):
             raise ValueError("Undefined loss function {0:}".format(loss_name))
         else:
             base_loss = self.loss_dict[loss_name](self.config['training'])
-        if(self.config['network'].get('deep_supervise', False)):
-            weight = self.config['network'].get('deep_supervise_weight', None)
-            params = {'deep_supervise_weight': weight, 'base_loss':base_loss}
+        if(self.config['training'].get('deep_supervise', False)):
+            weight = self.config['training'].get('deep_supervise_weight', None)
+            mode   = self.config['training'].get('deep_supervise_mode', 2)
+            params = {'deep_supervise_weight': weight, 
+                      'deep_supervise_mode': mode, 
+                      'base_loss':base_loss}
             self.loss_calculator = DeepSuperviseLoss(params)
         else:
             self.loss_calculator = base_loss
@@ -106,7 +109,10 @@ class SegmentationAgent(NetRunAgent):
     def get_loss_value(self, data, pred, gt, param = None):
         loss_input_dict = {'prediction':pred, 'ground_truth': gt}
         if data.get('pixel_weight', None) is not None:
-            loss_input_dict['pixel_weight'] = data['pixel_weight'].to(pred.device)
+            if(isinstance(pred, tuple) or isinstance(pred, list)):
+                loss_input_dict['pixel_weight'] = data['pixel_weight'].to(pred[0].device)
+            else:
+                loss_input_dict['pixel_weight'] = data['pixel_weight'].to(pred.device)
         loss_value = self.loss_calculator(loss_input_dict)
         return loss_value
     
@@ -122,7 +128,7 @@ class SegmentationAgent(NetRunAgent):
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
-        mixup_prob  = self.config['training'].get('mixup_probability', 0.5)
+        mixup_prob  = self.config['training'].get('mixup_probability', 0.0)
         train_loss  = 0
         train_dice_list = []
         self.net.train()
@@ -135,7 +141,7 @@ class SegmentationAgent(NetRunAgent):
             # get the inputs
             inputs      = self.convert_tensor_type(data['image'])
             labels_prob = self.convert_tensor_type(data['label_prob'])                 
-            if(random() < mixup_prob):
+            if(mixup_prob > 0 and random() < mixup_prob):
                 inputs, labels_prob = mixup(inputs, labels_prob) 
                    
             # # for debug
@@ -246,11 +252,15 @@ class SegmentationAgent(NetRunAgent):
         else:
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
+        
         ckpt_dir    = self.config['training']['ckpt_save_dir']
+        if(ckpt_dir[-1] == "/"):
+            ckpt_dir = ckpt_dir[:-1]
         ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
         if(ckpt_prefix is None):
             ckpt_prefix = ckpt_dir.split('/')[-1]
-        iter_start  = self.config['training']['iter_start']
+        # iter_start  = self.config['training']['iter_start']       
+        iter_start  = 0     
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training'].get('iter_save', None)
@@ -265,21 +275,32 @@ class SegmentationAgent(NetRunAgent):
         self.max_val_dice = 0.0
         self.max_val_it   = 0
         self.best_model_wts = None 
-        self.checkpoint = None
-        if(iter_start > 0):
-            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, iter_start)
-            self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
-            # assert(self.checkpoint['iteration'] == iter_start)
-            if(len(device_ids) > 1):
-                self.net.module.load_state_dict(self.checkpoint['model_state_dict'])
+        checkpoint = None
+        # initialize the network with pre-trained weights
+        ckpt_init_name = self.config['training'].get('ckpt_init_name', None)
+        ckpt_init_mode = self.config['training'].get('ckpt_init_mode', 0)
+        ckpt_for_optm  = None 
+        if(ckpt_init_name is not None):
+            checkpoint = torch.load(ckpt_dir + "/" + ckpt_init_name, map_location = self.device)
+            pretrained_dict = checkpoint['model_state_dict']
+            model_dict = self.net.module.state_dict() if (len(device_ids) > 1) else self.net.state_dict()
+            pretrained_dict = {k: v for k, v in pretrained_dict.items() if \
+                k in model_dict and tensor_shape_match(pretrained_dict[k], model_dict[k])}
+            logging.info("Initializing the following parameters with pre-trained model")
+            for k in pretrained_dict:
+                logging.info(k)
+            if (len(device_ids) > 1):
+                self.net.module.load_state_dict(pretrained_dict, strict = False)
             else:
-                self.net.load_state_dict(self.checkpoint['model_state_dict'])
-            self.max_val_dice = self.checkpoint.get('valid_pred', 0)
-            # self.max_val_it   = self.checkpoint['iteration']
-            self.max_val_it   = iter_start
-            self.best_model_wts = self.checkpoint['model_state_dict']
-            
-        self.create_optimizer(self.get_parameters_to_update())
+                self.net.load_state_dict(pretrained_dict, strict = False)
+
+            if(ckpt_init_mode > 0): # Load  other information
+                self.max_val_dice = checkpoint.get('valid_pred', 0)
+                iter_start = checkpoint['iteration'] - 1
+                self.max_val_it = iter_start
+                self.best_model_wts = checkpoint['model_state_dict']
+                ckpt_for_optm = checkpoint
+        self.create_optimizer(self.get_parameters_to_update(), ckpt_for_optm)
         self.create_loss_calculator()
     
         self.trainIter  = iter(self.train_loader)

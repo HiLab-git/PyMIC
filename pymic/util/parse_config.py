@@ -112,9 +112,12 @@ def synchronize_config(config):
 
 def logging_config(config):
     for section in config:
-        for key in config[section]:
-            value = config[section][key]
-            logging.info("{0:} {1:} = {2:}".format(section, key, value))
+        if(isinstance(config[section], dict)):
+            for key in config[section]:
+                value = config[section][key]
+                logging.info("{0:} {1:} = {2:}".format(section, key, value))
+        else:
+            logging.info("{0:} = {1:}".format(section, config[section]))
 
 if __name__ == "__main__":
     print(is_int('555'))

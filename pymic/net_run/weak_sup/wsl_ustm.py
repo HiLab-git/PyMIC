@@ -9,7 +9,7 @@ from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.net.net_dict_seg import SegNetDict
-from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
+from pymic.net_run.weak_sup import WSLSegAgent
 from pymic.util.ramps import get_rampup_ratio
 from pymic.util.general import keyword_match
 
@@ -123,7 +123,7 @@ class WSLUSTM(WSLSegAgent):
 
             # update EMA
             alpha = wsl_cfg.get('ema_decay', 0.99)
-            alpha = min(1 - 1 / (iter_max + 1), alpha)
+            alpha = min(1 - 1 / (self.glob_it / iter_valid + 1), alpha)
             for ema_param, param in zip(self.net_ema.parameters(), self.net.parameters()):
                 ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
 
@@ -142,9 +142,9 @@ class WSLUSTM(WSLSegAgent):
         train_avg_loss_sup = train_loss_sup / iter_valid
         train_avg_loss_reg = train_loss_reg / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice.mean()
+        train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
             'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
-            'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
+            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers

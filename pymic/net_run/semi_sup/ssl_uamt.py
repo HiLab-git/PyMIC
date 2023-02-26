@@ -6,7 +6,7 @@ import numpy as np
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.net_run_ssl.ssl_mt import SSLMeanTeacher
+from pymic.net_run.semi_sup import SSLMeanTeacher
 from pymic.util.ramps import get_rampup_ratio
 
 class SSLUncertaintyAwareMeanTeacher(SSLMeanTeacher):
@@ -106,7 +106,7 @@ class SSLUncertaintyAwareMeanTeacher(SSLMeanTeacher):
 
             # update EMA
             alpha = ssl_cfg.get('ema_decay', 0.99)
-            alpha = min(1 - 1 / (iter_max + 1), alpha)
+            alpha = min(1 - 1 / (self.glob_it / iter_valid + 1), alpha)
             for ema_param, param in zip(self.net_ema.parameters(), self.net.parameters()):
                 ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
 
@@ -125,9 +125,9 @@ class SSLUncertaintyAwareMeanTeacher(SSLMeanTeacher):
         train_avg_loss_sup = train_loss_sup / iter_valid
         train_avg_loss_reg = train_loss_reg / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice.mean()
+        train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
             'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
-            'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
+            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers

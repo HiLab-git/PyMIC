@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 import logging
-import torch
-import torch.nn as nn
 import numpy as np
+import torch
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
+from pymic.loss.seg.ssl import EntropyLoss
+from pymic.net_run.semi_sup import SSLSegAgent
+from pymic.transform.trans_dict import TransformDict
 from pymic.util.ramps import get_rampup_ratio
 
-class SSLURPC(SSLSegAgent):
+class SSLEntropyMinimization(SSLSegAgent):
     """
-    Uncertainty-Rectified Pyramid Consistency for semi-supervised segmentation.
-    
-    * Reference: Xiangde Luo, Guotai Wang*, Wenjun Liao, Jieneng Chen, Tao Song, Yinan Chen, 
-      Shichuan Zhang, Dimitris N. Metaxas, Shaoting Zhang. 
-      Semi-Supervised Medical Image Segmentation via Uncertainty Rectified Pyramid Consistency .
-      `Medical Image Analysis 2022. <https://doi.org/10.1016/j.media.2022.102517>`_
+    Using Entropy Minimization for semi-supervised segmentation. 
+
+    * Reference: Yves Grandvalet and Yoshua Bengio:
+      Semi-supervised Learningby Entropy Minimization.
+      `NeurIPS, 2005. <https://papers.nips.cc/paper/2004/file/96f2b50b5d3613adf9c27049b2a888c7-Paper.pdf>`_ 
     
     :param config: (dict) A dictionary containing the configuration.
     :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
@@ -28,6 +28,11 @@ class SSLURPC(SSLSegAgent):
         `network`, `training` and `inference`) used in fully supervised learning, an 
         extra section `semi_supervised_learning` is needed. See :doc:`usage.ssl` for details.
     """
+    def __init__(self, config, stage = 'train'):
+        super(SSLEntropyMinimization, self).__init__(config, stage)
+        self.transform_dict  = TransformDict
+        self.train_set_unlab = None 
+
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
@@ -40,7 +45,6 @@ class SSLURPC(SSLSegAgent):
         train_loss_reg = 0
         train_dice_list = []
         self.net.train()
-        kl_distance = nn.KLDivLoss(reduction='none')
         for it in range(iter_valid):
             try:
                 data_lab = next(self.trainIter)
@@ -62,37 +66,20 @@ class SSLURPC(SSLSegAgent):
             
             # zero the parameter gradients
             self.optimizer.zero_grad()
-
-            # forward pass
-            outputs_list = self.net(inputs)
+                
+            # forward + backward + optimize
+            outputs = self.net(inputs)
             n0 = list(x0.shape)[0] 
-
-            # get supervised loss
-            p0 = [output_i[:n0] for output_i in outputs_list]
+            p0 = outputs[:n0]
             loss_sup = self.get_loss_value(data_lab, p0, y0)
-
-            # get average probability across scales
-            outputs_soft_list = [torch.softmax(item, dim=1) for item in outputs_list]
-            outputs_soft_avg  = torch.mean(torch.stack(outputs_soft_list),dim = 0)
-            p1_avg = outputs_soft_avg[n0:] * 0.99 + 0.005 # for unannotated images
-
-            # regularization loss
-            loss_reg = 0.0
-            for soft_i in outputs_soft_list:
-                p1_i = soft_i[n0:] * 0.99 + 0.005
-                var  = torch.sum(kl_distance(
-                        torch.log(p1_i), p1_avg), dim=1, keepdim=True)
-                exp_var = torch.exp(-var)            
-                square_e= torch.square(p1_avg - p1_i)
-                loss_i  = torch.mean(square_e * exp_var)  / \
-                            (torch.mean(exp_var) + 1e-8) + torch.mean(var)
-                loss_reg += loss_i
-            loss_reg = loss_reg / len(outputs_list)
-                        
+            loss_dict = {"prediction":outputs, 'softmax':True}
+            loss_reg  = EntropyLoss()(loss_dict)
+            
             rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end, "sigmoid")
             regular_w = ssl_cfg.get('regularize_w', 0.1) * rampup_ratio
-            loss = loss_sup + regular_w*loss_reg
 
+            loss = loss_sup + regular_w*loss_reg
+            # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
 
@@ -111,9 +98,9 @@ class SSLURPC(SSLSegAgent):
         train_avg_loss_sup = train_loss_sup / iter_valid
         train_avg_loss_reg = train_loss_reg / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice.mean()
+        train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
             'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
-            'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
+            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers

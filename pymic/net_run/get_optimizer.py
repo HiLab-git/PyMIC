@@ -41,7 +41,9 @@ def get_optimizer(name, net_params, optim_params):
 def get_lr_scheduler(optimizer, sched_params):
     name       = sched_params["lr_scheduler"]
     val_it     = sched_params["iter_valid"]
-    epoch_last = sched_params["last_iter"] / val_it
+    epoch_last = sched_params["last_iter"] 
+    if(epoch_last > 0):
+        epoch_last = int(epoch_last / val_it)
     if(name is None):
         return None
     if(keyword_match(name, "ReduceLROnPlateau")):
@@ -56,6 +58,11 @@ def get_lr_scheduler(optimizer, sched_params):
         lr_gamma  = sched_params["lr_gamma"]
         scheduler = lr_scheduler.MultiStepLR(optimizer,
                     lr_milestones, lr_gamma, epoch_last)
+    elif(keyword_match(name, "StepLR")):
+        lr_step   = sched_params["lr_step"] / val_it
+        lr_gamma  = sched_params["lr_gamma"]
+        scheduler = lr_scheduler.StepLR(optimizer,
+                    lr_step, lr_gamma, epoch_last)
     elif(keyword_match(name, "CosineAnnealingLR")):
         epoch_max  = sched_params["iter_max"] / val_it
         lr_min     = sched_params.get("lr_min", 0)

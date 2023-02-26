@@ -7,7 +7,7 @@ import torch.nn as nn
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
+from pymic.net_run.semi_sup import SSLSegAgent
 from pymic.net.net_dict_seg import SegNetDict
 from pymic.util.ramps import get_rampup_ratio
 
@@ -137,12 +137,12 @@ class SSLCPS(SSLSegAgent):
         train_avg_loss_pse_sup1 = train_loss_pseudo_sup1 / iter_valid 
         train_avg_loss_pse_sup2 = train_loss_pseudo_sup2 / iter_valid 
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice.mean()
+        train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': train_avg_loss, 
             'loss_sup1':train_avg_loss_sup1, 'loss_sup2': train_avg_loss_sup2,
             'loss_pse_sup1':train_avg_loss_pse_sup1, 'loss_pse_sup2': train_avg_loss_pse_sup2,
-            'regular_w':regular_w, 'avg_dice':train_avg_dice, 'class_dice': train_cls_dice}
+            'regular_w':regular_w, 'avg_fg_dice':train_avg_dice, 'class_dice': train_cls_dice}
         return train_scalers
   
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
@@ -152,7 +152,7 @@ class SSLCPS(SSLSegAgent):
                             'net2':train_scalars['loss_sup2']}
         loss_pse_sup_scalar = {'net1':train_scalars['loss_pse_sup1'],
                                'net2':train_scalars['loss_pse_sup2']}
-        dice_scalar ={'train':train_scalars['avg_dice'], 'valid':valid_scalars['avg_dice']}
+        dice_scalar ={'train':train_scalars['avg_fg_dice'], 'valid':valid_scalars['avg_fg_dice']}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars('loss_sup', loss_sup_scalar, glob_it)
         self.summ_writer.add_scalars('loss_pseudo_sup', loss_pse_sup_scalar, glob_it)
@@ -166,8 +166,8 @@ class SSLCPS(SSLSegAgent):
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
 
         logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
-            train_scalars['loss'], train_scalars['avg_dice']) + "[" + \
+            train_scalars['loss'], train_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
         logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
-            valid_scalars['loss'], valid_scalars['avg_dice']) + "[" + \
+            valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]") 

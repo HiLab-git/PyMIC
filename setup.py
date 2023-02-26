@@ -11,7 +11,7 @@ with open('README.md', encoding='utf-8') as f:
 
 setuptools.setup(
     name    = 'PYMIC',
-    version = "0.3.1",
+    version = "0.4.0",
     author  ='PyMIC Consortium',
     author_email = 'wguotai@gmail.com',
     description  = description,
@@ -21,6 +21,7 @@ setuptools.setup(
     license  = 'Apache 2.0',
     packages = setuptools.find_packages(),
     install_requires=[
+        "h5py",
         "matplotlib>=3.1.2",
         "numpy>=1.17.4",
         "pandas>=0.25.3",
@@ -40,10 +41,8 @@ setuptools.setup(
     python_requires = '>=3.6',
     entry_points = {
         'console_scripts': [
-            'pymic_run  = pymic.net_run.net_run:main',
-            'pymic_ssl  = pymic.net_run_ssl.ssl_main:main',
-            'pymic_wsl  = pymic.net_run_wsl.wsl_main:main',
-            'pymic_nll  = pymic.net_run_nll.nll_main:main',
+            'pymic_train = pymic.net_run.train:main',
+            'pymic_test  = pymic.net_run.predict:main',
             'pymic_eval_cls = pymic.util.evaluation_cls:main',
             'pymic_eval_seg = pymic.util.evaluation_seg:main'
         ],

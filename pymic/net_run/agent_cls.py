@@ -157,9 +157,6 @@ class ClassificationAgent(NetRunAgent):
             loss = self.get_loss_value(data, outputs, labels)
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
             
             # statistics
             sample_num   += labels.size(0)
@@ -183,7 +180,7 @@ class ClassificationAgent(NetRunAgent):
                 inputs = self.convert_tensor_type(data['image'])
                 labels = self.convert_tensor_type(data['label_prob'])            
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
-                self.optimizer.zero_grad()
+                # self.optimizer.zero_grad()
                 # forward + backward + optimize
                 outputs = self.net(inputs)
                 loss = self.get_loss_value(data, outputs, labels)
@@ -196,20 +193,17 @@ class ClassificationAgent(NetRunAgent):
         avg_loss = running_loss / sample_num
         avg_score= running_score.double() / sample_num
         metrics  = self.config['training'].get("evaluation_metric", "accuracy")
-        if(isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-            self.scheduler.step(avg_score)
         valid_scalers = {'loss': avg_loss, metrics: avg_score}
         return valid_scalers
 
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
-        metrics =self.config['training'].get("evaluation_metric", "accuracy")
+        metrics = self.config['training'].get("evaluation_metric", "accuracy")
         loss_scalar ={'train':train_scalars['loss'], 'valid':valid_scalars['loss']}
         acc_scalar  ={'train':train_scalars[metrics],'valid':valid_scalars[metrics]}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars(metrics, acc_scalar, glob_it)
         self.summ_writer.add_scalars('lr', {"lr": lr_value}, glob_it)
         
-        logging.info("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
         logging.info('train loss {0:.4f}, avg {1:} {2:.4f}'.format(
             train_scalars['loss'], metrics, train_scalars[metrics]))
         logging.info('valid loss {0:.4f}, avg {1:} {2:.4f}'.format(
@@ -251,7 +245,10 @@ class ClassificationAgent(NetRunAgent):
             checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, iter_start)
             self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
             assert(self.checkpoint['iteration'] == iter_start)
-            self.net.load_state_dict(self.checkpoint['model_state_dict'])
+            if(len(device_ids) > 1):
+                self.net.module.load_state_dict(self.checkpoint['model_state_dict'])
+            else:
+                self.net.load_state_dict(self.checkpoint['model_state_dict'])
             self.max_val_score  = self.checkpoint.get('valid_pred', 0)
             self.max_val_it     = self.checkpoint['iteration']
             self.best_model_wts = self.checkpoint['model_state_dict']
@@ -266,15 +263,28 @@ class ClassificationAgent(NetRunAgent):
         self.glob_it = iter_start
         for it in range(iter_start, iter_max, iter_valid):
             lr_value = self.optimizer.param_groups[0]['lr']
+            t0 = time.time()
             train_scalars = self.training()
+            t1 = time.time()
             valid_scalars = self.validation()
-            self.glob_it = it + iter_valid
-            self.write_scalars(train_scalars, valid_scalars, lr_value, self.glob_it)
+            t2 = time.time()
+            if(isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
+                self.scheduler.step(valid_scalars[metrics])
+            else:
+                self.scheduler.step()
 
+            self.glob_it = it + iter_valid
+            logging.info("\n{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
+            logging.info('learning rate {0:}'.format(lr_value))
+            logging.info("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
+            self.write_scalars(train_scalars, valid_scalars, lr_value, self.glob_it)
             if(valid_scalars[metrics] > self.max_val_score):
                 self.max_val_score = valid_scalars[metrics]
                 self.max_val_it    = self.glob_it
-                self.best_model_wts = copy.deepcopy(self.net.state_dict())
+                if(len(device_ids) > 1):
+                    self.best_model_wts = copy.deepcopy(self.net.module.state_dict())
+                else:
+                    self.best_model_wts = copy.deepcopy(self.net.state_dict())
             
             stop_now = True if(early_stop_it is not None and \
                 self.glob_it - self.max_val_it > early_stop_it) else False
@@ -306,7 +316,6 @@ class ClassificationAgent(NetRunAgent):
             self.max_val_it, metrics, self.max_val_score))
         self.summ_writer.close()
 
-
     def infer(self):
         device_ids = self.config['testing']['gpus']
         device = torch.device("cuda:{0:}".format(device_ids[0]))
@@ -318,8 +327,8 @@ class ClassificationAgent(NetRunAgent):
         
         if(self.config['testing'].get('evaluation_mode', True)):
             self.net.eval()
-            
-        output_csv   = self.config['testing']['output_csv']
+        
+        output_csv   = self.config['testing']['output_dir'] + '/' + self.config['testing']['output_csv']
         class_num    = self.config['network']['class_num']
         save_probability = self.config['testing'].get('save_probability', False)
         

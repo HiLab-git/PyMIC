@@ -9,6 +9,25 @@ def keyword_match(a,b):
     """
     return a.lower() == b.lower()
 
+def tensor_shape_match(a,b):
+    """
+    Test if two tensors have the same shape"""
+    shape_a = list(a.shape)
+    shape_b = list(b.shape)
+    len_a  = len(shape_a)
+    len_b  = len(shape_b)
+    if(len_a != len_b):
+        return False 
+    elif(len_a == 0):
+        return True 
+    else:
+        for i in range(len_a):
+            if(shape_a[i] != shape_b[i]):
+                return False 
+        return True 
+
+
+
 def get_one_hot_seg(label, class_num):
     """
     Convert a segmentation label to one-hot.

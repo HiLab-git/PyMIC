@@ -15,15 +15,15 @@ BibTeX entry:
     author = {Guotai Wang and Xiangde Luo and Ran Gu and Shuojue Yang and Yijie Qu and Shuwei Zhai and Qianfei Zhao and Kang Li and Shaoting Zhang},
     title = {{PyMIC: A deep learning toolkit for annotation-efficient medical image segmentation}},
     year = {2023},
-    url = {http://arxiv.org/abs/2208.09350},
+    url = {https://doi.org/10.1016/j.cmpb.2023.107398},
     journal = {Computer Methods and Programs in Biomedicine},
-    volume = {February},
+    volume = {231},
     pages = {107398},
     }
 
 # Features
 PyMIC provides flixible modules for medical image computing tasks including classification and segmentation. It currently provides the following functions:
-* Support for annotation-efficient image segmentation, especially for semi-supervised, weakly-supervised and noisy-label learning.
+* Support for annotation-efficient image segmentation, especially for semi-supervised, self-supervised, weakly-supervised and noisy-label learning.
 * User friendly: For beginners, you only need to edit the configuration files for model training and inference, without writing code. For advanced users, you can customize different modules (networks, loss functions, training pipeline, etc) and easily integrate them into PyMIC.
 * Easy-to-use I/O interface to read and write different 2D and 3D images.
 * Various data pre-processing/transformation methods before sending a tensor into a network.
@@ -47,10 +47,10 @@ Run the following command to install the latest released version of PyMIC:
 ```bash
 pip install PYMIC
 ```
-To install a specific version of PYMIC such as 0.3.1, run:
+To install a specific version of PYMIC such as 0.4.0, run:
 
 ```bash
-pip install PYMIC==0.3.1
+pip install PYMIC==0.4.0
 ```
 Alternatively, you can download the source code for the latest version. Run the following command to compile and install:
 

@@ -6,18 +6,15 @@ import torch
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.loss.seg.mumford_shah import MumfordShahLoss
-from pymic.net_run_wsl.wsl_abstract import WSLSegAgent
+from pymic.loss.seg.ssl import TotalVariationLoss
+from pymic.net_run.weak_sup import WSLSegAgent
 from pymic.util.ramps import get_rampup_ratio
+from pymic.util.general import keyword_match
 
-class WSLMumfordShah(WSLSegAgent):
+class WSLTotalVariation(WSLSegAgent):
     """
-    Weakly supervised learning with Mumford Shah Loss.
+    Weakly suepervised segmentation with Total Variation regularization.
 
-    * Reference: Boah Kim and Jong Chul Ye: Mumford–Shah Loss Functional 
-      for Image Segmentation With Deep Learning. 
-      `IEEE TIP <https://doi.org/10.1109/TIP.2019.2941265>`_, 2019.
-         
     :param config: (dict) A dictionary containing the configuration.
     :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
 
@@ -28,7 +25,7 @@ class WSLMumfordShah(WSLSegAgent):
         extra section `weakly_supervised_learning` is needed. See :doc:`usage.wsl` for details.
     """
     def __init__(self, config, stage = 'train'):
-        super(WSLMumfordShah, self).__init__(config, stage)
+        super(WSLTotalVariation, self).__init__(config, stage)
 
     def training(self):
         class_num   = self.config['network']['class_num']
@@ -41,8 +38,6 @@ class WSLMumfordShah(WSLSegAgent):
         train_loss_sup = 0
         train_loss_reg = 0
         train_dice_list = []
-
-        reg_loss_calculator = MumfordShahLoss(wsl_cfg)
         self.net.train()
         for it in range(iter_valid):
             try:
@@ -63,8 +58,8 @@ class WSLMumfordShah(WSLSegAgent):
             # forward + backward + optimize
             outputs = self.net(inputs)
             loss_sup = self.get_loss_value(data, outputs, y)
-            loss_dict = {"prediction":outputs, 'image':inputs}
-            loss_reg = reg_loss_calculator(loss_dict)
+            loss_dict = {"prediction":outputs, 'softmax':True}
+            loss_reg = TotalVariationLoss()(loss_dict)
             
             rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end, "sigmoid")
             regular_w = wsl_cfg.get('regularize_w', 0.1) * rampup_ratio
@@ -88,10 +83,10 @@ class WSLMumfordShah(WSLSegAgent):
         train_avg_loss_sup = train_loss_sup / iter_valid
         train_avg_loss_reg = train_loss_reg / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice.mean()
+        train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
             'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
-            'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
+            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers
         
