@@ -28,9 +28,10 @@ Citation
 
 If you use PyMIC for your research, please acknowledge it accordingly by citing our paper:
 
-`G. Wang, X. Luo, R. Gu, S. Yang, Y. Qu, S. Zhai, Q. Zhao, K. Li, S. Zhang. (2022). 
+`G. Wang, X. Luo, R. Gu, S. Yang, Y. Qu, S. Zhai, Q. Zhao, K. Li, S. Zhang.
 PyMIC: A deep learning toolkit for annotation-efficient medical image segmentation.
-arXiv, 2208.09350. <http://arxiv.org/abs/2208.09350>`_
+ Computer Methods and Programs in Biomedicine (CMPB). 231 (2023): 107398. 
+ <http://arxiv.org/abs/2208.09350>`_
 
 
 BibTeX entry:
@@ -41,8 +42,8 @@ BibTeX entry:
     author = {Guotai Wang and Xiangde Luo and Ran Gu and Shuojue Yang and Yijie Qu and Shuwei Zhai and Qianfei Zhao and Kang Li and Shaoting Zhang},
     title = {{PyMIC: A deep learning toolkit for annotation-efficient medical image segmentation}},
     year = {2022},
-    url = {http://arxiv.org/abs/2208.09350},
-    journal = {arXiv},
-    volume = {2208.09350},
-    pages = {1-10},
+    url = {https://doi.org/10.1016/j.cmpb.2023.107398},
+    journal = {Computer Methods and Programs in Biomedicine},
+    volume = {231},
+    pages = {107398},
     }
