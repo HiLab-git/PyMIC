@@ -5,17 +5,20 @@ import copy
 import csv
 import logging
 import time
-import torch
-from torchvision import transforms
 import numpy as np
+import torch
 import torch.nn as nn
 from datetime import datetime
+from random import random
+from torch.optim import lr_scheduler
+from torchvision import transforms
 from tensorboardX import SummaryWriter
 from pymic.io.nifty_dataset import ClassificationDataset
 from pymic.loss.loss_dict_cls import PyMICClsLossDict
 from pymic.net.net_dict_cls import TorchClsNetDict
 from pymic.transform.trans_dict import TransformDict
 from pymic.net_run.agent_abstract import NetRunAgent
+from pymic.util.general import mixup
 import warnings
 warnings.filterwarnings('ignore', '.*output shape of zoom.*')
 
@@ -110,16 +113,17 @@ class ClassificationAgent(NetRunAgent):
         """
         Get evaluation score for a prediction.
 
-        :param outputs: (tensor) Prediction obtained by a network. 
-        :param labels: (tensor) The ground truth.
+        :param outputs: (tensor) Prediction obtained by a network with size N X C. 
+        :param labels: (tensor) The ground truth with size N X C.
         """
         metrics = self.config['training'].get("evaluation_metric", "accuracy")
         if(metrics != "accuracy"): # default classification accuracy
             raise ValueError("Not implemeted for metric {0:}".format(metrics))
         if(self.task_type == "cls"):
-            _, preds = torch.max(outputs, 1)
-            consis= self.convert_tensor_type(preds ==  labels.data)
-            score = torch.mean(consis)
+            out_argmax = torch.argmax(outputs, 1)
+            lab_argmax = torch.argmax(labels, 1)
+            consis = self.convert_tensor_type(out_argmax ==  lab_argmax)
+            score  = torch.mean(consis) 
         elif(self.task_type == "cls_nexcl"): #nonexclusive classification
             preds = self.convert_tensor_type(outputs > 0.5)
             consis= self.convert_tensor_type(preds ==  labels.data)
@@ -128,6 +132,7 @@ class ClassificationAgent(NetRunAgent):
 
     def training(self):
         iter_valid   = self.config['training']['iter_valid']
+        mixup_prob   = self.config['training'].get('mixup_probability', 0.5)
         sample_num   = 0
         running_loss = 0
         running_score= 0
@@ -139,16 +144,19 @@ class ClassificationAgent(NetRunAgent):
                 self.trainIter = iter(self.train_loader)
                 data = next(self.trainIter)
             inputs = self.convert_tensor_type(data['image'])
-            labels = data['label'].long()         
+            labels = self.convert_tensor_type(data['label_prob'])  
+            if(random() < mixup_prob):
+                inputs, labels = mixup(inputs, labels)    
             inputs, labels = inputs.to(self.device), labels.to(self.device)
+
             # zero the parameter gradients
             self.optimizer.zero_grad()
             # forward + backward + optimize
             outputs = self.net(inputs)
-            loss = self.get_loss_value(data, inputs, outputs, labels)
+            
+            loss = self.get_loss_value(data, outputs, labels)
             loss.backward()
             self.optimizer.step()
-            self.scheduler.step()
             
             # statistics
             sample_num   += labels.size(0)
@@ -170,12 +178,12 @@ class ClassificationAgent(NetRunAgent):
             self.net.eval()
             for data in validIter:
                 inputs = self.convert_tensor_type(data['image'])
-                labels = data['label'].long()             
+                labels = self.convert_tensor_type(data['label_prob'])            
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
-                self.optimizer.zero_grad()
+                # self.optimizer.zero_grad()
                 # forward + backward + optimize
                 outputs = self.net(inputs)
-                loss = self.get_loss_value(data, inputs, outputs, labels)
+                loss = self.get_loss_value(data, outputs, labels)
                                 
                 # statistics
                 sample_num   += labels.size(0)
@@ -184,19 +192,18 @@ class ClassificationAgent(NetRunAgent):
 
         avg_loss = running_loss / sample_num
         avg_score= running_score.double() / sample_num
-        metrics =self.config['training'].get("evaluation_metric", "accuracy")
+        metrics  = self.config['training'].get("evaluation_metric", "accuracy")
         valid_scalers = {'loss': avg_loss, metrics: avg_score}
         return valid_scalers
 
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
-        metrics =self.config['training'].get("evaluation_metric", "accuracy")
+        metrics = self.config['training'].get("evaluation_metric", "accuracy")
         loss_scalar ={'train':train_scalars['loss'], 'valid':valid_scalars['loss']}
         acc_scalar  ={'train':train_scalars[metrics],'valid':valid_scalars[metrics]}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars(metrics, acc_scalar, glob_it)
         self.summ_writer.add_scalars('lr', {"lr": lr_value}, glob_it)
         
-        logging.info("{0:} it {1:}".format(str(datetime.now())[:-7], glob_it))
         logging.info('train loss {0:.4f}, avg {1:} {2:.4f}'.format(
             train_scalars['loss'], metrics, train_scalars[metrics]))
         logging.info('valid loss {0:.4f}, avg {1:} {2:.4f}'.format(
@@ -221,7 +228,15 @@ class ClassificationAgent(NetRunAgent):
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training']['iter_save']
+        early_stop_it = self.config['training'].get('early_stop_patience', None)
         metrics     = self.config['training'].get("evaluation_metric", "accuracy")
+        if(iter_save is None):
+            iter_save_list = [iter_max]
+        elif(isinstance(iter_save, (tuple, list))):
+            iter_save_list = iter_save
+        else:
+            iter_save_list = range(0, iter_max + 1, iter_save)
+        
         self.max_val_score  = 0.0
         self.max_val_it     = 0
         self.best_model_wts = None 
@@ -230,7 +245,10 @@ class ClassificationAgent(NetRunAgent):
             checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, iter_start)
             self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
             assert(self.checkpoint['iteration'] == iter_start)
-            self.net.load_state_dict(self.checkpoint['model_state_dict'])
+            if(len(device_ids) > 1):
+                self.net.module.load_state_dict(self.checkpoint['model_state_dict'])
+            else:
+                self.net.load_state_dict(self.checkpoint['model_state_dict'])
             self.max_val_score  = self.checkpoint.get('valid_pred', 0)
             self.max_val_it     = self.checkpoint['iteration']
             self.best_model_wts = self.checkpoint['model_state_dict']
@@ -242,28 +260,48 @@ class ClassificationAgent(NetRunAgent):
 
         logging.info("{0:} training start".format(str(datetime.now())[:-7]))
         self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
+        self.glob_it = iter_start
         for it in range(iter_start, iter_max, iter_valid):
+            lr_value = self.optimizer.param_groups[0]['lr']
+            t0 = time.time()
             train_scalars = self.training()
+            t1 = time.time()
             valid_scalars = self.validation()
-            glob_it = it + iter_valid
-            self.write_scalars(train_scalars, valid_scalars, glob_it)
+            t2 = time.time()
+            if(isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
+                self.scheduler.step(valid_scalars[metrics])
+            else:
+                self.scheduler.step()
 
+            self.glob_it = it + iter_valid
+            logging.info("\n{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
+            logging.info('learning rate {0:}'.format(lr_value))
+            logging.info("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
+            self.write_scalars(train_scalars, valid_scalars, lr_value, self.glob_it)
             if(valid_scalars[metrics] > self.max_val_score):
                 self.max_val_score = valid_scalars[metrics]
-                self.max_val_it    = glob_it
-                self.best_model_wts = copy.deepcopy(self.net.state_dict())
+                self.max_val_it    = self.glob_it
+                if(len(device_ids) > 1):
+                    self.best_model_wts = copy.deepcopy(self.net.module.state_dict())
+                else:
+                    self.best_model_wts = copy.deepcopy(self.net.state_dict())
             
-            if (glob_it % iter_save ==  0):
-                save_dict = {'iteration': glob_it,
+            stop_now = True if(early_stop_it is not None and \
+                self.glob_it - self.max_val_it > early_stop_it) else False
+
+            if ((self.glob_it in iter_save_list) or stop_now):
+                save_dict = {'iteration': self.glob_it,
                              'valid_pred': valid_scalars[metrics],
                              'model_state_dict': self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
-                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, glob_it)
+                save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, self.glob_it)
                 torch.save(save_dict, save_name) 
                 txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefix), 'wt')
-                txt_file.write(str(glob_it))
+                txt_file.write(str(self.glob_it))
                 txt_file.close()
-
+            if(stop_now):
+                logging.info("The training is early stopped")
+                break
         # save the best performing checkpoint
         save_dict = {'iteration': self.max_val_it,
                     'valid_pred': self.max_val_score,
@@ -278,7 +316,6 @@ class ClassificationAgent(NetRunAgent):
             self.max_val_it, metrics, self.max_val_score))
         self.summ_writer.close()
 
-
     def infer(self):
         device_ids = self.config['testing']['gpus']
         device = torch.device("cuda:{0:}".format(device_ids[0]))
@@ -290,8 +327,8 @@ class ClassificationAgent(NetRunAgent):
         
         if(self.config['testing'].get('evaluation_mode', True)):
             self.net.eval()
-            
-        output_csv   = self.config['testing']['output_csv']
+        
+        output_csv   = self.config['testing']['output_dir'] + '/' + self.config['testing']['output_csv']
         class_num    = self.config['network']['class_num']
         save_probability = self.config['testing'].get('save_probability', False)
         
@@ -327,7 +364,7 @@ class ClassificationAgent(NetRunAgent):
             csv_writer = csv.writer(csv_file, delimiter=',', 
                                 quotechar='"',quoting=csv.QUOTE_MINIMAL)
             head = ['image', 'label']
-            if(len(out_lab_list[0]) > 1):
+            if(len(out_lab_list[0]) > 2):
                 head = ['image'] + ['label{0:}'.format(i) for i in range(class_num)]
             csv_writer.writerow(head)
             for item in out_lab_list:

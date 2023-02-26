@@ -30,14 +30,15 @@ The built-in transforms in PyMIC are:
 """
 from __future__ import print_function, division
 from pymic.transform.intensity import  *
-from pymic.transform.flip import RandomFlip
-from pymic.transform.pad import Pad
-from pymic.transform.rotate import RandomRotate
-from pymic.transform.rescale import Rescale, RandomRescale  
+from pymic.transform.flip import *
+from pymic.transform.pad import *
+from pymic.transform.rotate import *
+from pymic.transform.rescale import *
+from pymic.transform.transpose import *
 from pymic.transform.threshold import * 
 from pymic.transform.normalize import *
 from pymic.transform.crop import *
-from pymic.transform.label_convert import * 
+from pymic.transform.label_convert import *  
 
 TransformDict = {
     'ChannelWiseThreshold': ChannelWiseThreshold,
@@ -47,9 +48,13 @@ TransformDict = {
     'GrayscaleToRGB': GrayscaleToRGB,
     'GammaCorrection': GammaCorrection,
     'GaussianNoise': GaussianNoise,
+    'InPainting': InPainting,
+    'InOutPainting': InOutPainting,
     'LabelConvert': LabelConvert,
     'LabelConvertNonzero': LabelConvertNonzero,
     'LabelToProbability': LabelToProbability,
+    'LocalShuffling': LocalShuffling,
+    'NonLinearTransform': NonLinearTransform,
     'NormalizeWithMeanStd': NormalizeWithMeanStd,
     'NormalizeWithMinMax': NormalizeWithMinMax,
     'NormalizeWithPercentiles': NormalizeWithPercentiles,
@@ -57,9 +62,11 @@ TransformDict = {
     'RandomCrop': RandomCrop,
     'RandomResizedCrop': RandomResizedCrop,
     'RandomRescale': RandomRescale,
+    'RandomTranspose': RandomTranspose,
     'RandomFlip': RandomFlip,
     'RandomRotate': RandomRotate,
     'ReduceLabelDim': ReduceLabelDim,
     'Rescale': Rescale,
+    'OutPainting': OutPainting,
     'Pad': Pad,
 }

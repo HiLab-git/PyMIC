@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 import logging
-import torch
 import numpy as np
-from torch.optim import lr_scheduler
+import torch
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
-from pymic.net_run_ssl.ssl_abstract import SSLSegAgent
-from pymic.net.net_dict_seg import SegNetDict
+from pymic.loss.seg.ssl import EntropyLoss
+from pymic.net_run.semi_sup import SSLSegAgent
+from pymic.transform.trans_dict import TransformDict
 from pymic.util.ramps import get_rampup_ratio
 
-class SSLMeanTeacher(SSLSegAgent):
+class SSLEntropyMinimization(SSLSegAgent):
     """
-    Mean Teacher for semi-supervised segmentation.
+    Using Entropy Minimization for semi-supervised segmentation. 
 
-    * Reference: Antti Tarvainen, Harri Valpola: Mean teachers are better role models: 
-      Weight-averaged consistency targets improve semi-supervised deep learning results.
-      `NeurIPS 2017. <https://arxiv.org/abs/1703.01780>`_
+    * Reference: Yves Grandvalet and Yoshua Bengio:
+      Semi-supervised Learningby Entropy Minimization.
+      `NeurIPS, 2005. <https://papers.nips.cc/paper/2004/file/96f2b50b5d3613adf9c27049b2a888c7-Paper.pdf>`_ 
     
     :param config: (dict) A dictionary containing the configuration.
     :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
@@ -29,20 +29,9 @@ class SSLMeanTeacher(SSLSegAgent):
         extra section `semi_supervised_learning` is needed. See :doc:`usage.ssl` for details.
     """
     def __init__(self, config, stage = 'train'):
-        super(SSLMeanTeacher, self).__init__(config, stage)
-        self.net_ema = None 
-
-    def create_network(self):
-        super(SSLMeanTeacher, self).create_network()
-        if(self.net_ema is None):
-            net_name = self.config['network']['net_type']
-            if(net_name not in SegNetDict):
-                raise ValueError("Undefined network {0:}".format(net_name))
-            self.net_ema = SegNetDict[net_name](self.config['network'])
-        if(self.tensor_type == 'float'):
-            self.net_ema.float()
-        else:
-            self.net_ema.double()
+        super(SSLEntropyMinimization, self).__init__(config, stage)
+        self.transform_dict  = TransformDict
+        self.train_set_unlab = None 
 
     def training(self):
         class_num   = self.config['network']['class_num']
@@ -56,7 +45,6 @@ class SSLMeanTeacher(SSLSegAgent):
         train_loss_reg = 0
         train_dice_list = []
         self.net.train()
-        self.net_ema.to(self.device)
         for it in range(iter_valid):
             try:
                 data_lab = next(self.trainIter)
@@ -75,42 +63,25 @@ class SSLMeanTeacher(SSLSegAgent):
             x1   = self.convert_tensor_type(data_unlab['image'])
             inputs = torch.cat([x0, x1], dim = 0)               
             inputs, y0 = inputs.to(self.device), y0.to(self.device)
-            noise = torch.clamp(torch.randn_like(x1) * 0.1, -0.2, 0.2)
-            inputs_ema = x1 + torch.clamp(torch.randn_like(x1) * 0.1, -0.2, 0.2)
-            inputs_ema = inputs_ema.to(self.device)
-
+            
             # zero the parameter gradients
             self.optimizer.zero_grad()
                 
+            # forward + backward + optimize
             outputs = self.net(inputs)
             n0 = list(x0.shape)[0] 
             p0 = outputs[:n0]
             loss_sup = self.get_loss_value(data_lab, p0, y0)
-
-            outputs_soft = torch.softmax(outputs, dim=1)
-            p1_soft = outputs_soft[n0:]
-            
-            with torch.no_grad():
-                outputs_ema = self.net_ema(inputs_ema)
-                p1_ema_soft = torch.softmax(outputs_ema, dim=1)
+            loss_dict = {"prediction":outputs, 'softmax':True}
+            loss_reg  = EntropyLoss()(loss_dict)
             
             rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end, "sigmoid")
             regular_w = ssl_cfg.get('regularize_w', 0.1) * rampup_ratio
 
-            loss_reg = torch.nn.MSELoss()(p1_soft, p1_ema_soft)
             loss = loss_sup + regular_w*loss_reg
-
+            # if (self.config['training']['use'])
             loss.backward()
             self.optimizer.step()
-            if(self.scheduler is not None and \
-                not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
-                self.scheduler.step()
-
-            # update EMA
-            alpha = ssl_cfg.get('ema_decay', 0.99)
-            alpha = min(1 - 1 / (iter_max + 1), alpha)
-            for ema_param, param in zip(self.net_ema.parameters(), self.net.parameters()):
-                ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
 
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()
@@ -127,9 +98,9 @@ class SSLMeanTeacher(SSLSegAgent):
         train_avg_loss_sup = train_loss_sup / iter_valid
         train_avg_loss_reg = train_loss_reg / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice.mean()
+        train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
             'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
-            'avg_dice':train_avg_dice,     'class_dice': train_cls_dice}
+            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice}
         return train_scalers

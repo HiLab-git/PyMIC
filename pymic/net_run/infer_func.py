@@ -15,7 +15,8 @@ class Inferer(object):
     :param `sliding_window_stride`: (optional, list) The sliding window stride. 
     :param `tta_mode`: (optional, int) The test time augmentation mode. Default
         is 0 (no test time augmentation). The other option is 1 (augmentation 
-        with horinzontal and vertical flipping).
+        with horinzontal and vertical flipping) and 2 (ensemble of inference
+        in axial, sagittal and coronal views for 2D networks applied to 3D volumes)
     """
     def __init__(self, config):
         self.config = config
@@ -170,6 +171,22 @@ class Inferer(object):
                 outputs3 = torch.flip(outputs3, [-1])
                 outputs4 = torch.flip(outputs4, [-2, -1])
                 outputs = (outputs1 + outputs2 + outputs3 + outputs4) / 4
+        elif(tta_mode == 2):
+            outputs1 = self.__infer(image)
+            outputs2 = self.__infer(torch.transpose(image, -1, -3))
+            outputs3 = self.__infer(torch.transpose(image, -2, -3))
+            if(isinstance(outputs1, (tuple, list))):
+                outputs = []
+                for i in range(len(outputs1)):
+                    temp_out1 = outputs1[i]
+                    temp_out2 = torch.transpose(outputs2[i], -1, -3)
+                    temp_out3 = torch.transpose(outputs3[i], -2, -3)
+                    temp_mean = (temp_out1 + temp_out2 + temp_out3) / 3
+                    outputs.append(temp_mean)
+            else:
+                outputs2 = torch.transpose(outputs2, -1, -3)
+                outputs3 = torch.transpose(outputs3, -2, -3)
+                outputs = (outputs1 + outputs2 + outputs3) / 3
         else:
             raise ValueError("Undefined tta_mode {0:}".format(tta_mode))
         return outputs
