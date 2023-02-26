@@ -11,7 +11,7 @@ with open('README.md', encoding='utf-8') as f:
 
 setuptools.setup(
     name    = 'PYMIC',
-    version = "0.3.1.1",
+    version = "0.4.0",
     author  ='PyMIC Consortium',
     author_email = 'wguotai@gmail.com',
     description  = description,
@@ -41,8 +41,8 @@ setuptools.setup(
     python_requires = '>=3.6',
     entry_points = {
         'console_scripts': [
-            'pymic_train  = pymic.net_run.train:main',
-            'pymic_test   = pymic.net_run.predict:main',
+            'pymic_train = pymic.net_run.train:main',
+            'pymic_test  = pymic.net_run.predict:main',
             'pymic_eval_cls = pymic.util.evaluation_cls:main',
             'pymic_eval_seg = pymic.util.evaluation_seg:main'
         ],
