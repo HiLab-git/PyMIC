@@ -48,11 +48,11 @@ class Rescale(AbstractTransform):
 
         sample['image'] = image_t
         sample['Rescale_origin_shape'] = json.dumps(input_shape)
-        if('label' in sample and self.task == 'segmentation'):
+        if('label' in sample and self.task in ['seg', 'rec']):
             label = sample['label']
             label = ndimage.interpolation.zoom(label, scale, order = 0)
             sample['label'] = label
-        if('pixel_weight' in sample and self.task == 'segmentation'):
+        if('pixel_weight' in sample and self.task in ['seg', 'rec']):
             weight = sample['pixel_weight']
             weight = ndimage.interpolation.zoom(weight, scale, order = 1)
             sample['pixel_weight'] = weight
@@ -126,11 +126,11 @@ class RandomRescale(AbstractTransform):
 
         sample['image'] = image_t
         sample['RandomRescale_Param'] = json.dumps(input_shape)
-        if('label' in sample and self.task == 'segmentation'):
+        if('label' in sample and self.task in ['seg', 'rec']):
             label = sample['label']
             label = ndimage.interpolation.zoom(label, scale, order = 0)
             sample['label'] = label
-        if('pixel_weight' in sample and self.task == 'segmentation'):
+        if('pixel_weight' in sample and self.task in ['seg', 'rec']):
             weight = sample['pixel_weight']
             weight = ndimage.interpolation.zoom(weight, scale, order = 1)
             sample['pixel_weight'] = weight

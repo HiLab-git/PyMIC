@@ -58,7 +58,7 @@ class ClassificationAgent(NetRunAgent):
             data_transform = None 
         else:
             transform_param = self.config['dataset']
-            transform_param['task'] = 'classification' 
+            transform_param['task'] = self.task_type
             for name in transform_names:
                 if(name not in self.transform_dict):
                     raise(ValueError("Undefined transform {0:}".format(name))) 

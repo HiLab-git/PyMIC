@@ -13,7 +13,7 @@ from pymic.net_run.weak_sup import WSLMethodDict
 from pymic.net_run.noisy_label import NLLMethodDict
 from pymic.net_run.self_sup import SelfSLSegAgent
 
-def get_segmentation_agent(config, sup_type):
+def get_seg_rec_agent(config, sup_type):
     assert(sup_type in ['fully_sup', 'semi_sup', 'self_sup', 'weak_sup', 'noisy_label'])
     if(sup_type == 'fully_sup'):
         logging.info("\n********** Fully Supervised Learning **********\n")
@@ -86,12 +86,13 @@ def main():
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging_config(config)
     task     = config['dataset']['task_type']
-    assert task in ['cls', 'cls_nexcl', 'seg']
+    assert task in ['cls', 'cls_nexcl', 'seg', 'rec']
     if(task == 'cls' or task == 'cls_nexcl'):
         agent = ClassificationAgent(config, 'train')
     else:
         sup_type = config['dataset'].get('supervise_type', 'fully_sup')
-        agent = get_segmentation_agent(config, sup_type)
+        agent = get_seg_rec_agent(config, sup_type)
+
     agent.run()
 
 if __name__ == "__main__":

@@ -39,10 +39,11 @@ class RandomTranspose(AbstractTransform):
         if(transpose_axis is not None):
             image_t = np.transpose(image, transpose_axis)
             sample['image'] = image_t
-            if('label' in sample and self.task == 'segmentation'):
+            if('label' in sample and self.task in ['seg', 'rec']):
                 sample['label'] = np.transpose(sample['label'] , transpose_axis)
-            if('pixel_weight' in sample and self.task == 'segmentation'):
+            if('pixel_weight' in sample and self.task in ['seg', 'rec']):
                 sample['pixel_weight'] = np.transpose(sample['pixel_weight'] , transpose_axis)
+
             
         return sample
 

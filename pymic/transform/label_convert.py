@@ -93,6 +93,27 @@ class LabelToProbability(AbstractTransform):
             sample['label_prob'] = label_prob 
         return sample
 
+class LabelSmooth(AbstractTransform):
+    """
+    Apply label smoothing to one-hot labels.
+    
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `LabelSmooth_alpha`: (float) Alpha value for label smoothing.
+    :param `LabelSmooth_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
+    """
+    def __init__(self, params): 
+        super(LabelSmooth, self).__init__(params)
+        self.alpha = params['LabelSmooth_alpha'.lower()]
+        self.inverse   = params.get('LabelSmooth_inverse'.lower(), False)
+
+    def __call__(self, sample):
+        label_prob = sample['label_prob']
+        K = list(label_prob.shape)[1]
+        sample['label_prob'] = label_prob * (1.0 - self.alpha) + self.alpha / K
+        return sample
 
 class PartialLabelToProbability(AbstractTransform):
     """
@@ -130,5 +151,34 @@ class PartialLabelToProbability(AbstractTransform):
         return sample
 
 
+class SelfSuperviseLabel(AbstractTransform):
+    """
+    Convert one-channel partial label map to one-hot multi-channel probability map.
+    This is used for segmentation tasks only. In the input label map, 0 represents the
+    background class, 1 to C-1 represent the foreground classes, and C represents 
+    unlabeled pixels. In the output dictionary, `label_prob` is the one-hot probability 
+    map, and `pixel_weight` represents a weighting map, where the weight for a pixel
+    is 0 if the label is unkown. 
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `PartialLabelToProbability_class_num`: (int) The class number for the 
+        segmentation task.  
+    :param `PartialLabelToProbability_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
+    """
+    def __init__(self, params): 
+        """
+        class_num (int): the class number in the label map
+        """
+        super(SelfSuperviseLabel, self).__init__(params)
+        self.inverse   = params.get('SelfSuperviseLabel_inverse'.lower(), False)
+    
+    def __call__(self, sample):
+        image = sample['image'] 
+        label = image * 1.0
+        sample['label'] = label
+        return sample
 
 

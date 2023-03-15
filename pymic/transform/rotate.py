@@ -78,10 +78,10 @@ class RandomRotate(AbstractTransform):
         sample['RandomRotate_Param'] = json.dumps(transform_param_list)
         image_t = self.__apply_transformation(image, transform_param_list, 1)
         sample['image'] = image_t
-        if('label' in sample and self.task == 'segmentation'):
+        if('label' in sample and self.task in ['seg', 'rec']):
             sample['label'] = self.__apply_transformation(sample['label'] , 
                                 transform_param_list, 0)
-        if('pixel_weight' in sample and self.task == 'segmentation'):
+        if('pixel_weight' in sample and self.task in ['seg', 'rec']):
             sample['pixel_weight'] = self.__apply_transformation(sample['pixel_weight'] , 
                                 transform_param_list, 1)
         return sample

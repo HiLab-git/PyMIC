@@ -52,9 +52,9 @@ class RandomFlip(AbstractTransform):
             # current pytorch does not support negative strides
             image_t = np.flip(image, flip_axis).copy()
             sample['image'] = image_t
-            if('label' in sample and self.task == 'segmentation'):
+            if('label' in sample and self.task in ['seg', 'rec']):
                 sample['label'] = np.flip(sample['label'] , flip_axis).copy()
-            if('pixel_weight' in sample and self.task == 'segmentation'):
+            if('pixel_weight' in sample and self.task in ['seg', 'rec']):
                 sample['pixel_weight'] = np.flip(sample['pixel_weight'] , flip_axis).copy()
             
         return sample

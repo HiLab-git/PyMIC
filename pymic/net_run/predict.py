@@ -7,6 +7,7 @@ from datetime import datetime
 from pymic.util.parse_config import *
 from pymic.net_run.agent_cls import ClassificationAgent
 from pymic.net_run.agent_seg import SegmentationAgent
+from pymic.net_run.agent_rec import ReconstructionAgent
 
 def main():
     """
@@ -34,11 +35,13 @@ def main():
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging_config(config)
     task     = config['dataset']['task_type']
-    assert task in ['cls', 'cls_nexcl', 'seg']
+    assert task in ['cls', 'cls_nexcl', 'seg', 'rec']
     if(task == 'cls' or task == 'cls_nexcl'):
         agent = ClassificationAgent(config, 'test')
-    else:
+    elif(task == 'seg'):
         agent = SegmentationAgent(config, 'test')
+    else:
+        agent = ReconstructionAgent(config, 'test')
     agent.run()
 
 if __name__ == "__main__":

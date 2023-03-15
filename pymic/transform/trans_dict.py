@@ -25,6 +25,7 @@ The built-in transforms in PyMIC are:
     'RandomRotate': RandomRotate,
     'ReduceLabelDim': ReduceLabelDim,
     'Rescale': Rescale,
+    'SelfSuperviseLabel': SelfSuperviseLabel,
     'Pad': Pad.
 
 """
@@ -67,6 +68,7 @@ TransformDict = {
     'RandomRotate': RandomRotate,
     'ReduceLabelDim': ReduceLabelDim,
     'Rescale': Rescale,
+    'SelfSuperviseLabel': SelfSuperviseLabel,
     'OutPainting': OutPainting,
     'Pad': Pad,
 }

@@ -57,7 +57,7 @@ class NetRunAgent(object):
         self.transform_dict  = None
         self.inferer   = None
         self.tensor_type   = config['dataset']['tensor_type']
-        self.task_type     = config['dataset']['task_type'] #cls, cls_mtbc, seg
+        self.task_type     = config['dataset']['task_type'] #cls, cls_mtbc, seg, rec
         self.deterministic = config['training'].get('deterministic', True)
         self.random_seed   = config['training'].get('random_seed', 1)
         if(self.deterministic):
@@ -282,7 +282,6 @@ class NetRunAgent(object):
 
         :param params: network parameters for optimization. Usually it is obtained by 
             `self.get_parameters_to_update()`.
-        :param checkpoint: A previous checkpoint to load. Default is `None`.
         """
         opt_params = self.config['training']
         if(self.optimizer is None):

@@ -59,11 +59,11 @@ class Pad(AbstractTransform):
 
         sample['image'] = image_t
         
-        if('label' in sample and self.task == 'segmentation'):
+        if('label' in sample and self.task in ['seg', 'rec']):
             label = sample['label']
             label = np.pad(label, pad, 'reflect') if(max(margin) > 0) else label
             sample['label'] = label
-        if('pixel_weight' in sample and self.task == 'segmentation'):
+        if('pixel_weight' in sample and self.task in ['seg', 'rec']):
             weight = sample['pixel_weight']
             weight = np.pad(weight, pad, 'reflect') if(max(margin) > 0) else weight
             sample['pixel_weight'] = weight
