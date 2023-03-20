@@ -5,6 +5,7 @@ import os
 import sys
 import shutil
 from datetime import datetime
+from pymic import TaskType
 from pymic.util.parse_config import *
 from pymic.net_run.agent_cls import ClassificationAgent
 from pymic.net_run.agent_seg import SegmentationAgent
@@ -47,7 +48,7 @@ def get_seg_rec_agent(config, sup_type):
                 'inpainting_probability': 0.2
             }
             config['dataset']['train_transform'].extend(transforms)
-            config['dataset']['valid_transform'].extend(transforms)
+            # config['dataset']['valid_transform'].extend(transforms)
             config['dataset'].update(genesis_cfg)
             logging_config(config['dataset'])
         else:
@@ -86,8 +87,7 @@ def main():
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging_config(config)
     task     = config['dataset']['task_type']
-    assert task in ['cls', 'cls_nexcl', 'seg', 'rec']
-    if(task == 'cls' or task == 'cls_nexcl'):
+    if(task == TaskType.CLASSIFICATION_ONE_HOT or task == TaskType.CLASSIFICATION_COEXIST):
         agent = ClassificationAgent(config, 'train')
     else:
         sup_type = config['dataset'].get('supervise_type', 'fully_sup')

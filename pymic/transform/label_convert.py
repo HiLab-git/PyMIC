@@ -7,6 +7,7 @@ import math
 import random
 import numpy as np
 from scipy import ndimage
+from pymic import TaskType
 from pymic.transform.abstract_transform import AbstractTransform
 from pymic.util.image_process import *
 
@@ -80,13 +81,13 @@ class LabelToProbability(AbstractTransform):
         self.inverse   = params.get('LabelToProbability_inverse'.lower(), False)
 
     def __call__(self, sample):
-        if(self.task == 'segmentation'):
+        if(self.task == TaskType.SEGMENTATION):
             label = sample['label'][0] # sample['label'] is (1, h, w)
             label_prob = np.zeros((self.class_num, *label.shape), dtype = np.float32)
             for i in range(self.class_num):
                 label_prob[i] = label == i*np.ones_like(label)
             sample['label_prob'] = label_prob
-        elif(self.task == 'classification'):
+        elif(self.task == TaskType.CLASSIFICATION_ONE_HOT):
             label_idx = sample['label']
             label_prob = np.zeros((self.class_num,), np.float32)
             label_prob[label_idx] = 1.0

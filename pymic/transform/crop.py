@@ -7,6 +7,7 @@ import math
 import random
 import numpy as np
 from scipy import ndimage
+from pymic import TaskType
 from pymic.transform.abstract_transform import AbstractTransform
 from pymic.util.image_process import *
 
@@ -55,12 +56,14 @@ class CenterCrop(AbstractTransform):
         image_t = crop_ND_volume_with_bounding_box(image, crop_min, crop_max)
         sample['image'] = image_t
         
-        if('label' in sample and self.task in ['seg', 'rec']):
+        if('label' in sample and \
+            self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             label = sample['label']
             crop_max[0] = label.shape[0]
             label = crop_ND_volume_with_bounding_box(label, crop_min, crop_max)
             sample['label'] = label
-        if('pixel_weight' in sample and self.task in ['seg', 'rec']):
+        if('pixel_weight' in sample and \
+            self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             weight = sample['pixel_weight']
             crop_max[0] = weight.shape[0]
             weight = crop_ND_volume_with_bounding_box(weight, crop_min, crop_max)
@@ -300,13 +303,15 @@ class RandomResizedCrop(CenterCrop):
         image_t = ndimage.interpolation.zoom(image_t, scale, order = 1)
         sample['image'] = image_t
         
-        if('label' in sample and self.task in ['seg', 'rec']):
+        if('label' in sample and \
+            self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             label = sample['label']
             crop_max[0] = label.shape[0]
             label = crop_ND_volume_with_bounding_box(label, crop_min, crop_max)
             label = ndimage.interpolation.zoom(label, scale, order = 0)
             sample['label'] = label
-        if('pixel_weight' in sample and self.task ['seg', 'rec']):
+        if('pixel_weight' in sample and \
+            self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             weight = sample['pixel_weight']
             crop_max[0] = weight.shape[0]
             weight = crop_ND_volume_with_bounding_box(weight, crop_min, crop_max)

@@ -4,6 +4,7 @@ from __future__ import print_function, division
 import json
 import random
 import numpy as np
+from pymic import TaskType
 from pymic.transform.abstract_transform import AbstractTransform
 
 
@@ -39,12 +40,12 @@ class RandomTranspose(AbstractTransform):
         if(transpose_axis is not None):
             image_t = np.transpose(image, transpose_axis)
             sample['image'] = image_t
-            if('label' in sample and self.task in ['seg', 'rec']):
+            if('label' in sample and \
+            self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
                 sample['label'] = np.transpose(sample['label'] , transpose_axis)
-            if('pixel_weight' in sample and self.task in ['seg', 'rec']):
-                sample['pixel_weight'] = np.transpose(sample['pixel_weight'] , transpose_axis)
-
-            
+            if('pixel_weight' in sample and \
+            self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
+                sample['pixel_weight'] = np.transpose(sample['pixel_weight'] , transpose_axis)           
         return sample
 
     def  inverse_transform_for_prediction(self, sample):

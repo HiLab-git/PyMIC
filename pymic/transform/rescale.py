@@ -5,6 +5,7 @@ import json
 import random
 import numpy as np
 from scipy import ndimage
+from pymic import TaskType
 from pymic.transform.abstract_transform import AbstractTransform
 from pymic.util.image_process import *
 
@@ -48,11 +49,13 @@ class Rescale(AbstractTransform):
 
         sample['image'] = image_t
         sample['Rescale_origin_shape'] = json.dumps(input_shape)
-        if('label' in sample and self.task in ['seg', 'rec']):
+        if('label' in sample and \
+        self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             label = sample['label']
             label = ndimage.interpolation.zoom(label, scale, order = 0)
             sample['label'] = label
-        if('pixel_weight' in sample and self.task in ['seg', 'rec']):
+        if('pixel_weight' in sample and \
+        self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             weight = sample['pixel_weight']
             weight = ndimage.interpolation.zoom(weight, scale, order = 1)
             sample['pixel_weight'] = weight
@@ -126,11 +129,13 @@ class RandomRescale(AbstractTransform):
 
         sample['image'] = image_t
         sample['RandomRescale_Param'] = json.dumps(input_shape)
-        if('label' in sample and self.task in ['seg', 'rec']):
+        if('label' in sample and \
+        self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             label = sample['label']
             label = ndimage.interpolation.zoom(label, scale, order = 0)
             sample['label'] = label
-        if('pixel_weight' in sample and self.task in ['seg', 'rec']):
+        if('pixel_weight' in sample and \
+        self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             weight = sample['pixel_weight']
             weight = ndimage.interpolation.zoom(weight, scale, order = 1)
             sample['pixel_weight'] = weight

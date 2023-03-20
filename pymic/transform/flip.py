@@ -7,6 +7,7 @@ import math
 import random
 import numpy as np
 from scipy import ndimage
+from pymic import TaskType
 from pymic.transform.abstract_transform import AbstractTransform
 from pymic.util.image_process import *
 
@@ -52,9 +53,11 @@ class RandomFlip(AbstractTransform):
             # current pytorch does not support negative strides
             image_t = np.flip(image, flip_axis).copy()
             sample['image'] = image_t
-            if('label' in sample and self.task in ['seg', 'rec']):
+            if('label' in sample and \
+            self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
                 sample['label'] = np.flip(sample['label'] , flip_axis).copy()
-            if('pixel_weight' in sample and self.task in ['seg', 'rec']):
+            if('pixel_weight' in sample and \
+            self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
                 sample['pixel_weight'] = np.flip(sample['pixel_weight'] , flip_axis).copy()
             
         return sample

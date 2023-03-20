@@ -5,6 +5,7 @@ import json
 import random
 import numpy as np
 from scipy import ndimage
+from pymic import TaskType
 from pymic.transform.abstract_transform import AbstractTransform
 from pymic.util.image_process import *
 
@@ -78,10 +79,12 @@ class RandomRotate(AbstractTransform):
         sample['RandomRotate_Param'] = json.dumps(transform_param_list)
         image_t = self.__apply_transformation(image, transform_param_list, 1)
         sample['image'] = image_t
-        if('label' in sample and self.task in ['seg', 'rec']):
+        if('label' in sample and \
+        self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             sample['label'] = self.__apply_transformation(sample['label'] , 
                                 transform_param_list, 0)
-        if('pixel_weight' in sample and self.task in ['seg', 'rec']):
+        if('pixel_weight' in sample and \
+        self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             sample['pixel_weight'] = self.__apply_transformation(sample['pixel_weight'] , 
                                 transform_param_list, 1)
         return sample

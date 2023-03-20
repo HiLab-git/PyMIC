@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 
+import logging
 import os
 import torch
 import pandas as pd
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
+from pymic import TaskType
 from pymic.io.image_read_write import load_image_as_nd_array
 
 class NiftyDataset(Dataset):
@@ -23,14 +25,21 @@ class NiftyDataset(Dataset):
         The built-in transforms can listed in :mod:`pymic.transform.trans_dict`.
     """
     def __init__(self, root_dir, csv_file, modal_num = 1, 
-            with_label = False, transform=None):
+            with_label = False, transform=None, task = TaskType.SEGMENTATION):
         self.root_dir   = root_dir
         self.csv_items  = pd.read_csv(csv_file)
         self.modal_num  = modal_num
         self.with_label = with_label
         self.transform  = transform
+        self.task       = task
+        assert self.task in  [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]
        
         csv_keys = list(self.csv_items.keys())
+        if('label' not in csv_keys):
+            logging.warning("`label` section is not found in the csv file {0:}".format(
+                csv_file) + "\n -- This is only allowed for self-supervised learning" + 
+                "\n -- when `SelfSuperviseLabel` is used in the transform.")
+            self.with_label = False
         self.image_weight_idx = None
         self.pixel_weight_idx = None
         if('image_weight' in csv_keys):
@@ -42,12 +51,15 @@ class NiftyDataset(Dataset):
         return len(self.csv_items)
 
     def __getlabel__(self, idx):
-        csv_keys = list(self.csv_items.keys())
+        csv_keys = list(self.csv_items.keys())        
         label_idx = csv_keys.index('label')
         label_name = "{0:}/{1:}".format(self.root_dir, 
             self.csv_items.iloc[idx, label_idx])
         label = load_image_as_nd_array(label_name)['data_array']
-        label = np.asarray(label, np.int32)
+        if(self.task ==  TaskType.SEGMENTATION):
+            label = np.asarray(label, np.int32)
+        elif(self.task == TaskType.RECONSTRUCTION):
+            label = np.asarray(label, np.float32)
         return label
 
     def __get_pixel_weight__(self, idx):
@@ -101,10 +113,12 @@ class ClassificationDataset(NiftyDataset):
         The built-in transforms can listed in :mod:`pymic.transform.trans_dict`.
     """
     def __init__(self, root_dir, csv_file, modal_num = 1, class_num = 2, 
-            with_label = False, transform=None):
+            with_label = False, transform=None, task = TaskType.CLASSIFICATION_ONE_HOT):
         super(ClassificationDataset, self).__init__(root_dir, 
             csv_file, modal_num, with_label, transform)
         self.class_num = class_num
+        self.task      = task
+        assert self.task in  [TaskType.CLASSIFICATION_ONE_HOT, TaskType.CLASSIFICATION_COEXIST]
 
     def __getlabel__(self, idx):
         csv_keys = list(self.csv_items.keys())

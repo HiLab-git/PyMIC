@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+from pymic import TaskType
 from pymic.util.parse_config import *
 from pymic.net_run.agent_cls import ClassificationAgent
 from pymic.net_run.agent_seg import SegmentationAgent
@@ -34,14 +35,15 @@ def main():
                             level=logging.INFO, format='%(message)s') # for python 3.6
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging_config(config)
-    task     = config['dataset']['task_type']
-    assert task in ['cls', 'cls_nexcl', 'seg', 'rec']
-    if(task == 'cls' or task == 'cls_nexcl'):
+    task    = config['dataset']['task_type']
+    if(task == TaskType.CLASSIFICATION_ONE_HOT or task == TaskType.CLASSIFICATION_COEXIST):
         agent = ClassificationAgent(config, 'test')
-    elif(task == 'seg'):
+    elif(task == TaskType.SEGMENTATION):
         agent = SegmentationAgent(config, 'test')
-    else:
+    elif(task == TaskType.RECONSTRUCTION):
         agent = ReconstructionAgent(config, 'test')
+    else:
+        raise ValueError("Undefined task for inference: {0:}".format(task))
     agent.run()
 
 if __name__ == "__main__":

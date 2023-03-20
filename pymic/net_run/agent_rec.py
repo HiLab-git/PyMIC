@@ -113,6 +113,9 @@ class ReconstructionAgent(SegmentationAgent):
         validIter  = iter(self.valid_loader)
         with torch.no_grad():
             self.net.eval()
+
+            # for debug
+            # save_num = 0
             for data in validIter:
                 inputs = self.convert_tensor_type(data['image'])
                 label  = self.convert_tensor_type(data['label'])
@@ -123,6 +126,24 @@ class ReconstructionAgent(SegmentationAgent):
                 loss = self.get_loss_value(data, outputs, label)
                 valid_loss_list.append(loss.item())
 
+                # for debug
+                # print(inputs.shape, label.shape, outputs.shape)
+                # inputs = inputs.cpu().numpy()
+                # label  = label.cpu().numpy()
+                # outputs = outputs.cpu().numpy()
+                # for i in range(inputs.shape[0]):
+                #     image_i = inputs[i][0]
+                #     label_i = label[i][0]
+                #     output_i  = outputs[i][0]
+                #     image_name = "temp/case{0:}_image.nii.gz".format(save_num + i)
+                #     label_name = "temp/case{0:}_label.nii.gz".format(save_num + i)
+                #     output_name= "temp/case{0:}_output.nii.gz".format(save_num + i)
+                #     save_nd_array_as_image(image_i, image_name, reference_name = None)
+                #     save_nd_array_as_image(label_i, label_name, reference_name = None)
+                #     save_nd_array_as_image(output_i, output_name, reference_name = None)
+                # save_num += inputs.shape[0]
+                # if(save_num > 20):
+                #     break
         valid_avg_loss = np.asarray(valid_loss_list).mean()
         valid_scalers = {'loss': valid_avg_loss}
         return valid_scalers

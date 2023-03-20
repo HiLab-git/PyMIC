@@ -7,6 +7,7 @@ import math
 import random
 import numpy as np
 from scipy import ndimage
+from pymic import TaskType
 from pymic.transform.abstract_transform import AbstractTransform
 from pymic.util.image_process import *
 
@@ -59,11 +60,13 @@ class Pad(AbstractTransform):
 
         sample['image'] = image_t
         
-        if('label' in sample and self.task in ['seg', 'rec']):
+        if('label' in sample and \
+        self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             label = sample['label']
             label = np.pad(label, pad, 'reflect') if(max(margin) > 0) else label
             sample['label'] = label
-        if('pixel_weight' in sample and self.task in ['seg', 'rec']):
+        if('pixel_weight' in sample and \
+        self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             weight = sample['pixel_weight']
             weight = np.pad(weight, pad, 'reflect') if(max(margin) > 0) else weight
             sample['pixel_weight'] = weight

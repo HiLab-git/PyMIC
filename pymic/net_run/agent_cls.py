@@ -13,6 +13,7 @@ from random import random
 from torch.optim import lr_scheduler
 from torchvision import transforms
 from tensorboardX import SummaryWriter
+from pymic import TaskType
 from pymic.io.nifty_dataset import ClassificationDataset
 from pymic.loss.loss_dict_cls import PyMICClsLossDict
 from pymic.net.net_dict_cls import TorchClsNetDict
@@ -38,7 +39,6 @@ class ClassificationAgent(NetRunAgent):
     def __init__(self, config, stage = 'train'):
         super(ClassificationAgent, self).__init__(config, stage)
         self.transform_dict  = TransformDict
-        assert(self.task_type in  ["cls", "cls_nexcl"])
 
     def get_stage_dataset_from_config(self, stage):
         assert(stage in ['train', 'valid', 'test'])
@@ -119,12 +119,12 @@ class ClassificationAgent(NetRunAgent):
         metrics = self.config['training'].get("evaluation_metric", "accuracy")
         if(metrics != "accuracy"): # default classification accuracy
             raise ValueError("Not implemeted for metric {0:}".format(metrics))
-        if(self.task_type == "cls"):
+        if(self.task_type == TaskType.CLASSIFICATION_ONE_HOT):
             out_argmax = torch.argmax(outputs, 1)
             lab_argmax = torch.argmax(labels, 1)
             consis = self.convert_tensor_type(out_argmax ==  lab_argmax)
             score  = torch.mean(consis) 
-        elif(self.task_type == "cls_nexcl"): #nonexclusive classification
+        elif(self.task_type == TaskType.CLASSIFICATION_COEXIST):
             preds = self.convert_tensor_type(outputs > 0.5)
             consis= self.convert_tensor_type(preds ==  labels.data)
             score = torch.mean(consis) 
@@ -346,15 +346,15 @@ class ClassificationAgent(NetRunAgent):
                 infer_time = time.time() - start_time
                 infer_time_list.append(infer_time)
 
-                if (self.task_type == "cls"):
+                if (self.task_type == TaskType.CLASSIFICATION_ONE_HOT):
                     out_prob  = nn.Softmax(dim = 1)(out_digit).detach().cpu().numpy()
                     out_lab   = np.argmax(out_prob, axis=1)
-                else: #self.task_type == "cls_nexcl"
+                else: #self.task_type == TaskType.CLASSIFICATION_COEXIST
                     out_prob  = nn.Sigmoid()(out_digit).detach().cpu().numpy() 
                     out_lab   = np.asarray(out_prob > 0.5, np.uint8)              
                 for i in range(len(names)):
                     print(names[i], out_lab[i])
-                    if(self.task_type == "cls"):
+                    if(self.task_type == TaskType.CLASSIFICATION_ONE_HOT):
                         out_lab_list.append([names[i]] + [out_lab[i]])
                     else:
                         out_lab_list.append([names[i]] + out_lab[i].tolist())

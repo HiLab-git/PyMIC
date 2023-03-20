@@ -67,7 +67,8 @@ class SegmentationAgent(NetRunAgent):
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
                                 with_label= not (stage == 'test'),
-                                transform = data_transform )
+                                transform = data_transform, 
+                                task = self.task_type)
         return dataset
 
     def create_network(self):
