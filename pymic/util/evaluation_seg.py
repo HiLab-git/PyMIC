@@ -3,15 +3,19 @@
 Evaluation module for segmenation tasks.
 """
 from __future__ import absolute_import, print_function
+import argparse
 import csv
 import os
 import sys
 import pandas as pd
 import numpy as np
+from os.path import join
 from scipy import ndimage
 from pymic.io.image_read_write import *
 from pymic.util.image_process import *
-from pymic.util.parse_config import parse_config
+from pymic.util.general import is_image_name
+from pymic.util.parse_config import parse_config, parse_value_from_string
+
 
 
 def binary_dice(s, g, resize = False):
@@ -257,108 +261,127 @@ def evaluation(config):
         When a list is given, each list element should be the root dir of the results of one method. 
     :param evaluation_image_pair: (str) The csv file that provide the segmentation 
         images and the corresponding ground truth images. 
-    :param ground_truth_label_convert_source: (optional, list) The list of source
-        labels for label conversion in the ground truth. 
-    :param ground_truth_label_convert_target: (optional, list) The list of target
-        labels for label conversion in the ground truth. 
-    :param segmentation_label_convert_source: (optional, list) The list of source
-        labels for label conversion in the segmentation. 
-    :param segmentation_label_convert_target: (optional, list) The list of target
-        labels for label conversion in the segmentation.     
     """
     
     metric_list = config['metric_list']
-    label_list = config['label_list']
-    label_fuse = config.get('label_fuse', False)
-    organ_name = config['organ_name']
-    gt_root    = config['ground_truth_folder_root']
-    seg_root   = config['segmentation_folder_root']
-    if(not(isinstance(seg_root, tuple) or isinstance(seg_root, list))):
-        seg_root = [seg_root]
-    image_pair_csv = config['evaluation_image_pair']
-    ground_truth_label_convert_source = config.get('ground_truth_label_convert_source', None)
-    ground_truth_label_convert_target = config.get('ground_truth_label_convert_target', None)
-    segmentation_label_convert_source = config.get('segmentation_label_convert_source', None)
-    segmentation_label_convert_target = config.get('segmentation_label_convert_target', None)
+    if(not isinstance(metric_list, list)):
+        metric_list = [metric_list]
+    label_list  = config.get('label_list', None)
+    if(label_list is None):
+        label_list = range(1, config["class_number"])
+    elif(not isinstance(label_list, list)):
+        label_list = [label_list]
+    label_fuse  = config.get('label_fuse', False)
+    output_name = config.get('output_name', None)
+    gt_root     = config['ground_truth_folder_root']
+    seg_root    = config['segmentation_folder_root']
+    image_pair_csv = config.get('evaluation_image_pair', None)
 
-    image_items = pd.read_csv(image_pair_csv)
-    item_num    = len(image_items)
-    
-    for seg_root_n in seg_root: # for each segmentation method
-        for metric in metric_list:
-            score_all_data = []
-            name_score_list= []
-            for i in range(item_num):
-                gt_name  = image_items.iloc[i, 0]
-                seg_name = image_items.iloc[i, 1]
-                # seg_name = seg_name.replace(".nii.gz", "_pred.nii.gz")
-                gt_full_name  = gt_root  + '/' + gt_name
-                seg_full_name = seg_root_n + '/' + seg_name
-                
-                s_dict = load_image_as_nd_array(seg_full_name)
-                g_dict = load_image_as_nd_array(gt_full_name)
-                s_volume = s_dict["data_array"]; s_spacing = s_dict["spacing"]
-                g_volume = g_dict["data_array"]; g_spacing = g_dict["spacing"]
-                # for dim in range(len(s_spacing)):
-                #     assert(s_spacing[dim] == g_spacing[dim])
-                if((ground_truth_label_convert_source is not None) and \
-                    ground_truth_label_convert_target is not None):
-                    g_volume = convert_label(g_volume, ground_truth_label_convert_source, \
-                        ground_truth_label_convert_target)
-
-                if((segmentation_label_convert_source is not None) and \
-                    segmentation_label_convert_target is not None):
-                    s_volume = convert_label(s_volume, segmentation_label_convert_source, \
-                        segmentation_label_convert_target)
-
-                score_vector = get_multi_class_evaluation_score(s_volume, g_volume, label_list, 
-                    label_fuse, s_spacing, metric )
-                if(len(label_list) > 1):
-                    score_vector.append(np.asarray(score_vector).mean())
-                score_all_data.append(score_vector)
-                name_score_list.append([seg_name] + score_vector)
-                print(seg_name, score_vector)
-            score_all_data = np.asarray(score_all_data)
-            score_mean = score_all_data.mean(axis = 0)
-            score_std  = score_all_data.std(axis = 0)
-            name_score_list.append(['mean'] + list(score_mean))
-            name_score_list.append(['std'] + list(score_std))
+    if(image_pair_csv is not None):
+        image_pair = pd.read_csv(image_pair_csv)
+        gt_names, seg_names = image_pair.iloc[:, 0], image_pair.iloc[:, 1]
+    else:
+        seg_names = sorted(os.listdir(seg_root)) 
+        seg_names = [item  for item in seg_names if is_image_name(item)]
+        gt_names  = seg_names
         
-            # save the result as csv 
-            score_csv = "{0:}/{1:}_{2:}_all.csv".format(seg_root_n, organ_name, metric)
-            with open(score_csv, mode='w') as csv_file:
-                csv_writer = csv.writer(csv_file, delimiter=',', 
-                                quotechar='"',quoting=csv.QUOTE_MINIMAL)
-                head = ['image'] + ["class_{0:}".format(i) for i in label_list]
-                if(len(label_list) > 1):
-                    head = head + ["average"]
-                csv_writer.writerow(head)
-                for item in name_score_list:
-                    csv_writer.writerow(item)
+        
+    for metric in metric_list:
+        print(metric)
+        score_all_data = []
+        name_score_list= []
+        for i in range(len(gt_names)):
+            gt_full_name  = join(gt_root, gt_names[i])
+            seg_full_name = join(seg_root, seg_names[i])
+            s_dict = load_image_as_nd_array(seg_full_name)
+            g_dict = load_image_as_nd_array(gt_full_name)
+            s_volume = s_dict["data_array"]; s_spacing = s_dict["spacing"]
+            g_volume = g_dict["data_array"]; g_spacing = g_dict["spacing"]
+            # for dim in range(len(s_spacing)):
+            #     assert(s_spacing[dim] == g_spacing[dim])
 
-            print("{0:} mean ".format(metric), score_mean)
-            print("{0:} std  ".format(metric), score_std) 
+            score_vector = get_multi_class_evaluation_score(s_volume, g_volume, label_list, 
+                label_fuse, s_spacing, metric )
+            if(len(label_list) > 1):
+                score_vector.append(np.asarray(score_vector).mean())
+            score_all_data.append(score_vector)
+            name_score_list.append([seg_names[i]] + score_vector)
+            print(seg_names[i], score_vector)
+        score_all_data = np.asarray(score_all_data)
+        score_mean = score_all_data.mean(axis = 0)
+        score_std  = score_all_data.std(axis = 0)
+        name_score_list.append(['mean'] + list(score_mean))
+        name_score_list.append(['std'] + list(score_std))
+    
+        # save the result as csv 
+        if(output_name is None):
+            output_name = "{0:}/eval_{1:}.csv".format(seg_root, metric)
+        with open(output_name, mode='w') as csv_file:
+            csv_writer = csv.writer(csv_file, delimiter=',', 
+                            quotechar='"',quoting=csv.QUOTE_MINIMAL)
+            head = ['image'] + ["class_{0:}".format(i) for i in label_list]
+            if(len(label_list) > 1):
+                head = head + ["average"]
+            csv_writer.writerow(head)
+            for item in name_score_list:
+                csv_writer.writerow(item)
+
+        print("{0:} mean ".format(metric), score_mean)
+        print("{0:} std  ".format(metric), score_std) 
 
 def main():
     """
     Main function for evaluation of segmentation results. 
-    A configuration file is needed for runing. e.g., 
+    You can use a configuration file for runing. e.g., 
     
     .. code-block:: none
 
-        pymic_evaluate_cls config.cfg
+        pymic_evaluate_seg -cfg config.cfg
 
     The configuration file should have an `evaluation` section.
     See :mod:`pymic.util.evaluation_seg.evaluation` for details of the configuration required.
+
+    In addition, you can also provide a list of args in the command if -cfg is not used. For example:
+
+    .. code-block:: none
+
+        pymic_evaluate_seg -metric dice -cls_index 255 -gt_dir ground_truth_dir -seg_dir segmentation_dir
+
     """
-    if(len(sys.argv) < 2):
-        print('Number of arguments should be 2. e.g.')
-        print('    pymic_evaluate_seg config.cfg')
-        exit()
-    config_file = str(sys.argv[1])
-    assert(os.path.isfile(config_file))
-    config = parse_config(config_file)['evaluation']
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-cfg", help="configuration file for evaluation", 
+                        required=False, default=None)
+    parser.add_argument("-metric", help="evaluation metrics, e.g., dice, or [dice, assd]", 
+                        required=False, default=None)
+    parser.add_argument("-cls_num", help="number of classes", 
+                        required=False, default=None)
+    parser.add_argument("-cls_index", help="The class index for evaluation, e.g., 255, [1, 2]", 
+                        required=False, default=None)
+    parser.add_argument("-gt_dir", help="path of folder for ground truth", 
+                        required=False, default=None)
+    parser.add_argument("-seg_dir", help="path of folder for segmentation", 
+                        required=False, default=None)
+    parser.add_argument("-name_pair", help="the .csv file for name mapping in case"
+                        " the names of one case are different in the gt_dir "
+                        " and seg_dir", 
+                        required=False, default=None)
+    parser.add_argument("-out", help="the output .csv file name", 
+                        required=False, default=None)
+    args = parser.parse_args()
+    print(args)
+    if(args.cfg is not None):
+        config = parse_config(args.cfg)['evaluation']
+    else:
+        config = {} 
+        config['metric_list'] = parse_value_from_string(args.metric)   
+        config['label_list']  = None if args.cls_index is None else parse_value_from_string(args.cls_index)
+        config['class_number']= None if args.cls_num is None else parse_value_from_string(args.cls_num)
+        config['ground_truth_folder_root'] = args.gt_dir
+        config['segmentation_folder_root'] = args.seg_dir 
+        config['evaluation_image_pair'] = args.name_pair 
+        config['output_name'] = args.out 
+    print(config)
     evaluation(config)
-    
+
 if __name__ == '__main__':
     main()

@@ -44,6 +44,40 @@ def bezier_curve(points, nTimes=1000):
 
     return xvals, yvals
 
+class IntensityClip(AbstractTransform):
+    """
+    Clip the intensity for input image
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `IntensityClip_channels`: (list) A list of int for specifying the channels.
+    :param `IntensityClip_lower`: (list) The lower bound for clip in each channel.
+    :param `IntensityClip_upper`: (list) The upper bound for clip in each channel.
+    :param `IntensityClip_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
+    """
+    def __init__(self, params):
+        super(IntensityClip, self).__init__(params)
+        self.channels =  params['IntensityClip_channels'.lower()]
+        self.lower = params.get('IntensityClip_lower'.lower(), None)
+        self.upper = params.get('IntensityClip_upper'.lower(), None)
+        self.inverse   = params.get('IntensityClip_inverse'.lower(), False)
+    
+    def __call__(self, sample):
+        image = sample['image']
+        lower = self.lower if self.lower is not None else [None] * len(self.channels)
+        upper = self.upper if self.upper is not None else [None] * len(self.channels)
+        for chn in self.channels:
+            lower_c, upper_c = lower[chn], upper[chn]
+            if(lower_c is None):
+                lower_c = np.percentile(image[chn], 0.05)
+            if(upper_c is None):
+                upper_c = np.percentile(image[chn, 99.95])
+            image[chn] = np.clip(image[chn], lower_c, upper_c)
+        sample['image'] = image
+        return sample
+    
 class GammaCorrection(AbstractTransform):
     """
     Apply random gamma correction to given channels.
@@ -76,8 +110,9 @@ class GammaCorrection(AbstractTransform):
             img_c = image[chn]
             v_min = img_c.min()
             v_max = img_c.max()
-            img_c = (img_c - v_min)/(v_max - v_min)
-            img_c = np.power(img_c, gamma_c)*(v_max - v_min) + v_min
+            if(v_min < v_max):
+                img_c = (img_c - v_min)/(v_max - v_min)
+                img_c = np.power(img_c, gamma_c)*(v_max - v_min) + v_min
             image[chn] = img_c
 
         sample['image'] = image

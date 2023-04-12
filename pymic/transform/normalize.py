@@ -53,9 +53,12 @@ class NormalizeWithMeanStd(AbstractTransform):
             if(chn_mean is None):
                 if(self.ingore_np):
                     pixels = image[chn][image[chn] > 0]
-                    chn_mean, chn_std = pixels.mean(), pixels.std() 
+                    if(len(pixels) > 0):
+                        chn_mean, chn_std = pixels.mean(), pixels.std() + 1e-5
+                    else:
+                        chn_mean, chn_std = 0.0, 1.0
                 else:
-                    chn_mean, chn_std = image[chn].mean(), image[chn].std()
+                    chn_mean, chn_std = image[chn].mean(), image[chn].std() + 1e-5
     
             chn_norm = (image[chn] - chn_mean)/chn_std
 

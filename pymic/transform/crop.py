@@ -243,62 +243,51 @@ class RandomCrop(CenterCrop):
 
 class RandomResizedCrop(CenterCrop):
     """
-    Randomly crop the input image (shape [C, H, W]). Only 2D images are supported.
-
+    Randomly resize and crop the input image (shape [C, D, H, W]). 
     The arguments should be written in the `params` dictionary, and it has the
     following fields:
 
-    :param `RandomResizedCrop_output_size`: (list/tuple) Desired output size [H, W].
+    :param `RandomResizedCrop_output_size`: (list/tuple) Desired output size [D, H, W].
         The output channel is the same as the input channel. 
-    :param `RandomResizedCrop_scale`: (list/tuple) Range of scale, e.g. (0.08, 1.0).
-    :param `RandomResizedCrop_ratio`: (list/tuple) Range of aspect ratio, e.g. (0.75, 1.33).
+    :param `RandomResizedCrop_scale_range`: (list/tuple) Range of scale, e.g. (0.08, 1.0).
     :param `RandomResizedCrop_inverse`: (optional, bool) Is inverse transform needed for inference.
         Default is `False`. Currently, the inverse transform is not supported, and 
         this transform is assumed to be used only during training stage. 
     """
     def __init__(self, params):
         self.output_size = params['RandomResizedCrop_output_size'.lower()]
-        self.scale       = params['RandomResizedCrop_scale'.lower()]
-        self.ratio       = params['RandomResizedCrop_ratio'.lower()]
+        self.scale       = params['RandomResizedCrop_scale_range'.lower()]
         self.inverse     = params.get('RandomResizedCrop_inverse'.lower(), False)
         self.task        = params['Task'.lower()]
         assert isinstance(self.output_size, (list, tuple))
         assert isinstance(self.scale, (list, tuple))
-        assert isinstance(self.ratio, (list, tuple))
         
-    def _get_crop_param(self, sample):
-        image = sample['image']
-        input_shape = image.shape
-        input_dim   = len(input_shape) - 1
-        assert(input_dim == 2)
-        assert(input_dim == len(self.output_size))
-        
-        scale = self.scale[0] + random.random()*(self.scale[1] - self.scale[0])
-        ratio = self.ratio[0] + random.random()*(self.ratio[1] - self.ratio[0])
-        crop_w = input_shape[-1] * scale 
-        crop_h = crop_w * ratio
-        crop_h = min(crop_h, input_shape[-2])
-        output_shape = [int(crop_h), int(crop_w)]
-
-        crop_margin = [input_shape[i + 1] - output_shape[i]\
-            for i in range(input_dim)]
-        crop_min = [random.randint(0, item) for item in crop_margin]
-        crop_max = [crop_min[i] + output_shape[i] \
-            for i in range(input_dim)]
-        crop_min = [0] + crop_min
-        crop_max = list(input_shape[0:1]) + crop_max
-        sample['RandomResizedCrop_Param'] = json.dumps((input_shape, crop_min, crop_max))
-        return sample, crop_min, crop_max
-
     def __call__(self, sample):
         image = sample['image']
-        input_shape = image.shape
-        input_dim   = len(input_shape) - 1
-        sample, crop_min, crop_max = self._get_crop_param(sample)
+        channel, input_size = image.shape[0], image.shape[1:]
+        input_dim   = len(input_size)
+        assert(input_dim == len(self.output_size))
+        scale = self.scale[0] + random.random()*(self.scale[1] - self.scale[0])
+        crop_size = [int(self.output_size[i] * scale)  for i in range(input_dim)]
+        crop_margin = [input_size[i] - crop_size[i] for i in range(input_dim)]
+        pad_image = False
+        if(min(crop_margin) < 0):
+            pad_image = True
+            pad_size = [max(0, -crop_margin[i]) for  i in range(input_dim)]
+            pad_lower = [int(pad_size[i] / 2) for i in range(input_dim)]
+            pad_upper = [pad_size[i] - pad_lower[i] for i in range(input_dim)]
+            pad = [(pad_lower[i], pad_upper[i]) for  i in range(input_dim)]
+            pad = tuple([(0, 0)] + pad)
+            image = np.pad(image, pad, 'reflect')
+            crop_margin = [max(0, crop_margin[i]) for i in range(input_dim)]
+        
+        crop_min = [random.randint(0, item) for item in crop_margin]
+        crop_max = [crop_min[i] + crop_size[i] for i in range(input_dim)]
+        crop_min = [0] + crop_min
+        crop_max = [channel] + crop_max
 
         image_t = crop_ND_volume_with_bounding_box(image, crop_min, crop_max)
-        crp_shape = image_t.shape
-        scale = [(self.output_size[i] + 0.0)/crp_shape[1:][i] for i in range(input_dim)]
+        scale = [(self.output_size[i] + 0.0)/crop_size[i] for i in range(input_dim)]
         scale = [1.0] + scale
         image_t = ndimage.interpolation.zoom(image_t, scale, order = 1)
         sample['image'] = image_t
@@ -306,13 +295,18 @@ class RandomResizedCrop(CenterCrop):
         if('label' in sample and \
             self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             label = sample['label']
+            if(pad_image):
+                label = np.pad(label, pad, 'reflect')
             crop_max[0] = label.shape[0]
             label = crop_ND_volume_with_bounding_box(label, crop_min, crop_max)
-            label = ndimage.interpolation.zoom(label, scale, order = 0)
+            order = 0 if(self.task == TaskType.SEGMENTATION) else 1
+            label = ndimage.interpolation.zoom(label, scale, order = order)
             sample['label'] = label
         if('pixel_weight' in sample and \
             self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             weight = sample['pixel_weight']
+            if(pad_image):
+                weight = np.pad(weight, pad, 'reflect')
             crop_max[0] = weight.shape[0]
             weight = crop_ND_volume_with_bounding_box(weight, crop_min, crop_max)
             weight = ndimage.interpolation.zoom(weight, scale, order = 1)

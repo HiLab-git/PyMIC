@@ -26,7 +26,15 @@ def tensor_shape_match(a,b):
                 return False 
         return True 
 
-
+def is_image_name(x):
+    valid_names = ["jpg", "jpeg", "png", "bmp", "nii.gz",
+                   "tif", "nii", "nii.gz", "mha"]
+    valid = False 
+    for item in valid_names:
+        if(x.endswith(item)):
+            valid = True 
+            break 
+    return valid
 
 def get_one_hot_seg(label, class_num):
     """

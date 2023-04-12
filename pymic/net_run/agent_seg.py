@@ -149,15 +149,15 @@ class SegmentationAgent(NetRunAgent):
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
             #     label_i = labels_prob[i][1]
-            #     pixw_i  = pix_w[i][0]
-            #     print(image_i.shape, label_i.shape, pixw_i.shape)
+            #     # pixw_i  = pix_w[i][0]
+            #     print(image_i.shape, label_i.shape)
             #     image_name = "temp/image_{0:}_{1:}.nii.gz".format(it, i)
             #     label_name = "temp/label_{0:}_{1:}.nii.gz".format(it, i)
-            #     weight_name= "temp/weight_{0:}_{1:}.nii.gz".format(it, i)
+            #     # weight_name= "temp/weight_{0:}_{1:}.nii.gz".format(it, i)
             #     save_nd_array_as_image(image_i, image_name, reference_name = None)
             #     save_nd_array_as_image(label_i, label_name, reference_name = None)
-            #     save_nd_array_as_image(pixw_i, weight_name, reference_name = None)
-            # continue
+            #     # save_nd_array_as_image(pixw_i, weight_name, reference_name = None)
+            # # continue
 
             inputs, labels_prob = inputs.to(self.device), labels_prob.to(self.device)
             
@@ -297,7 +297,7 @@ class SegmentationAgent(NetRunAgent):
 
             if(ckpt_init_mode > 0): # Load  other information
                 self.max_val_dice = checkpoint.get('valid_pred', 0)
-                iter_start = checkpoint['iteration'] - 1
+                iter_start = checkpoint['iteration']
                 self.max_val_it = iter_start
                 self.best_model_wts = checkpoint['model_state_dict']
                 ckpt_for_optm = checkpoint
