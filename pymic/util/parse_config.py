@@ -108,6 +108,16 @@ def synchronize_config(config):
     data_cfg["LabelToProbability_class_num".lower()] = net_cfg["class_num"] 
     if "PartialLabelToProbability" in data_cfg['train_transform']:
         data_cfg["PartialLabelToProbability_class_num".lower()] = net_cfg["class_num"]
+    patch_size = data_cfg.get('patch_size', None)
+    if(patch_size is not None):
+        if('Pad' in data_cfg['train_transform']):
+            data_cfg['Pad_output_size'.lower()] = patch_size
+        if('CenterCrop' in data_cfg['train_transform']):
+            data_cfg['CenterCrop_output_size'.lower()] = patch_size
+        if('RandomCrop' in data_cfg['train_transform']):
+            data_cfg['RandomCrop_output_size'.lower()] = patch_size
+        if('RandomResizedCrop' in data_cfg['train_transform']):
+            data_cfg['RandomResizedCrop_output_size'.lower()] = patch_size
     config['dataset'] = data_cfg
     config['network'] = net_cfg
     return config 

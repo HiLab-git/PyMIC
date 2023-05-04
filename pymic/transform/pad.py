@@ -22,7 +22,7 @@ class Pad(AbstractTransform):
     following fields:
 
     :param `Pad_output_size`: (list/tuple) The output size along each spatial axis. 
-    :param `Pad_ceil_mode`: (optional, bool) If true (by default), the real output size will
+    :param `Pad_ceil_mode`: (optional, bool) If true, the real output size will
         be the minimal integer multiples of output_size higher than the input size.
         For example, the input image has a shape of [3, 100, 100], `Pad_output_size` 
         = [32, 32], and the real output size will be [3, 128, 128] if `Pad_ceil_mode` = True.

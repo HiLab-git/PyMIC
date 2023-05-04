@@ -198,39 +198,28 @@ class RandomCrop(CenterCrop):
 
     def _get_crop_param(self, sample):
         image       = sample['image']
-        input_shape = image.shape
-        input_dim   = len(input_shape) - 1
+        chns        = image.shape[0]
+        input_shape = image.shape[1:]
+        input_dim   = len(input_shape)
         assert(input_dim == len(self.output_size))
-        temp_output_size = self.output_size
-        if(input_dim == 3 and self.output_size[0] is None):
-            # note that output size is [D, H, W] and input is [C, D, H, W]
-            temp_output_size = [input_shape[1]] + self.output_size[1:]
 
-        crop_margin = [input_shape[i + 1] - temp_output_size[i]\
-            for i in range(input_dim)]
+        crop_margin = [input_shape[i] - self.output_size[i] for i in range(input_dim)]
         crop_min = [0 if item == 0 else random.randint(0, item) for item in crop_margin]
+        crop_max = [crop_min[i] + self.output_size[i] for i in range(input_dim)]
         if(self.fg_focus and random.random() < self.fg_ratio):
-            label = sample['label']
+            label = sample['label'][0]
             mask  = np.zeros_like(label)
             for temp_lab in self.mask_label:
                 mask = np.maximum(mask, label == temp_lab)
-            if(mask.sum() == 0):
-                bb_min = [0] * (input_dim + 1)
-                bb_max = mask.shape
-            else:
-                bb_min, bb_max = get_ND_bounding_box(mask)
-            bb_min, bb_max = bb_min[1:], bb_max[1:]
-            crop_min = [random.randint(bb_min[i], bb_max[i]) - int(temp_output_size[i]/2) \
-                for i in range(input_dim)]
-            crop_min = [max(0, item) for item in crop_min]
-            crop_min = [min(crop_min[i], input_shape[i+1] - temp_output_size[i]) \
-                for i in range(input_dim)]
-
-        crop_max = [crop_min[i] + temp_output_size[i] \
-            for i in range(input_dim)]
+            if(mask.max() > 0):
+                crop_min, crop_max = get_random_box_from_mask(mask, self.output_size)
+                # to avoid Typeerror: object of type int64 is not json serializable
+                crop_min = [int(i) for i in crop_min]
+                crop_max = [int(i) for i in crop_max]
         crop_min = [0] + crop_min
-        crop_max = list(input_shape[0:1]) + crop_max
-        sample['RandomCrop_Param'] = json.dumps((input_shape, crop_min, crop_max))
+        crop_max = [chns] + crop_max
+
+        sample['RandomCrop_Param'] = json.dumps((image.shape, crop_min, crop_max))
         return sample, crop_min, crop_max
 
     def _get_param_for_inverse_transform(self, sample):

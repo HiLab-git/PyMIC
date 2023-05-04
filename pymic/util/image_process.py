@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function
 
+import random
 import numpy as np
 import SimpleITK as sitk
 from scipy import ndimage
@@ -96,7 +97,7 @@ def set_ND_volume_roi_with_bounding_box_range(volume, bb_min, bb_max, sub_volume
         raise ValueError("array dimension should be 2 to 5")
     return out
 
-def crop_and_pad_ND_array_to_desired_shape(image, out_shape, pad_mod):
+def crop_and_pad_ND_array_to_desired_shape(image, out_shape, pad_mod='reflect'):
     """
     Crop and pad an image to a given shape. 
 
@@ -135,6 +136,96 @@ def crop_and_pad_ND_array_to_desired_shape(image, out_shape, pad_mod):
         image_pad = np.pad(image_crp, pad, pad_mod) 
         
     return image_pad
+
+def random_crop_ND_volume(volume, out_shape):
+    """
+    randomly crop a volume with to a given shape. 
+    
+    :param volume: The input ND array.
+    :param out_shape: (list) The desired output shape. 
+    """
+    in_shape   = volume.shape 
+    dim        = len(in_shape)
+
+    # pad the image first if the input size is smaller than the output size
+    pad_shape = [max(out_shape[i], in_shape[i]) for i in range(dim)]
+    mgnp = [pad_shape[i] - in_shape[i] for i in range(dim)]
+    if(max(mgnp) == 0):
+        image_pad = volume
+    else:
+        ml   = [int(mgnp[i]/2)  for i in range(dim)]
+        mr   = [mgnp[i] - ml[i] for i in range(dim)] 
+        pad  = [(ml[i], mr[i])  for i in range(dim)]
+        pad  = tuple(pad)
+        image_pad = np.pad(volume, pad, 'reflect') 
+    
+    bb_min = [random.randint(0, pad_shape[i] - out_shape[i]) for i in range(dim)]
+    bb_max = [bb_min[i] + out_shape[i] for i in range(dim)]
+    crop_volume = crop_ND_volume_with_bounding_box(image_pad, bb_min, bb_max) 
+    return crop_volume
+
+def get_random_box_from_mask(mask, out_shape):
+    mask_shape = mask.shape
+    dim = len(out_shape)
+    left_margin = [int(out_shape[i]/2)   for i in range(dim)]
+    right_margin= [mask_shape[i] - (out_shape[i] - left_margin[i]) + 1  for i in range(dim)]
+
+    valid_center_shape = [right_margin[i] - left_margin[i] for i in range(dim)]
+    valid_mask = np.zeros(mask_shape)
+    valid_mask = set_ND_volume_roi_with_bounding_box_range(valid_mask, 
+        left_margin, right_margin, np.ones(valid_center_shape))
+    valid_mask = valid_mask * mask
+    
+    indexes   = np.where(valid_mask)
+    voxel_num = len(indexes[0])
+    j = random.randint(0, voxel_num - 1)
+    bb_c = [indexes[i][j] for i in range(dim)]
+    bb_min = [bb_c[i] - left_margin[i] for i in range(dim)]
+    bb_max = [bb_min[i] + out_shape[i] for i in range(dim)]
+    return bb_min, bb_max
+
+def random_crop_ND_volume_with_mask(volume, out_shape, mask):
+    """
+    randomly crop a volume with to a given shape. 
+    
+    :param volume: The input ND array.
+    :param out_shape: (list) The desired output shape. 
+    :param mask: A binary ND array. Default is None. If not None, 
+        the center of the cropped region should be limited to the mask region.
+    """
+    in_shape   = volume.shape 
+    dim        = len(in_shape)
+    # pad the image first if the input size is smaller than the output size
+    pad_shape = [max(out_shape[i], in_shape[i]) for i in range(dim)]
+    mgnp = [pad_shape[i] - in_shape[i] for i in range(dim)]
+    if(max(mgnp) == 0):
+        image_pad, mask_pad = volume, mask
+    else:
+        ml   = [int(mgnp[i]/2)  for i in range(dim)]
+        mr   = [mgnp[i] - ml[i] for i in range(dim)] 
+        pad  = [(ml[i], mr[i])  for i in range(dim)]
+        pad  = tuple(pad)
+        image_pad = np.pad(volume, pad, 'reflect') 
+        mask_pad  = np.pad(mask,   pad, 'reflect') 
+    
+    bb_min, bb_max = get_random_box_from_mask(mask_pad, out_shape)
+    # left_margin = [int(out_shape[i]/2)   for i in range(dim)]
+    # right_margin= [pad_shape[i] - (out_shape[i] - left_margin[i]) + 1  for i in range(dim)]
+
+    # valid_center_shape = [right_margin[i] - left_margin[i] for i in range(dim)]
+    # valid_mask = np.zeros(pad_shape)
+    # valid_mask = set_ND_volume_roi_with_bounding_box_range(valid_mask, 
+    #     left_margin, right_margin, np.ones(valid_center_shape))
+    # valid_mask = valid_mask * mask_pad
+    
+    # indexes   = np.where(valid_mask)
+    # voxel_num = len(indexes[0])
+    # j = random.randint(0, voxel_num)
+    # bb_c = [indexes[i][j] for i in range(dim)]
+    # bb_min = [bb_c[i] - left_margin[i] for i in range(dim)]
+    # bb_max = [bb_min[i] + out_shape[i] for i in range(dim)]
+    crop_volume = crop_ND_volume_with_bounding_box(image_pad, bb_min, bb_max) 
+    return crop_volume
 
 def get_largest_k_components(image, k = 1):
     """
@@ -200,11 +291,11 @@ def convert_label(label, source_list, target_list):
     :param target_list: A list of target labels, e.g. [0, 1, 2, 3]
     """
     assert(len(source_list) == len(target_list))
-    label_converted = np.zeros_like(label)
+    label_converted = label * 1
     for i in range(len(source_list)):
-        label_temp = np.asarray(label == source_list[i], label.dtype)
-        label_temp = label_temp * target_list[i]
-        label_converted = label_converted + label_temp
+        label_s = np.asarray(label == source_list[i], label.dtype)
+        label_t = label_s * target_list[i]
+        label_converted[label_s > 0] =  label_t[label_s > 0]
     return label_converted
 
 def resample_sitk_image_to_given_spacing(image, spacing, order):
