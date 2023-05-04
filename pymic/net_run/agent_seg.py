@@ -63,10 +63,14 @@ class SegmentationAgent(NetRunAgent):
             data_transform = transforms.Compose(self.transform_list)
 
         csv_file = self.config['dataset'].get(stage + '_csv', None)
+        if(stage == 'test'):
+            with_label = False 
+        else:
+            with_label = self.config['dataset'].get(stage + '_label', True)
         dataset  = NiftyDataset(root_dir  = root_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
-                                with_label= not (stage == 'test'),
+                                with_label= with_label,
                                 transform = data_transform, 
                                 task = self.task_type)
         return dataset
@@ -189,8 +193,15 @@ class SegmentationAgent(NetRunAgent):
     def validation(self):
         class_num = self.config['network']['class_num']
         if(self.inferer is None):
-            infer_cfg = self.config['testing']
+            infer_cfg = {}
             infer_cfg['class_num'] = class_num
+            infer_cfg['sliding_window_enable'] = self.config['testing'].get('sliding_window_enable', False)
+            if(infer_cfg['sliding_window_enable']):
+                patch_size = self.config['dataset'].get('patch_size', None)
+                if(patch_size is None):
+                    patch_size = self.config['testing']['sliding_window_size']
+                infer_cfg['sliding_window_size']   = patch_size
+                infer_cfg['sliding_window_stride'] = [i//2 for i in patch_size]
             self.inferer = Inferer(infer_cfg)
         
         valid_loss_list = []

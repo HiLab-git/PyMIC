@@ -2,6 +2,8 @@
 from __future__ import print_function, division
 
 import torch
+import numpy as np 
+from scipy.ndimage.filters import gaussian_filter
 from torch.nn.functional import interpolate
 
 class Inferer(object):
@@ -48,9 +50,19 @@ class Inferer(object):
             output_num, scales = 1, None
         return output_num, scales
 
+    def __get_gaussian_weight_map(self, window_size, sigma_scale = 1.0/8):
+        w = np.zeros(window_size)
+        center = [i//2 for i in window_size]
+        sigmas = [i*sigma_scale for i in window_size]
+        w[tuple(center)] = 1.0
+        w = gaussian_filter(w, sigmas, 0, mode='constant', cval=0)
+        return w 
+
     def __infer_with_sliding_window(self, image):
         """
-        Use sliding window to predict segmentation for large images.
+        Use sliding window to predict segmentation for large images. The outupt of each
+        sliding window is weighted by a Gaussian map that hihglights contributions of windows
+        with a centroid closer to a given pixel. 
         Note that the network may output a list of tensors with difference sizes.
         """
         window_size   = [x for x in self.config['sliding_window_size']]
@@ -86,9 +98,10 @@ class Inferer(object):
                         crop_start_list.append([d_min, h_min, w_min])
 
         output_shape = [batch_size, class_num] + img_shape
-        mask_shape   = [batch_size, class_num] + window_size
-        counter      = torch.zeros(output_shape).to(image.device)
-        temp_mask    = torch.ones(mask_shape).to(image.device)
+        weight       = torch.zeros(output_shape).to(image.device)
+        temp_w       = self.__get_gaussian_weight_map(window_size)
+        temp_w       = np.broadcast_to(temp_w, [batch_size, class_num] + window_size)
+        temp_w       = torch.from_numpy(temp_w).to(image.device)
         temp_in_shape = img_full_shape[:2] + window_size
         tempx = torch.ones(temp_in_shape).to(image.device)
         out_num, scale_list = self.__get_prediction_number_and_scales(tempx)
@@ -104,12 +117,12 @@ class Inferer(object):
                 if(isinstance(patch_out, (tuple, list))):
                     patch_out = patch_out[0]
                 if(img_dim == 2):
-                    output[:, :, c0[0]:c1[0], c0[1]:c1[1]] += patch_out
-                    counter[:, :, c0[0]:c1[0], c0[1]:c1[1]] += temp_mask
+                    output[:, :, c0[0]:c1[0], c0[1]:c1[1]] += patch_out * temp_w
+                    weight[:, :, c0[0]:c1[0], c0[1]:c1[1]] += temp_w
                 else:
-                    output[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += patch_out
-                    counter[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += temp_mask
-            return output/counter
+                    output[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += patch_out * temp_w
+                    weight[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += temp_w
+            return output/weight
         else: # for multiple prediction
             output_list= []
             for i in range(out_num):
@@ -129,14 +142,14 @@ class Inferer(object):
                     c0_i = [int(c0[d] * scale_list[i][d]) for d in range(img_dim)]
                     c1_i = [int(c1[d] * scale_list[i][d]) for d in range(img_dim)]
                     if(img_dim == 2):
-                        output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1]] += patch_out[i]
-                        counter[:, :, c0[0]:c1[0], c0[1]:c1[1]] += temp_mask
+                        output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1]] += patch_out[i] * temp_w
+                        weight[:, :, c0[0]:c1[0], c0[1]:c1[1]] += temp_w
                     else:
-                        output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1], c0_i[2]:c1_i[2]] += patch_out[i]
-                        counter[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += temp_mask
+                        output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1], c0_i[2]:c1_i[2]] += patch_out[i] * temp_w
+                        weight[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += temp_w
             for i in range(out_num):  
-                counter_i = interpolate(counter, scale_factor = scale_list[i])
-                output_list[i] = output_list[i] / counter_i
+                weight_i = interpolate(weight, scale_factor = scale_list[i])
+                output_list[i] = output_list[i] / weight_i
             return output_list
 
     def run(self, model, image):
