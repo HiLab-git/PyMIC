@@ -63,13 +63,16 @@ class Inferer(object):
         Use sliding window to predict segmentation for large images. The outupt of each
         sliding window is weighted by a Gaussian map that hihglights contributions of windows
         with a centroid closer to a given pixel. 
-        Note that the network may output a list of tensors with difference sizes.
+        Note that the network may output a list of tensors with difference sizes for multi-scale prediction.
         """
         window_size   = [x for x in self.config['sliding_window_size']]
         window_stride = [x for x in self.config['sliding_window_stride']]
+        window_batch  = self.config.get('sliding_window_batch', 1)
         class_num     = self.config['class_num']
         img_full_shape = list(image.shape)
         batch_size = img_full_shape[0]
+        assert(batch_size == 1 or window_batch == 1)
+        img_chns   = img_full_shape[1]
         img_shape  = img_full_shape[2:]
         img_dim    = len(img_shape)
         if(img_dim != 2 and img_dim !=3):
@@ -105,23 +108,37 @@ class Inferer(object):
         temp_in_shape = img_full_shape[:2] + window_size
         tempx = torch.ones(temp_in_shape).to(image.device)
         out_num, scale_list = self.__get_prediction_number_and_scales(tempx)
+
+        window_num = len(crop_start_list)
+        assert(window_num >= window_batch)
+        patches_shape = [window_batch, img_chns] + window_size
+        patches_in    =  torch.ones(patches_shape).to(image.device)
         if(out_num == 1): # for a single prediction
             output = torch.zeros(output_shape).to(image.device)
-            for c0 in crop_start_list:
-                c1 = [c0[d] + window_size[d] for d in range(img_dim)]
-                if(img_dim == 2):
-                    patch_in = image[:, :, c0[0]:c1[0], c0[1]:c1[1]]
-                else:
-                    patch_in = image[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]]
-                patch_out = self.model(patch_in) 
-                if(isinstance(patch_out, (tuple, list))):
-                    patch_out = patch_out[0]
-                if(img_dim == 2):
-                    output[:, :, c0[0]:c1[0], c0[1]:c1[1]] += patch_out * temp_w
-                    weight[:, :, c0[0]:c1[0], c0[1]:c1[1]] += temp_w
-                else:
-                    output[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += patch_out * temp_w
-                    weight[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += temp_w
+            for w_i in range(0, window_num, window_batch):
+                for k in range(window_batch):
+                    if(w_i + k >= window_num):
+                        break
+                    c0 = crop_start_list[w_i + k]
+                    c1 = [c0[d] + window_size[d] for d in range(img_dim)]
+                    if(img_dim == 2):
+                        patches_in[k] = image[:, :, c0[0]:c1[0], c0[1]:c1[1]]
+                    else:
+                        patches_in[k] = image[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]]
+                patches_out = self.model(patches_in) 
+                if(isinstance(patches_out, (tuple, list))):
+                    patches_out = patches_out[0]
+                for k in range(window_batch):
+                    if(w_i + k >= window_num):
+                        break
+                    c0 = crop_start_list[w_i + k]
+                    c1 = [c0[d] + window_size[d] for d in range(img_dim)]
+                    if(img_dim == 2):
+                        output[:, :, c0[0]:c1[0], c0[1]:c1[1]] += patches_out[k] * temp_w
+                        weight[:, :, c0[0]:c1[0], c0[1]:c1[1]] += temp_w
+                    else:
+                        output[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += patches_out[k] * temp_w
+                        weight[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += temp_w
             return output/weight
         else: # for multiple prediction
             output_list= []
@@ -130,23 +147,31 @@ class Inferer(object):
                     [int(img_shape[d] * scale_list[i][d]) for d in range(img_dim)]
                 output_list.append(torch.zeros(output_shape_i).to(image.device))
 
-            for c0 in crop_start_list:
-                c1 = [c0[d] + window_size[d] for d in range(img_dim)]
-                if(img_dim == 2):
-                    patch_in = image[:, :, c0[0]:c1[0], c0[1]:c1[1]]
-                else:
-                    patch_in = image[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]]
-                patch_out = self.model(patch_in) 
+            for w_i in range(0, window_num, window_batch):
+                for k in range(window_batch):
+                    if(w_i + k >= window_num):
+                        break
+                    c0 = crop_start_list[w_i + k]
+                    c1 = [c0[d] + window_size[d] for d in range(img_dim)]
+                    if(img_dim == 2):
+                        patches_in[k] = image[:, :, c0[0]:c1[0], c0[1]:c1[1]]
+                    else:
+                        patches_in[k] = image[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]]
+                patches_out = self.model(patches_in) 
 
                 for i in range(out_num):
-                    c0_i = [int(c0[d] * scale_list[i][d]) for d in range(img_dim)]
-                    c1_i = [int(c1[d] * scale_list[i][d]) for d in range(img_dim)]
-                    if(img_dim == 2):
-                        output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1]] += patch_out[i] * temp_w
-                        weight[:, :, c0[0]:c1[0], c0[1]:c1[1]] += temp_w
-                    else:
-                        output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1], c0_i[2]:c1_i[2]] += patch_out[i] * temp_w
-                        weight[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += temp_w
+                    for k in range(window_batch):
+                        if(w_i + k >= window_num):
+                            break
+                        c0 = crop_start_list[w_i + k]
+                        c0_i = [int(c0[d] * scale_list[i][d]) for d in range(img_dim)]
+                        c1_i = [int(c1[d] * scale_list[i][d]) for d in range(img_dim)]
+                        if(img_dim == 2):
+                            output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1]] += patches_out[i][k] * temp_w
+                            weight[:, :, c0[0]:c1[0], c0[1]:c1[1]] += temp_w
+                        else:
+                            output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1], c0_i[2]:c1_i[2]] += patches_out[i][k] * temp_w
+                            weight[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += temp_w
             for i in range(out_num):  
                 weight_i = interpolate(weight, scale_factor = scale_list[i])
                 output_list[i] = output_list[i] / weight_i

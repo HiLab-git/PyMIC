@@ -164,7 +164,47 @@ class CropWithBoundingBox(CenterCrop):
             params = json.loads(sample['CropWithBoundingBox_Param']) 
         return params
         
+class CropWithForeground(CenterCrop):
+    """
+    Crop the image (shape [C, D, H, W] or [C, H, W]) based on a bounding box.
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
 
+    :param `CropWithBoundingBox_start`: (None, or list/tuple) The start index 
+        along each spatial axis. If None, calculate the start index automatically 
+        so that the cropped region is centered at the non-zero region.
+    :param `CropWithBoundingBox_output_size`: (None or tuple/list): 
+        Desired spatial output size.
+        If None, set it as the size of bounding box of non-zero region.
+    :param `CropWithBoundingBox_inverse`: (optional, bool) Is inverse transform needed for inference.
+        Default is `True`.
+    """
+    def __init__(self, params):
+        self.labels  = params.get('CropWithForeground_labels'.lower(), None)
+        self.margin  = params.get('CropWithForeground_margin'.lower(), [5, 10, 10])
+        self.inverse = params.get('CropWithForeground_inverse'.lower(), True)
+        self.task = params['task']
+        
+    def _get_crop_param(self, sample):
+        image = sample['image']
+        label = sample['label']
+        input_shape = sample['image'].shape
+
+        bb_min, bb_max = get_ND_bounding_box(label, margin=[0] + self.margin)
+        bb_max[0] = input_shape[0]
+
+        sample['CropWithForeground_Param'] = json.dumps((input_shape, bb_min, bb_max))   
+
+        return sample, bb_min, bb_max
+
+    def _get_param_for_inverse_transform(self, sample):
+        if(isinstance(sample['CropWithForeground_Param'], list) or \
+            isinstance(sample['CropWithForeground_Param'], tuple)):
+            params = json.loads(sample['CropWithForeground_Param'][0]) 
+        else:
+            params = json.loads(sample['CropWithForeground_Param']) 
+        return params
+    
 class RandomCrop(CenterCrop):
     """Randomly crop the input image (shape [C, D, H, W] or [C, H, W]).
 

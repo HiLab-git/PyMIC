@@ -46,6 +46,7 @@ TransformDict = {
     'ChannelWiseThreshold': ChannelWiseThreshold,
     'ChannelWiseThresholdWithNormalize': ChannelWiseThresholdWithNormalize,
     'CropWithBoundingBox': CropWithBoundingBox,
+    'CropWithForeground': CropWithForeground,
     'CenterCrop': CenterCrop,
     'GrayscaleToRGB': GrayscaleToRGB,
     'GammaCorrection': GammaCorrection,

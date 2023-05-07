@@ -31,6 +31,59 @@ class DiceLoss(AbstractSegLoss):
         dice_loss  = 1.0 - dice_score.mean()
         return dice_loss
 
+class BinaryDiceLoss(AbstractSegLoss):
+    '''
+    Fuse all the foreground classes together and calculate the Dice value. 
+    '''
+    def __init__(self, params = None):
+        super(BinaryDiceLoss, self).__init__(params)
+
+    def forward(self, loss_input_dict):
+        predict = loss_input_dict['prediction']
+        soft_y  = loss_input_dict['ground_truth']
+        
+        if(isinstance(predict, (list, tuple))):
+            predict = predict[0]
+        if(self.softmax):
+            predict = nn.Softmax(dim = 1)(predict)
+        predict = 1.0 - predict[:, :1, :, :, :]
+        soft_y  = 1.0 -  soft_y[:, :1, :, :, :]
+        predict = reshape_tensor_to_2D(predict)
+        soft_y  = reshape_tensor_to_2D(soft_y) 
+        dice_score = get_classwise_dice(predict, soft_y)
+        dice_loss  = 1.0 - dice_score.mean()
+        return dice_loss
+
+class GroupDiceLoss(AbstractSegLoss):
+    '''
+    Fuse all the foreground classes together and calculate the Dice value. 
+    '''
+    def __init__(self, params = None):
+        super(GroupDiceLoss, self).__init__(params)
+        self.group = 2
+
+    def forward(self, loss_input_dict):
+        predict = loss_input_dict['prediction']
+        soft_y  = loss_input_dict['ground_truth']
+        
+        if(isinstance(predict, (list, tuple))):
+            predict = predict[0]
+        if(self.softmax):
+            predict = nn.Softmax(dim = 1)(predict)
+        predict = reshape_tensor_to_2D(predict)
+        soft_y  = reshape_tensor_to_2D(soft_y) 
+        num_class  = list(predict.size())[1]
+        cls_per_group = (num_class - 1) // self.group
+        loss_all = 0.0
+        for g in range(self.group):
+            c0 = 1 + g*cls_per_group
+            c1 = min(num_class, c0 + cls_per_group)
+            pred_g = torch.sum(predict[:, c0:c1], dim = 1, keepdim = True)
+            y_g    = torch.sum( soft_y[:, c0:c1], dim = 1, keepdim = True)
+            loss_all += 1.0 - get_classwise_dice(pred_g, y_g)[0]
+        avg_loss = loss_all / self.group
+        return avg_loss
+
 class FocalDiceLoss(AbstractSegLoss):
     """
     Focal Dice according to the following paper:
