@@ -285,6 +285,15 @@ class ClassificationAgent(NetRunAgent):
                     self.best_model_wts = copy.deepcopy(self.net.module.state_dict())
                 else:
                     self.best_model_wts = copy.deepcopy(self.net.state_dict())
+                save_dict = {'iteration': self.max_val_it,
+                    'valid_pred': self.max_val_score,
+                    'model_state_dict': self.best_model_wts,
+                    'optimizer_state_dict': self.optimizer.state_dict()}
+                save_name = "{0:}/{1:}_best.pt".format(ckpt_dir, ckpt_prefix)
+                torch.save(save_dict, save_name) 
+                txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefix), 'wt')
+                txt_file.write(str(self.max_val_it))
+                txt_file.close()
             
             stop_now = True if(early_stop_it is not None and \
                 self.glob_it - self.max_val_it > early_stop_it) else False
@@ -302,16 +311,6 @@ class ClassificationAgent(NetRunAgent):
             if(stop_now):
                 logging.info("The training is early stopped")
                 break
-        # save the best performing checkpoint
-        save_dict = {'iteration': self.max_val_it,
-                    'valid_pred': self.max_val_score,
-                    'model_state_dict': self.best_model_wts,
-                    'optimizer_state_dict': self.optimizer.state_dict()}
-        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, self.max_val_it)
-        torch.save(save_dict, save_name) 
-        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefix), 'wt')
-        txt_file.write(str(self.max_val_it))
-        txt_file.close()
         logging.info('The best perfroming iter is {0:}, valid {1:} {2:}'.format(\
             self.max_val_it, metrics, self.max_val_score))
         self.summ_writer.close()

@@ -337,6 +337,7 @@ class SegmentationAgent(NetRunAgent):
             logging.info('learning rate {0:}'.format(lr_value))
             logging.info("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
             self.write_scalars(train_scalars, valid_scalars, lr_value, self.glob_it)
+
             if(valid_scalars['avg_fg_dice'] > self.max_val_dice):
                 self.max_val_dice = valid_scalars['avg_fg_dice']
                 self.max_val_it   = self.glob_it
@@ -344,8 +345,17 @@ class SegmentationAgent(NetRunAgent):
                     self.best_model_wts = copy.deepcopy(self.net.module.state_dict())
                 else:
                     self.best_model_wts = copy.deepcopy(self.net.state_dict())
+                save_dict = {'iteration': self.max_val_it,
+                    'valid_pred': self.max_val_dice,
+                    'model_state_dict': self.best_model_wts,
+                    'optimizer_state_dict': self.optimizer.state_dict()}
+                save_name = "{0:}/{1:}_best.pt".format(ckpt_dir, ckpt_prefix)
+                torch.save(save_dict, save_name) 
+                txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefix), 'wt')
+                txt_file.write(str(self.max_val_it))
+                txt_file.close()
 
-            stop_now = True if(early_stop_it is not None and \
+            stop_now = True if (early_stop_it is not None and \
                 self.glob_it - self.max_val_it > early_stop_it) else False
             if ((self.glob_it in iter_save_list) or stop_now):
                 save_dict = {'iteration': self.glob_it,
@@ -362,15 +372,6 @@ class SegmentationAgent(NetRunAgent):
                 logging.info("The training is early stopped")
                 break
         # save the best performing checkpoint
-        save_dict = {'iteration': self.max_val_it,
-                    'valid_pred': self.max_val_dice,
-                    'model_state_dict': self.best_model_wts,
-                    'optimizer_state_dict': self.optimizer.state_dict()}
-        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, self.max_val_it)
-        torch.save(save_dict, save_name) 
-        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefix), 'wt')
-        txt_file.write(str(self.max_val_it))
-        txt_file.close()
         logging.info('The best performing iter is {0:}, valid dice {1:}'.format(\
             self.max_val_it, self.max_val_dice))
         self.summ_writer.close()

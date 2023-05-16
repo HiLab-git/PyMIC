@@ -148,6 +148,8 @@ class NetRunAgent(object):
             with open(txt_name, 'r') as txt_file:
                 it_num = txt_file.read().replace('\n', '') 
                 ckpt_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, it_num)
+                if(ckpt_mode == 1 and not os.path.isfile(ckpt_name)):
+                    ckpt_name = "{0:}/{1:}_best.pt".format(ckpt_dir, ckpt_prefix)
         else:
             ckpt_name =  self.config['testing']['ckpt_name']
         return ckpt_name
