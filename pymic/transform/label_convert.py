@@ -152,29 +152,16 @@ class PartialLabelToProbability(AbstractTransform):
         return sample
 
 
-class SelfSuperviseLabel(AbstractTransform):
+class SelfReconstructionLabel(AbstractTransform):
     """
-    Convert one-channel partial label map to one-hot multi-channel probability map.
-    This is used for segmentation tasks only. In the input label map, 0 represents the
-    background class, 1 to C-1 represent the foreground classes, and C represents 
-    unlabeled pixels. In the output dictionary, `label_prob` is the one-hot probability 
-    map, and `pixel_weight` represents a weighting map, where the weight for a pixel
-    is 0 if the label is unkown. 
-
-    The arguments should be written in the `params` dictionary, and it has the
-    following fields:
-
-    :param `PartialLabelToProbability_class_num`: (int) The class number for the 
-        segmentation task.  
-    :param `PartialLabelToProbability_inverse`: (optional, bool) 
-        Is inverse transform needed for inference. Default is `False`.
+    Used for self-supervised learning with image reconstruction tasks. 
     """
     def __init__(self, params): 
         """
         class_num (int): the class number in the label map
         """
-        super(SelfSuperviseLabel, self).__init__(params)
-        self.inverse   = params.get('SelfSuperviseLabel_inverse'.lower(), False)
+        super(SelfReconstructionLabel, self).__init__(params)
+        self.inverse   = params.get('SelfReconstructionLabel_inverse'.lower(), False)
     
     def __call__(self, sample):
         image = sample['image'] 
@@ -182,4 +169,42 @@ class SelfSuperviseLabel(AbstractTransform):
         sample['label'] = label
         return sample
 
+
+class MaskedImageModelingLabel(AbstractTransform):
+    """
+    Used for self-supervised learning with image reconstruction tasks.
+    Only reconstruct the masked region in the input. 
+    The input images is masked in local patches.  
+    """
+    def __init__(self, params): 
+        """
+        class_num (int): the class number in the label map
+        """
+        super(MaskedImageModelingLabel, self).__init__(params)
+        self.patch_size = params.get('MaskedImageModelingLabel_patch_size'.lower(), [16, 16, 16])
+        self.masking_ratio = params.get('MaskedImageModelingLabel_ratio'.lower(), 0.15)
+        self.inverse    = params.get('MaskedImageModelingLabel_inverse'.lower(), False)
+    
+    def __call__(self, sample):
+        image = sample['image'] 
+        C, D, H, W = image.shape 
+        patch_size = self.patch_size
+        mask = np.ones([D, H, W], np.float32)
+        grid_size = [math.ceil((image.shape[i+1] + 0.0) / patch_size[i]) for i in range(3)]
+        for d in range(grid_size[0]):
+            d0 = d*patch_size[0]
+            for h in range(grid_size[1]):
+                h0 = h*patch_size[1]
+                for w in range(grid_size[2]):
+                    w0 = w*patch_size[2] 
+                    if(random.random() > self.masking_ratio):
+                        continue 
+                    d1 = min(d0 + patch_size[0], D)
+                    h1 = min(h0 + patch_size[1], H)
+                    w1 = min(w0 + patch_size[2], W)
+                    mask[d0:d1, h0:h1, w0:w1] = np.zeros([d1 - d0, h1 - h0,  w1 - w0])
+        sample['pixel_weight'] = 1 - mask
+        sample['image'] = image * mask
+        sample['label'] = image
+        return sample
 

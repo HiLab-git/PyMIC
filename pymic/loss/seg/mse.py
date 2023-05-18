@@ -40,11 +40,15 @@ class MAELoss(AbstractSegLoss):
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
         soft_y  = loss_input_dict['ground_truth']
+        weight  = loss_input_dict.get('pixel_weight', None)
         
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
         if(self.softmax):
             predict = nn.Softmax(dim = 1)(predict)
         mae = torch.abs(predict - soft_y)
-        mae = torch.mean(mae)
+        if(weight is None):
+            mae = torch.mean(mae)
+        else:
+            mae = torch.sum(mae * weight) / weight.sum()
         return mae 

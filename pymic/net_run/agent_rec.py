@@ -76,6 +76,7 @@ class ReconstructionAgent(SegmentationAgent):
                    
             # for debug
             # from pymic.io.image_read_write import save_nd_array_as_image
+            # print(inputs.shape)
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
             #     image_name = "temp/image_{0:}_{1:}.nii.gz".format(it, i)
@@ -168,7 +169,8 @@ class ReconstructionAgent(SegmentationAgent):
         ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
         if(ckpt_prefix is None):
             ckpt_prefix = ckpt_dir.split('/')[-1]
-        iter_start  = self.config['training']['iter_start']
+        # iter_start  = self.config['training']['iter_start']
+        iter_start  = 0 
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training'].get('iter_save', None)
@@ -193,7 +195,7 @@ class ReconstructionAgent(SegmentationAgent):
             else:
                 self.net.load_state_dict(self.checkpoint['model_state_dict'])
             self.min_val_loss = self.checkpoint.get('valid_loss', 10000)
-            # self.max_val_it   = self.checkpoint['iteration']
+            iter_start = self.checkpoint['iteration']
             self.max_val_it   = iter_start
             self.best_model_wts = self.checkpoint['model_state_dict']
             

@@ -71,7 +71,8 @@ TransformDict = {
     'RandomRotate': RandomRotate,
     'ReduceLabelDim': ReduceLabelDim,
     'Rescale': Rescale,
-    'SelfSuperviseLabel': SelfSuperviseLabel,
+    'SelfReconstructionLabel': SelfReconstructionLabel,
+    'MaskedImageModelingLabel': MaskedImageModelingLabel,
     'OutPainting': OutPainting,
     'Pad': Pad,
 }
