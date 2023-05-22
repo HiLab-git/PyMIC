@@ -165,23 +165,19 @@ def random_crop_ND_volume(volume, out_shape):
     return crop_volume
 
 def get_random_box_from_mask(mask, out_shape):
-    mask_shape = mask.shape
-    dim = len(out_shape)
-    left_margin = [int(out_shape[i]/2)   for i in range(dim)]
-    right_margin= [mask_shape[i] - (out_shape[i] - left_margin[i]) + 1  for i in range(dim)]
-
-    valid_center_shape = [right_margin[i] - left_margin[i] for i in range(dim)]
-    valid_mask = np.zeros(mask_shape)
-    valid_mask = set_ND_volume_roi_with_bounding_box_range(valid_mask, 
-        left_margin, right_margin, np.ones(valid_center_shape))
-    valid_mask = valid_mask * mask
-    
-    indexes   = np.where(valid_mask)
+    indexes   = np.where(mask)
     voxel_num = len(indexes[0])
-    j = random.randint(0, voxel_num - 1)
-    bb_c = [indexes[i][j] for i in range(dim)]
-    bb_min = [bb_c[i] - left_margin[i] for i in range(dim)]
+    dim       = len(out_shape)
+    left_bound  = [int(out_shape[i]/2)   for i in range(dim)]
+    right_bound = [mask.shape[i] - (out_shape[i] - left_bound[i])  for i in range(dim)]
+
+    j    = random.randint(0, voxel_num - 1)
+    bb_c = [int(indexes[i][j]) for i in range(dim)]
+    bb_c = [max(left_bound[i], bb_c[i]) for i in range(dim)]
+    bb_c = [min(right_bound[i], bb_c[i]) for i in range(dim)]
+    bb_min = [bb_c[i] - left_bound[i] for i in range(dim)]
     bb_max = [bb_min[i] + out_shape[i] for i in range(dim)]
+
     return bb_min, bb_max
 
 def random_crop_ND_volume_with_mask(volume, out_shape, mask):
@@ -234,7 +230,8 @@ def get_largest_k_components(image, k = 1):
     :param image: The input ND array for binary segmentation.
     :param k: (int) The value of k.
 
-    :return: An output array with only the largest K components of the input. 
+    :return: An output array (k == 1) or a list of ND array (k>1) 
+        with only the largest K components of the input. 
     """
     dim = len(image.shape)
     if(image.sum() == 0 ):
@@ -247,11 +244,12 @@ def get_largest_k_components(image, k = 1):
     sizes = ndimage.sum(image, labeled_array, range(1, numpatches + 1))
     sizes_sort = sorted(sizes, reverse = True)
     kmin = min(k, numpatches)
-    output = np.zeros_like(image)
+    output = []
     for i in range(kmin):
         labeli = np.where(sizes == sizes_sort[i])[0] + 1
-        output = output + np.asarray(labeled_array == labeli, np.uint8)
-    return  output
+        output_i = np.asarray(labeled_array == labeli, np.uint8)
+        output.append(output_i)
+    return  output[0] if k == 1 else output
 
 def get_euclidean_distance(image, dim = 3, spacing = [1.0, 1.0, 1.0]):
     """

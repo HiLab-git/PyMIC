@@ -221,7 +221,8 @@ class RandomCrop(CenterCrop):
         `RandomCrop_foreground_focus` is True.
     :param `RandomCrop_mask_label`: (optional, None, or list/tuple) 
         Specifying the foreground labels for foreground focus cropping when 
-        `RandomCrop_foreground_focus` is True.
+        `RandomCrop_foreground_focus` is True. If it is None (by default), 
+        the mask label will be the list of all the foreground classes. 
     :param `RandomCrop_inverse`: (optional, bool) Is inverse transform needed for inference.
         Default is `True`.
     """
@@ -229,7 +230,7 @@ class RandomCrop(CenterCrop):
         self.output_size = params['RandomCrop_output_size'.lower()]
         self.fg_focus    = params.get('RandomCrop_foreground_focus'.lower(), False)
         self.fg_ratio    = params.get('RandomCrop_foreground_ratio'.lower(), 0.5)
-        self.mask_label  = params.get('RandomCrop_mask_label'.lower(), [1])
+        self.mask_label  = params.get('RandomCrop_mask_label'.lower(), None)
         self.inverse     = params.get('RandomCrop_inverse'.lower(), True)
         self.task        = params['Task'.lower()]
         assert isinstance(self.output_size, (list, tuple))
@@ -246,16 +247,16 @@ class RandomCrop(CenterCrop):
         crop_margin = [input_shape[i] - self.output_size[i] for i in range(input_dim)]
         crop_min = [0 if item == 0 else random.randint(0, item) for item in crop_margin]
         crop_max = [crop_min[i] + self.output_size[i] for i in range(input_dim)]
+        
         if(self.fg_focus and random.random() < self.fg_ratio):
             label = sample['label'][0]
-            mask  = np.zeros_like(label)
-            for temp_lab in self.mask_label:
-                mask = np.maximum(mask, label == temp_lab)
-            if(mask.max() > 0):
-                crop_min, crop_max = get_random_box_from_mask(mask, self.output_size)
-                # to avoid Typeerror: object of type int64 is not json serializable
-                crop_min = [int(i) for i in crop_min]
-                crop_max = [int(i) for i in crop_max]
+            if(self.mask_label is None):
+                mask_label = np.unique(label)[1:]
+            else:
+                mask_label = self.mask_label
+            random_label = random.choice(mask_label)
+            crop_min, crop_max = get_random_box_from_mask(label == random_label, self.output_size)
+
         crop_min = [0] + crop_min
         crop_max = [chns] + crop_max
 
