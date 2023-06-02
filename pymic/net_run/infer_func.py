@@ -146,7 +146,8 @@ class Inferer(object):
                 output_shape_i = [batch_size, class_num] + \
                     [int(img_shape[d] * scale_list[i][d]) for d in range(img_dim)]
                 output_list.append(torch.zeros(output_shape_i).to(image.device))
-
+            temp_ws = [interpolate(temp_w, scale_factor = scale_list[i]) for i in range(out_num)]
+            weights = [interpolate(weight, scale_factor = scale_list[i]) for i in range(out_num)]
             for w_i in range(0, window_num, window_batch):
                 for k in range(window_batch):
                     if(w_i + k >= window_num):
@@ -167,14 +168,13 @@ class Inferer(object):
                         c0_i = [int(c0[d] * scale_list[i][d]) for d in range(img_dim)]
                         c1_i = [int(c1[d] * scale_list[i][d]) for d in range(img_dim)]
                         if(img_dim == 2):
-                            output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1]] += patches_out[i][k] * temp_w
-                            weight[:, :, c0[0]:c1[0], c0[1]:c1[1]] += temp_w
+                            output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1]] += patches_out[i][k] * temp_ws[i]
+                            weights[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1]] += temp_ws[i]
                         else:
-                            output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1], c0_i[2]:c1_i[2]] += patches_out[i][k] * temp_w
-                            weight[:, :, c0[0]:c1[0], c0[1]:c1[1], c0[2]:c1[2]] += temp_w
+                            output_list[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1], c0_i[2]:c1_i[2]] += patches_out[i][k] * temp_ws[i]
+                            weights[i][:, :, c0_i[0]:c1_i[0], c0_i[1]:c1_i[1], c0_i[2]:c1_i[2]] += temp_ws[i]
             for i in range(out_num):  
-                weight_i = interpolate(weight, scale_factor = scale_list[i])
-                output_list[i] = output_list[i] / weight_i
+                output_list[i] = output_list[i] / weights[i]
             return output_list
 
     def run(self, model, image):

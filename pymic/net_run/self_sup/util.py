@@ -20,17 +20,26 @@ def get_human_region_mask(img):
     se = np.ones([3,3,3])
     mask = ndimage.binary_opening(mask, se, iterations = 2)
     mask = get_largest_k_components(mask, 1)
-    mask_close = ndimage.binary_closing(mask, se, iterations = 3)
+    mask_close = ndimage.binary_closing(mask, se, iterations = 2)
 
     D, H, W = mask.shape
     for d in [1, 2, D-3, D-2]:
         mask_close[d] = mask[d]
-    for d in [0, -1, int(D/2)]:
-        mask_close[d, 1:-1, 1:-1] = np.ones((H-2, W-2))
+    for d in range(0, D, 2):
+        mask_close[d, 2:-2, 2:-2] = np.ones((H-4, W-4))
     
-    bg = get_largest_k_components(1- mask_close, 1)
+    # get background component
+    bg = np.zeros_like(mask)
+    bgs = get_largest_k_components(1- mask_close, 10)
+    for bgi in bgs:
+        indices = np.where(bgi)
+        if(bgi.sum() < 1000):
+            break
+        if(indices[0].min() == 0 or indices[1].min() == 0 or indices[2].min() ==0 or \
+           indices[0].max() == D-1 or indices[1].max() == H-1 or indices[2].max() ==W-1):
+            bg = bg + bgi
     fg = 1 - bg 
-    se = np.ones([3,3,3])
+
     fg = ndimage.binary_opening(fg, se, iterations = 1)
     fg = get_largest_k_components(fg, 1)
     if(dim == 4):
@@ -91,7 +100,7 @@ def patch_mix(x, fg_num, patch_num, size_d, size_h, size_w):
     return x_fuse, y_prob 
 
 def create_mixed_dataset(input_dir, output_dir, fg_num = 1,  crop_num = 1, 
-        mask = 'default', data_format = "nii.gz"):
+        mask_dir = None, data_format = "nii.gz"):
     """
     Create dataset based on patch mix. 
 
@@ -128,16 +137,19 @@ def create_mixed_dataset(input_dir, output_dir, fg_num = 1,  crop_num = 1,
 
         chns  = img_i.shape[0]
         # random crop to patch size
-        if(mask == 'default'):
+        if(mask_dir is None):
             mask_i = get_human_region_mask(img_i)
             mask_j = get_human_region_mask(img_j)
+        else:
+            mask_i = load_image_as_nd_array(mask_dir + "/" + img_names[i])['data_array']
+            mask_j = load_image_as_nd_array(mask_dir + "/" + img_names[j])['data_array']
         for k in range(crop_num):
-            if(mask is None):
-                img_ik = random_crop_ND_volume(img_i, [chns, 96, 96, 96])
-                img_jk = random_crop_ND_volume(img_j, [chns, 96, 96, 96])
-            else:
-                img_ik = random_crop_ND_volume_with_mask(img_i, [chns, 96, 96, 96], mask_i)
-                img_jk = random_crop_ND_volume_with_mask(img_j, [chns, 96, 96, 96], mask_j)
+            # if(mask is None):
+            #     img_ik = random_crop_ND_volume(img_i, [chns, 96, 96, 96])
+            #     img_jk = random_crop_ND_volume(img_j, [chns, 96, 96, 96])
+            # else:
+            img_ik = random_crop_ND_volume_with_mask(img_i, [chns, 96, 96, 96], mask_i)
+            img_jk = random_crop_ND_volume_with_mask(img_j, [chns, 96, 96, 96], mask_j)
             C, D, H, W = img_ik.shape
             # generate mask 
             fg_mask = np.zeros_like(img_ik, np.uint8)

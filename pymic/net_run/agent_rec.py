@@ -16,6 +16,7 @@ from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.net_run.infer_func import Inferer
 from pymic.net_run.agent_seg import SegmentationAgent
 from pymic.loss.seg.mse import MAELoss, MSELoss
+from pymic.util.general import mixup, tensor_shape_match
 
 ReconstructionLossDict = {
     'MAELoss': MAELoss,
@@ -165,6 +166,7 @@ class ReconstructionAgent(SegmentationAgent):
         else:
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
+
         ckpt_dir    = self.config['training']['ckpt_save_dir']
         ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
         if(ckpt_prefix is None):
@@ -186,20 +188,31 @@ class ReconstructionAgent(SegmentationAgent):
         self.max_val_it   = 0
         self.best_model_wts = None 
         self.checkpoint = None
-        if(iter_start > 0):
-            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, iter_start)
-            self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
-            # assert(self.checkpoint['iteration'] == iter_start)
-            if(len(device_ids) > 1):
-                self.net.module.load_state_dict(self.checkpoint['model_state_dict'])
+         # initialize the network with pre-trained weights
+        ckpt_init_name = self.config['training'].get('ckpt_init_name', None)
+        ckpt_init_mode = self.config['training'].get('ckpt_init_mode', 0)
+        ckpt_for_optm  = None 
+        if(ckpt_init_name is not None):
+            checkpoint = torch.load(ckpt_dir + "/" + ckpt_init_name, map_location = self.device)
+            pretrained_dict = checkpoint['model_state_dict']
+            model_dict = self.net.module.state_dict() if (len(device_ids) > 1) else self.net.state_dict()
+            pretrained_dict = {k: v for k, v in pretrained_dict.items() if \
+                k in model_dict and tensor_shape_match(pretrained_dict[k], model_dict[k])}
+            logging.info("Initializing the following parameters with pre-trained model")
+            for k in pretrained_dict:
+                logging.info(k)
+            if (len(device_ids) > 1):
+                self.net.module.load_state_dict(pretrained_dict, strict = False)
             else:
-                self.net.load_state_dict(self.checkpoint['model_state_dict'])
-            self.min_val_loss = self.checkpoint.get('valid_loss', 10000)
-            iter_start = self.checkpoint['iteration']
-            self.max_val_it   = iter_start
-            self.best_model_wts = self.checkpoint['model_state_dict']
+                self.net.load_state_dict(pretrained_dict, strict = False)
+            if(ckpt_init_mode > 0): # Load  other information
+                self.min_val_loss = self.checkpoint.get('valid_loss', 10000)
+                iter_start = checkpoint['iteration']
+                self.max_val_it = iter_start
+                self.best_model_wts = checkpoint['model_state_dict']
+                ckpt_for_optm = checkpoint
             
-        self.create_optimizer(self.get_parameters_to_update())
+        self.create_optimizer(self.get_parameters_to_update(), ckpt_for_optm)
         self.create_loss_calculator()
     
         self.trainIter  = iter(self.train_loader)
@@ -231,6 +244,16 @@ class ReconstructionAgent(SegmentationAgent):
                     self.best_model_wts = copy.deepcopy(self.net.module.state_dict())
                 else:
                     self.best_model_wts = copy.deepcopy(self.net.state_dict())
+                
+                save_dict = {'iteration': self.max_val_it,
+                    'valid_loss': self.min_val_loss,
+                    'model_state_dict': self.best_model_wts,
+                    'optimizer_state_dict': self.optimizer.state_dict()}
+                save_name = "{0:}/{1:}_best.pt".format(ckpt_dir, ckpt_prefix)
+                torch.save(save_dict, save_name) 
+                txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefix), 'wt')
+                txt_file.write(str(self.max_val_it))
+                txt_file.close()
 
             stop_now = True if(early_stop_it is not None and \
                 self.glob_it - self.max_val_it > early_stop_it) else False
@@ -249,15 +272,6 @@ class ReconstructionAgent(SegmentationAgent):
                 logging.info("The training is early stopped")
                 break
         # save the best performing checkpoint
-        save_dict = {'iteration': self.max_val_it,
-                    'valid_loss': self.min_val_loss,
-                    'model_state_dict': self.best_model_wts,
-                    'optimizer_state_dict': self.optimizer.state_dict()}
-        save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, self.max_val_it)
-        torch.save(save_dict, save_name) 
-        txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefix), 'wt')
-        txt_file.write(str(self.max_val_it))
-        txt_file.close()
         logging.info('The best performing iter is {0:}, valid loss {1:}'.format(\
             self.max_val_it, self.min_val_loss))
         self.summ_writer.close()

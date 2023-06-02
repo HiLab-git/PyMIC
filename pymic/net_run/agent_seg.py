@@ -89,7 +89,12 @@ class SegmentationAgent(NetRunAgent):
         logging.info('parameter number {0:}'.format(param_number))
 
     def get_parameters_to_update(self):
-        return self.net.parameters()
+        if hasattr(self.net, "get_parameters_to_update"):
+            params = self.net.get_parameters_to_update()
+        else:
+            params = self.net.parameters()
+        return params
+
 
     def create_loss_calculator(self):
         if(self.loss_dict is None):
@@ -401,6 +406,7 @@ class SegmentationAgent(NetRunAgent):
                 raise ValueError("ckpt_mode should be 3 if ckpt_name is a list")
 
         # load network parameters and set the network as evaluation mode
+        print("ckpt name", ckpt_name)
         checkpoint = torch.load(ckpt_name, map_location = device)
         self.net.load_state_dict(checkpoint['model_state_dict'])
 

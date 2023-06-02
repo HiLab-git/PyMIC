@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function
 
+import csv
 import random
+import pandas as pd
 import numpy as np
 import SimpleITK as sitk
 from scipy import ndimage
+from pymic.io.image_read_write import load_image_as_nd_array
 
 def get_ND_bounding_box(volume, margin = None):
     """
@@ -315,3 +318,68 @@ def resample_sitk_image_to_given_spacing(image, spacing, order):
     out_img.SetSpacing(spacing)
     out_img.SetDirection(image.GetDirection())
     return out_img
+
+def get_image_info(img_names):
+    space0, space1, slices = [], [], []
+    for img_name in img_names:
+        img_obj = sitk.ReadImage(img_name)
+        img_arr = sitk.GetArrayFromImage(img_obj)
+        spacing = img_obj.GetSpacing()
+        slices.append(img_arr.shape[0])
+        space0.append(spacing[0])
+        space1.append(spacing[2])
+        print(img_name, spacing, img_arr.shape)
+    
+    space0 = np.asarray(space0)
+    space1 = np.asarray(space1)
+    slices = np.asarray(slices)
+    print("intra-slice spacing")
+    print(space0.min(), space0.max(), space0.mean())
+    print("inter-slice spacing")
+    print(space1.min(), space1.max(), space1.mean())
+    print("slice number")
+    print(slices.min(), slices.max(), slices.mean())
+
+def get_average_mean_std(data_dir, data_csv):
+    df = pd.read_csv(data_csv)
+    mean_list, std_list = [], []
+    for i in range(len(df)):
+        img_name = data_dir + "/" + df.iloc[i, 0]
+        lab_name = data_dir + "/" + df.iloc[i, 1]
+        img = load_image_as_nd_array(img_name)["data_array"][0]
+        lab = load_image_as_nd_array(lab_name)["data_array"][0]
+        voxels = img[lab>0]
+        mean = voxels.mean()
+        std  = voxels.std()
+        mean_list.append(mean)
+        std_list.append(std)
+        print(img_name,  mean, std)
+    mean = np.asarray(mean_list).mean()
+    std  = np.asarray(std_list).mean() 
+    print("mean and std value", mean,  std)
+
+def get_label_info(data_dir, label_csv, class_num):
+    df = pd.read_csv(label_csv)
+    size_list = []
+    # mean_list, std_list = [], []
+    num_no_tumor = 0
+    for i in range(len(df)):
+        lab_name = data_dir + "/" + df.iloc[i, 1]
+        lab = load_image_as_nd_array(lab_name)["data_array"][0]
+        size_per_class = []
+        for c in range(1, class_num):
+            labc = lab == c 
+            size_per_class.append(np.sum(labc))
+            if(np.sum(labc) == 0):
+                num_no_tumor = num_no_tumor + 1
+        size_list.append(size_per_class)
+        print(lab_name, size_per_class)
+    size = np.asarray(size_list)
+    size_min = size.min(axis = 0)
+    size_max = size.max(axis = 0)
+    size_mean = size.mean(axis = 0)
+
+    print("size min", size_min)
+    print("size max", size_max)
+    print("size mean", size_mean)
+    print("case number without tumor", num_no_tumor)
