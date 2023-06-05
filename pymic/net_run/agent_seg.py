@@ -118,11 +118,21 @@ class SegmentationAgent(NetRunAgent):
                 
     def get_loss_value(self, data, pred, gt, param = None):
         loss_input_dict = {'prediction':pred, 'ground_truth': gt}
-        if data.get('pixel_weight', None) is not None:
-            if(isinstance(pred, tuple) or isinstance(pred, list)):
-                loss_input_dict['pixel_weight'] = data['pixel_weight'].to(pred[0].device)
-            else:
-                loss_input_dict['pixel_weight'] = data['pixel_weight'].to(pred.device)
+        if(isinstance(pred, tuple) or isinstance(pred, list)):
+            device = pred[0].device
+        else:
+            device = pred.device
+        pixel_weight = data.get('pixel_weight', None) 
+        if(pixel_weight is not None):
+            loss_input_dict['pixel_weight'] = pixel_weight.to(device)
+
+        class_weight = self.config['training'].get('class_weight', None)
+        if(class_weight is not None):
+            class_num = self.config['network']['class_num']
+            assert(len(class_weight) == class_num)
+            class_weight = torch.from_numpy(np.asarray(class_weight))
+            class_weight = self.convert_tensor_type(class_weight)
+            loss_input_dict['class_weight'] = class_weight.to(device)
         loss_value = self.loss_calculator(loss_input_dict)
         return loss_value
     

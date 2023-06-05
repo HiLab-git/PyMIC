@@ -20,6 +20,8 @@ class DiceLoss(AbstractSegLoss):
     def forward(self, loss_input_dict):
         predict = loss_input_dict['prediction']
         soft_y  = loss_input_dict['ground_truth']
+        pix_w   = loss_input_dict.get('pixel_weight', None)
+        cls_w   = loss_input_dict.get('class_weight', None)
         
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
@@ -27,9 +29,15 @@ class DiceLoss(AbstractSegLoss):
             predict = nn.Softmax(dim = 1)(predict)
         predict = reshape_tensor_to_2D(predict)
         soft_y  = reshape_tensor_to_2D(soft_y) 
-        dice_score = get_classwise_dice(predict, soft_y)
-        dice_loss  = 1.0 - dice_score.mean()
-        return dice_loss
+        if(pix_w is not None):
+            pix_w = reshape_tensor_to_2D(pix_w) 
+        dice_loss = 1.0 - get_classwise_dice(predict, soft_y, pix_w)
+        if(cls_w is not None):
+            weighted_loss = dice_loss * cls_w
+            avg_loss = weighted_loss.sum() / cls_w.sum()
+        else:
+            avg_loss = dice_loss.mean()
+        return avg_loss
 
 class BinaryDiceLoss(AbstractSegLoss):
     '''
