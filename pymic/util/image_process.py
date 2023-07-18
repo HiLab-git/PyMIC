@@ -319,26 +319,44 @@ def resample_sitk_image_to_given_spacing(image, spacing, order):
     out_img.SetDirection(image.GetDirection())
     return out_img
 
-def get_image_info(img_names):
-    space0, space1, slices = [], [], []
+def get_image_info(img_names, output_csv = None):
+    spacing_list, shape_list = [], []
     for img_name in img_names:
         img_obj = sitk.ReadImage(img_name)
         img_arr = sitk.GetArrayFromImage(img_obj)
         spacing = img_obj.GetSpacing()
-        slices.append(img_arr.shape[0])
-        space0.append(spacing[0])
-        space1.append(spacing[2])
-        print(img_name, spacing, img_arr.shape)
-    
-    space0 = np.asarray(space0)
-    space1 = np.asarray(space1)
-    slices = np.asarray(slices)
-    print("intra-slice spacing")
-    print(space0.min(), space0.max(), space0.mean())
-    print("inter-slice spacing")
-    print(space1.min(), space1.max(), space1.mean())
-    print("slice number")
-    print(slices.min(), slices.max(), slices.mean())
+        shape   = img_arr.shape
+        spacing_list.append(spacing)
+        shape_list.append(shape)
+        print(img_name, spacing, shape)
+    spacings = np.asarray(spacing_list)
+    shapes   = np.asarray(shape_list)
+    spacing_min = spacings.min(axis = 0)
+    spacing_max = spacings.max(axis = 0)
+    spacing_median = np.percentile(spacings, 50, axis = 0)
+    print("spacing min", spacing_min)
+    print("spacing max", spacing_max)
+    print("spacing median", spacing_median)
+
+    shape_min = shapes.min(axis = 0)
+    shape_max = shapes.max(axis = 0)
+    shape_median = np.percentile(shapes, 50, axis = 0)
+    print("shape min", shape_min)
+    print("shape max", shape_max)
+    print("shape median", shape_median)
+
+    if(output_csv is not None):
+        img_names_short = [item.split("/")[-1] for item in img_names]
+        img_names_short.extend(["spacing min", "spacing max", "spacing median",
+                            "shape min", "shape max", "shape median"])
+        spacing_list.extend([spacing_min, spacing_max, spacing_median,
+                             shape_min, shape_max, shape_median])
+        shape_list.extend(['']* 6)
+        out_dict = {"img_name": img_names_short, 
+                    "spacing": spacing_list, 
+                    "shape": shape_list}
+        df = pd.DataFrame.from_dict(out_dict)
+        df.to_csv(output_csv, index=False)
 
 def get_average_mean_std(data_dir, data_csv):
     df = pd.read_csv(data_csv)
