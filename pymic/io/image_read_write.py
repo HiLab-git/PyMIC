@@ -23,11 +23,9 @@ def load_nifty_volume_as_4d_array(filename):
     spacing    = img_obj.GetSpacing()
     direction  = img_obj.GetDirection()
     shape = data_array.shape
-    if(len(shape) == 4):
-        assert(shape[3] == 1) 
-    elif(len(shape) == 3):
+    if(len(shape) == 3):
         data_array = np.expand_dims(data_array, axis = 0)
-    else:
+    elif(len(shape) > 4 or len(shape) < 3):
         raise ValueError("unsupported image dim: {0:}".format(len(shape)))
     output = {}
     output['data_array'] = data_array
