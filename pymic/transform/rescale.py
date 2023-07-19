@@ -100,27 +100,26 @@ class RandomRescale(AbstractTransform):
         self.ratio0 = params["RandomRescale_lower_bound".lower()]
         self.ratio1 = params["RandomRescale_upper_bound".lower()]
         self.prob   = params.get('RandomRescale_probability'.lower(), 0.5)
-        self.inverse     = params.get("RandomRescale_inverse".lower(), True)
+        self.inverse     = params.get("RandomRescale_inverse".lower(), False)
         assert isinstance(self.ratio0, (float, list, tuple))
         assert isinstance(self.ratio1, (float, list, tuple))
 
     def __call__(self, sample):
-        # if(random.random() > self.prob):
-        #     print("rescale not started")
-        #     sample['RandomRescale_triggered'] = False
-        #     return sample
-        # else:
-        #     print("rescale started")
-        #     sample['RandomRescale_triggered'] = True
+
         image = sample['image']
         input_shape = image.shape
         input_dim   = len(input_shape) - 1
-
+        assert(input_dim == len(self.ratio0) and input_dim == len(self.ratio1))
+        
         if isinstance(self.ratio0, (list, tuple)):
-            for i in range(len(self.ratio0)):
+            for i in range(input_dim):
+                if(self.ratio0[i] is None):
+                    self.ratio0[i] = 1.0 
+                if(self.ratio1[i] is None):
+                    self.ratio1[i] = 1.0
                 assert(self.ratio0[i] <= self.ratio1[i])
             scale = [self.ratio0[i] + random.random()*(self.ratio1[i] - self.ratio0[i]) \
-                for i in range(len(self.ratio0))]
+                for i in range(input_dim)]
         else:
             scale = self.ratio0 + random.random()*(self.ratio1 - self.ratio0)
             scale = [scale] * input_dim
@@ -130,12 +129,12 @@ class RandomRescale(AbstractTransform):
         sample['image'] = image_t
         sample['RandomRescale_Param'] = json.dumps(input_shape)
         if('label' in sample and \
-        self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
+          self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             label = sample['label']
             label = ndimage.interpolation.zoom(label, scale, order = 0)
             sample['label'] = label
         if('pixel_weight' in sample and \
-        self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
+          self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
             weight = sample['pixel_weight']
             weight = ndimage.interpolation.zoom(weight, scale, order = 1)
             sample['pixel_weight'] = weight
@@ -143,8 +142,6 @@ class RandomRescale(AbstractTransform):
         return sample
 
     def inverse_transform_for_prediction(self, sample):
-        if(not sample['RandomRescale_triggered']):
-            return sample
         if(isinstance(sample['RandomRescale_Param'], list) or \
             isinstance(sample['RandomRescale_Param'], tuple)):
             origin_shape = json.loads(sample['RandomRescale_Param'][0])
