@@ -171,21 +171,31 @@ class GrayscaleToRGB(AbstractTransform):
 class NonLinearTransform(AbstractTransform):
     def __init__(self, params):
         super(NonLinearTransform, self).__init__(params)
-        self.inverse  = params.get('NonLinearTransform_inverse'.lower(), False)
+        self.channels = params['NonLinearTransform_channels'.lower()]
         self.prob     = params.get('NonLinearTransform_probability'.lower(), 0.5)
+        self.inverse  = params.get('NonLinearTransform_inverse'.lower(), False)
+        
     
     def __call__(self, sample):
         if(random.random() >  self.prob):
             return sample
 
-        image= sample['image'] 
-        points = [[0, 0], [random.random(), random.random()], [random.random(), random.random()], [1, 1]]
-        xvals, yvals = bezier_curve(points, nTimes=100000)
-        if random.random() < 0.5: # Half change to get flip
-            xvals = np.sort(xvals)
-        else:
-            xvals, yvals = np.sort(xvals), np.sort(yvals)
-        image = np.interp(image, xvals, yvals)
+        image = sample['image'] 
+        for chn in self.channels:
+            points = [[0, 0], [random.random(), random.random()], [random.random(), random.random()], [1, 1]]
+            xvals, yvals = bezier_curve(points, nTimes=10000)
+            if random.random() < 0.5: # Half change to get flip
+                xvals = np.sort(xvals)
+            else:
+                xvals, yvals = np.sort(xvals), np.sort(yvals)
+            # normalize the image intensity to [0, 1] before the non-linear tranform
+            img_c = image[chn]
+            v_min = img_c.min()
+            v_max = img_c.max()
+            if(v_min < v_max):
+                img_c = (img_c - v_min)/(v_max - v_min)
+                img_c = np.interp(img_c, xvals, yvals)
+                image[chn] = img_c * (v_max - v_min) + v_min
         sample['image']  = image 
         return sample
 
@@ -392,4 +402,50 @@ class InOutPainting(AbstractTransform):
             sample = self.inpaint(sample)
         else:
             sample = self.outpaint(sample)
+        return sample
+
+class PatchSwaping(AbstractTransform):
+    """
+    Apply patch swaping for context restoration in self-supervised learning. 
+    Reference: Liang Chen et al., Self-supervised learning for medical image analysis
+        using image context restoration, Medical Image Analysis, 2019. 
+    """
+    def __init__(self, params):
+        super(PatchSwaping, self).__init__(params)
+        self.inverse  = params.get('PatchSwaping_inverse'.lower(), False)
+        self.swap_t   = params.get('PatchSwaping_swap_time'.lower(), (1, 6))
+        self.patch_size_min = params.get('PatchSwaping_patch_size_min'.lower(), None)
+        self.patch_size_max = params.get('PatchSwaping_patch_size_max'.lower(), None)
+
+    def __call__(self, sample):
+
+        image= sample['image']       
+        img_shape = image.shape
+        img_dim = len(img_shape) - 1
+        assert(img_dim == 2 or img_dim == 3)
+        img_out = image
+
+        C, D, H, W = image.shape
+        patch_size = [random.randint(self.patch_size_min[i], self.patch_size_max[i]) for \
+            i in range(img_dim)]
+
+        coordinate_list = []
+        for d in range(0, D-patch_size[0], patch_size[0]):
+            for h in range(0, H-patch_size[1], patch_size[1]):
+                for w in range(0, W-patch_size[2], patch_size[2]):
+                    coordinate_list.append((d, h, w))
+        random.shuffle(coordinate_list)
+        
+        for t in range(self.swap_t):
+            pos_a0 = coordinate_list[2*t]
+            pos_b0 = coordinate_list[2*t + 1]
+            pos_a1 = [pos_a0[i] + patch_size[i] for i in range(img_dim)]
+            pos_b1 = [pos_b0[i] + patch_size[i] for i in range(img_dim)]
+            img_out[:, pos_a0[0]:pos_a1[0], pos_a0[1]:pos_a1[1], pos_a0[2]:pos_a1[2]] = \
+                image[:, pos_b0[0]:pos_b1[0], pos_b0[1]:pos_b1[1], pos_b0[2]:pos_b1[2]]
+            img_out[:, pos_b0[0]:pos_b1[0], pos_b0[1]:pos_b1[1], pos_b0[2]:pos_b1[2]] = \
+                image[:, pos_a0[0]:pos_a1[0], pos_a0[1]:pos_a1[1], pos_a0[2]:pos_a1[2]]
+
+        sample['image'] = img_out
+        sample['label'] = image
         return sample

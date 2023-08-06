@@ -153,7 +153,6 @@ class CropWithBoundingBox(CenterCrop):
         crop_min = [0] + crop_min
         crop_max = list(input_shape[0:1]) + crop_max
         sample['CropWithBoundingBox_Param'] = json.dumps((input_shape, crop_min, crop_max))   
-        print("for crop", crop_min, crop_max)
         return sample, crop_min, crop_max
 
     def _get_param_for_inverse_transform(self, sample):
@@ -248,7 +247,8 @@ class RandomCrop(CenterCrop):
         crop_min = [0 if item == 0 else random.randint(0, item) for item in crop_margin]
         crop_max = [crop_min[i] + self.output_size[i] for i in range(input_dim)]
         
-        if(self.fg_focus and random.random() < self.fg_ratio):
+        label_exist = False if ('label' not in sample or sample['label']) is None else True
+        if(label_exist and self.fg_focus and random.random() < self.fg_ratio):
             label = sample['label'][0]
             if(self.mask_label is None):
                 mask_label = np.unique(label)[1:]
@@ -279,26 +279,33 @@ class RandomResizedCrop(CenterCrop):
 
     :param `RandomResizedCrop_output_size`: (list/tuple) Desired output size [D, H, W].
         The output channel is the same as the input channel. 
-    :param `RandomResizedCrop_scale_range`: (list/tuple) Range of scale, e.g. (0.08, 1.0).
+    :param `RandomResizedCrop_scale_lower_bound`: (list/tuple) Lower bound of the range of scale
+        for each dimension. e.g. (1.0, 0.5, 0.5).
+    param `RandomResizedCrop_scale_upper_bound`: (list/tuple) Upper bound of the range of scale
+        for each dimension. e.g. (1.0, 2.0, 2.0).
     :param `RandomResizedCrop_inverse`: (optional, bool) Is inverse transform needed for inference.
         Default is `False`. Currently, the inverse transform is not supported, and 
         this transform is assumed to be used only during training stage. 
     """
     def __init__(self, params):
         self.output_size = params['RandomResizedCrop_output_size'.lower()]
-        self.scale       = params['RandomResizedCrop_scale_range'.lower()]
+        self.scale_lower = params['RandomResizedCrop_scale_lower_bound'.lower()]
+        self.scale_upper = params['RandomResizedCrop_scale_upper_bound'.lower()]
         self.inverse     = params.get('RandomResizedCrop_inverse'.lower(), False)
         self.task        = params['Task'.lower()]
         assert isinstance(self.output_size, (list, tuple))
-        assert isinstance(self.scale, (list, tuple))
+        assert isinstance(self.scale_lower, (list, tuple))
+        assert isinstance(self.scale_upper, (list, tuple))
         
     def __call__(self, sample):
         image = sample['image']
         channel, input_size = image.shape[0], image.shape[1:]
         input_dim   = len(input_size)
         assert(input_dim == len(self.output_size))
-        scale = self.scale[0] + random.random()*(self.scale[1] - self.scale[0])
-        crop_size = [int(self.output_size[i] * scale)  for i in range(input_dim)]
+        scale = [self.scale_lower[i] + (self.scale_upper[i] - self.scale_lower[i]) * random.random() \
+            for i in range(input_dim)]
+        
+        crop_size = [int(self.output_size[i] * scale[i])  for i in range(input_dim)]
         crop_margin = [input_size[i] - crop_size[i] for i in range(input_dim)]
         pad_image = False
         if(min(crop_margin) < 0):
