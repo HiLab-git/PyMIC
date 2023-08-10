@@ -40,6 +40,7 @@ from pymic.transform.transpose import *
 from pymic.transform.threshold import * 
 from pymic.transform.normalize import *
 from pymic.transform.crop import *
+from pymic.transform.mix import *
 from pymic.transform.label_convert import *  
 
 TransformDict = {
@@ -71,8 +72,11 @@ TransformDict = {
     'RandomRotate': RandomRotate,
     'ReduceLabelDim': ReduceLabelDim,
     'Rescale': Rescale,
+    'Resample': Resample,
     'SelfReconstructionLabel': SelfReconstructionLabel,
     'MaskedImageModelingLabel': MaskedImageModelingLabel,
     'OutPainting': OutPainting,
     'Pad': Pad,
+    'PatchSwaping':PatchSwaping,
+    'PatchMix': PatchMix
 }

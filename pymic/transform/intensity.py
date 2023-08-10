@@ -98,6 +98,7 @@ class GammaCorrection(AbstractTransform):
         self.channels =  params['GammaCorrection_channels'.lower()]
         self.gamma_min = params['GammaCorrection_gamma_min'.lower()]
         self.gamma_max = params['GammaCorrection_gamma_max'.lower()]
+        self.flip_prob = params.get('GammaCorrection_intensity_flip_probability'.lower(), 0.2)
         self.prob      = params.get('GammaCorrection_probability'.lower(), 0.5)
         self.inverse   = params.get('GammaCorrection_inverse'.lower(), False)
     
@@ -112,6 +113,8 @@ class GammaCorrection(AbstractTransform):
             v_max = img_c.max()
             if(v_min < v_max):
                 img_c = (img_c - v_min)/(v_max - v_min)
+                if(np.random.uniform() < self.flip_prob):
+                    img_c = 1.0 - img_c
                 img_c = np.power(img_c, gamma_c)*(v_max - v_min) + v_min
             image[chn] = img_c
 

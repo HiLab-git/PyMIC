@@ -54,7 +54,7 @@ class RandomFlip(AbstractTransform):
             image_t = np.flip(image, flip_axis).copy()
             sample['image'] = image_t
             if('label' in sample and \
-            self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
+                self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
                 sample['label'] = np.flip(sample['label'] , flip_axis).copy()
             if('pixel_weight' in sample and \
             self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
