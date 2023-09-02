@@ -155,7 +155,6 @@ class TransformerBlock(nn.Module):
 
     def forward(self, x):
         B, C, H, W, D = x.shape
-
         x = x.reshape(B, C, H * W * D).permute(0, 2, 1)
 
         if self.pos_embed is not None:
@@ -170,12 +169,13 @@ class TransformerBlock(nn.Module):
 
 class UnetrPPEncoder(nn.Module):
     def __init__(self, input_size=[32 * 32 * 32, 16 * 16 * 16, 8 * 8 * 8, 4 * 4 * 4],dims=[32, 64, 128, 256],
-                 proj_size =[64,64,64,32], depths=[3, 3, 3, 3],  num_heads=4, spatial_dims=3, in_channels=1, dropout=0.0, transformer_dropout_rate=0.15 ,**kwargs):
+                 proj_size =[64,64,64,32], depths=[3, 3, 3, 3],  num_heads=4, spatial_dims=3, 
+                 in_channels=1, dropout=0.0, transformer_dropout_rate=0.15, kernel_size=(2,4,4), **kwargs):
         super().__init__()
 
         self.downsample_layers = nn.ModuleList()  # stem and 3 intermediate downsampling conv layers
         stem_layer = nn.Sequential(
-            get_conv_layer(spatial_dims, in_channels, dims[0], kernel_size=(2, 4, 4), stride=(2, 4, 4),
+            get_conv_layer(spatial_dims, in_channels, dims[0], kernel_size=kernel_size, stride=kernel_size,
                            dropout=dropout, conv_only=True, ),
             get_norm_layer(name=("group", {"num_groups": in_channels}), channels=dims[0]),
         )
@@ -209,7 +209,6 @@ class UnetrPPEncoder(nn.Module):
 
     def forward_features(self, x):
         hidden_states = []
-
         x = self.downsample_layers[0](x)
         x = self.stages[0](x)
 
@@ -330,6 +329,7 @@ class UNETR_PP(nn.Module):
         in_channels  = params['in_chns']
         out_channels = params['class_num']
         img_size     = params['img_size']
+        self.res_mode= params.get("resolution_mode", 1)
         feature_size = params.get('feature_size', 16)
         hidden_size  = params.get('hidden_size', 256)
         num_heads    = params.get('num_heads', 4)
@@ -350,15 +350,20 @@ class UNETR_PP(nn.Module):
         if pos_embed not in ["conv", "perceptron"]:
             raise KeyError(f"Position embedding layer of type {pos_embed} is not supported.")
 
-        self.patch_size = (2, 4, 4)
+        kernel_ds = [4, 2, 1]
+        kernel_d  = kernel_ds[self.res_mode]
+        self.patch_size = (kernel_d, 4, 4)
+        
         self.feat_size = (
             img_size[0] // self.patch_size[0] // 8,  # 8 is the downsampling happened through the four encoders stages
             img_size[1] // self.patch_size[1] // 8,  # 8 is the downsampling happened through the four encoders stages
             img_size[2] // self.patch_size[2] // 8,  # 8 is the downsampling happened through the four encoders stages
         )
+
         self.hidden_size = hidden_size
 
-        self.unetr_pp_encoder = UnetrPPEncoder(dims=dims, depths=depths, num_heads=num_heads)
+        self.unetr_pp_encoder = UnetrPPEncoder(dims=dims, depths=depths, num_heads=num_heads, 
+            in_channels=in_channels, kernel_size=self.patch_size)
 
         self.encoder1 = UnetResBlock(
             spatial_dims=3,
@@ -395,20 +400,21 @@ class UNETR_PP(nn.Module):
             norm_name=norm_name,
             out_size=32 * 32 * 32,
         )
+        
         self.decoder2 = UnetrUpBlock(
             spatial_dims=3,
             in_channels=feature_size * 2,
             out_channels=feature_size,
             kernel_size=3,
-            upsample_kernel_size=(2, 4, 4),
+            upsample_kernel_size= self.patch_size,
             norm_name=norm_name,
-            out_size=64 * 128 * 128,
+            out_size= kernel_d*32 * 128 * 128,
             conv_decoder=True,
         )
         self.out1 = UnetOutBlock(spatial_dims=3, in_channels=feature_size, out_channels=out_channels)
-        if self.do_ds:
-            self.out2 = UnetOutBlock(spatial_dims=3, in_channels=feature_size * 2, out_channels=out_channels)
-            self.out3 = UnetOutBlock(spatial_dims=3, in_channels=feature_size * 4, out_channels=out_channels)
+        # if self.do_ds:
+        self.out2 = UnetOutBlock(spatial_dims=3, in_channels=feature_size * 2, out_channels=out_channels)
+        self.out3 = UnetOutBlock(spatial_dims=3, in_channels=feature_size * 4, out_channels=out_channels)
 
     def proj_feat(self, x, hidden_size, feat_size):
         x = x.view(x.size(0), feat_size[0], feat_size[1], feat_size[2], hidden_size)
@@ -442,19 +448,22 @@ class UNETR_PP(nn.Module):
 
 
 if __name__ == "__main__":
-    params = {'in_chns': 1,
-              'class_num': 2,
-              'img_size': [64, 128, 128]
-              }
-    net = UNETR_PP(params)
-    net.double()
+    depths    = [128, 64, 32]
+    for i in range(3):
+        params = {'in_chns': 4,
+                'class_num': 2,
+                'img_size': [depths[i], 128, 128],
+                'resolution_mode': i
+                }
+        net = UNETR_PP(params)
+        net.double()
 
-    x  = np.random.rand(2, 1, 64, 128, 128)
-    xt = torch.from_numpy(x)
-    xt = torch.tensor(xt)
-    
-    y = net(xt)
-    print(len(y))
-    for yi in y:
-        yi = yi.detach().numpy()
-        print(yi.shape)
+        x  = np.random.rand(2, 4, depths[i], 128, 128)
+        xt = torch.from_numpy(x)
+        xt = torch.tensor(xt)
+        
+        y = net(xt)
+        print(len(y))
+        for yi in y:
+            yi = yi.detach().numpy()
+            print(yi.shape)
