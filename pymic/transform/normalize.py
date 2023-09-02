@@ -34,7 +34,7 @@ class NormalizeWithMeanStd(AbstractTransform):
     """
     def __init__(self, params):
         super(NormalizeWithMeanStd, self).__init__(params)
-        self.chns = params['NormalizeWithMeanStd_channels'.lower()]
+        self.chns = params.get('NormalizeWithMeanStd_channels'.lower(), None)
         self.mean = params.get('NormalizeWithMeanStd_mean'.lower(), None)
         self.std  = params.get('NormalizeWithMeanStd_std'.lower(), None)
         self.ingore_np = params.get('NormalizeWithMeanStd_ignore_non_positive'.lower(), False)
@@ -42,13 +42,14 @@ class NormalizeWithMeanStd(AbstractTransform):
 
     def __call__(self, sample):
         image= sample['image']
-        chns = self.chns if self.chns is not None else range(image.shape[0])
+        if(self.chns is None):
+            self.chns = range(image.shape[0])
         if(self.mean is None):
-            self.mean = [None] * len(chns)
-            self.std  = [None] * len(chns)
+            self.mean = [None] * len(self.chns)
+            self.std  = [None] * len(self.chns)
 
-        for i in range(len(chns)):
-            chn = chns[i]
+        for i in range(len(self.chns)):
+            chn = self.chns[i]
             chn_mean, chn_std = self.mean[i], self.std[i]
             if(chn_mean is None):
                 if(self.ingore_np):
