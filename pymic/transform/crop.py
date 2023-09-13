@@ -255,7 +255,7 @@ class RandomCrop(CenterCrop):
             else:
                 mask_label = self.mask_label
             random_label = random.choice(mask_label)
-            crop_min, crop_max = get_random_box_from_mask(label == random_label, self.output_size)
+            crop_min, crop_max = get_random_box_from_mask(label == random_label, self.output_size, mode = 1)
 
         crop_min = [0] + crop_min
         crop_max = [chns] + crop_max
@@ -289,8 +289,11 @@ class RandomResizedCrop(CenterCrop):
     """
     def __init__(self, params):
         self.output_size = params['RandomResizedCrop_output_size'.lower()]
-        self.scale_lower = params['RandomResizedCrop_scale_lower_bound'.lower()]
-        self.scale_upper = params['RandomResizedCrop_scale_upper_bound'.lower()]
+        self.scale_lower = params['RandomResizedCrop_resize_lower_bound'.lower()]
+        self.scale_upper = params['RandomResizedCrop_resize_upper_bound'.lower()]
+        self.prob        = params.get('RandomResizedCrop_resize_prob'.lower(), 0.5)
+        self.fg_ratio    = params.get('RandomResizedCrop_foreground_ratio'.lower(), 0.0)
+        self.mask_label  = params.get('RandomResizedCrop_mask_label'.lower(), None)
         self.inverse     = params.get('RandomResizedCrop_inverse'.lower(), False)
         self.task        = params['Task'.lower()]
         assert isinstance(self.output_size, (list, tuple))
@@ -302,14 +305,19 @@ class RandomResizedCrop(CenterCrop):
         channel, input_size = image.shape[0], image.shape[1:]
         input_dim   = len(input_size)
         assert(input_dim == len(self.output_size))
-        scale = [self.scale_lower[i] + (self.scale_upper[i] - self.scale_lower[i]) * random.random() \
-            for i in range(input_dim)]
-        
-        crop_size = [int(self.output_size[i] * scale[i])  for i in range(input_dim)]
+
+        # get the resized crop size
+        resize = random.random() < self.prob
+        if(resize):
+            scale = [self.scale_lower[i] + (self.scale_upper[i] - self.scale_lower[i]) * random.random() \
+                for i in range(input_dim)]
+            crop_size = [int(self.output_size[i] * scale[i])  for i in range(input_dim)]
+        else:
+            crop_size = self.output_size
+
         crop_margin = [input_size[i] - crop_size[i] for i in range(input_dim)]
-        pad_image = False
-        if(min(crop_margin) < 0):
-            pad_image = True
+        pad_image   = min(crop_margin) < 0
+        if(pad_image): # pad the image if necessary
             pad_size = [max(0, -crop_margin[i]) for  i in range(input_dim)]
             pad_lower = [int(pad_size[i] / 2) for i in range(input_dim)]
             pad_upper = [pad_size[i] - pad_lower[i] for i in range(input_dim)]
@@ -317,16 +325,29 @@ class RandomResizedCrop(CenterCrop):
             pad = tuple([(0, 0)] + pad)
             image = np.pad(image, pad, 'reflect')
             crop_margin = [max(0, crop_margin[i]) for i in range(input_dim)]
-        
-        crop_min = [random.randint(0, item) for item in crop_margin]
-        crop_max = [crop_min[i] + crop_size[i] for i in range(input_dim)]
+        # ge the bounding box for crop
+        if(random.random() < self.fg_ratio):
+            label = sample['label']
+            if(pad_image):
+                label = np.pad(label, pad, 'reflect')
+            label = label[0]
+            if(self.mask_label is None):
+                mask_label = np.unique(label)[1:]
+            else:
+                mask_label = self.mask_label
+            random_label = random.choice(mask_label)
+            crop_min, crop_max = get_random_box_from_mask(label == random_label, crop_size, mode = 1)
+        else:
+            crop_min = [random.randint(0, item) for item in crop_margin]
+            crop_max = [crop_min[i] + crop_size[i] for i in range(input_dim)]
         crop_min = [0] + crop_min
         crop_max = [channel] + crop_max
 
         image_t = crop_ND_volume_with_bounding_box(image, crop_min, crop_max)
-        scale = [(self.output_size[i] + 0.0)/crop_size[i] for i in range(input_dim)]
-        scale = [1.0] + scale
-        image_t = ndimage.interpolation.zoom(image_t, scale, order = 1)
+        if(resize):
+            scale = [(self.output_size[i] + 0.0)/crop_size[i] for i in range(input_dim)]
+            scale = [1.0] + scale
+            image_t = ndimage.interpolation.zoom(image_t, scale, order = 1)
         sample['image'] = image_t
         
         if('label' in sample and \
@@ -336,8 +357,9 @@ class RandomResizedCrop(CenterCrop):
                 label = np.pad(label, pad, 'reflect')
             crop_max[0] = label.shape[0]
             label = crop_ND_volume_with_bounding_box(label, crop_min, crop_max)
-            order = 0 if(self.task == TaskType.SEGMENTATION) else 1
-            label = ndimage.interpolation.zoom(label, scale, order = order)
+            if(resize):
+                order = 0 if(self.task == TaskType.SEGMENTATION) else 1
+                label = ndimage.interpolation.zoom(label, scale, order = order)
             sample['label'] = label
         if('pixel_weight' in sample and \
             self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
@@ -346,6 +368,7 @@ class RandomResizedCrop(CenterCrop):
                 weight = np.pad(weight, pad, 'reflect')
             crop_max[0] = weight.shape[0]
             weight = crop_ND_volume_with_bounding_box(weight, crop_min, crop_max)
-            weight = ndimage.interpolation.zoom(weight, scale, order = 1)
+            if(resize):
+                weight = ndimage.interpolation.zoom(weight, scale, order = 1)
             sample['pixel_weight'] = weight
         return sample

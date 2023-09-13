@@ -167,18 +167,46 @@ def random_crop_ND_volume(volume, out_shape):
     crop_volume = crop_ND_volume_with_bounding_box(image_pad, bb_min, bb_max) 
     return crop_volume
 
-def get_random_box_from_mask(mask, out_shape):
-    indexes   = np.where(mask)
-    voxel_num = len(indexes[0])
-    dim       = len(out_shape)
-    left_bound  = [int(out_shape[i]/2)   for i in range(dim)]
-    right_bound = [mask.shape[i] - (out_shape[i] - left_bound[i])  for i in range(dim)]
+def get_random_box_from_mask(mask, out_shape, mode = 0):
+    """
+    get a bounding box of a subvolume according to a mask
+    
+    mode == 0: The output bounding box should be a sub region of the mask region
+    mode == 1: The center point of the output bounding box can be ahy where of the mask region
+    """
+    dim          = len(out_shape)
+    left_margin  = [int(out_shape[i]/2)   for i in range(dim)]
+    right_margin = [out_shape[i] - left_margin[i]  for i in range(dim)]
 
+    if(mode == 0):
+        bb_mask_min, bb_mask_max = get_ND_bounding_box(mask)
+        bb_valid_min, bb_valid_max = [], []
+        for i in range(dim):
+            mask_size = bb_mask_max[i] - bb_mask_min[i] 
+            if(mask_size > out_shape[i]):
+                valid_left  = bb_mask_min[i] + left_margin[i]
+                valid_right = bb_mask_max[i] - right_margin[i]
+            else:
+                valid_left  = (bb_mask_max[i] - bb_mask_min[i]) // 2 
+                valid_right = valid_left + 1
+            bb_valid_min.append(valid_left)
+            bb_valid_max.append(valid_right)
+
+        valid_region_shape = [bb_valid_max[i] - bb_valid_min[i] for i in range(dim)]
+        valid_mask = np.zeros_like(mask)
+        valid_mask = set_ND_volume_roi_with_bounding_box_range(valid_mask, 
+            bb_valid_min, bb_valid_max, np.ones(valid_region_shape, np.bool), addition = True)
+        valid_mask = valid_mask * mask 
+    else:
+        valid_mask = mask
+
+    indices = np.where(valid_mask)
+    voxel_num = len(indices[0])
     j    = random.randint(0, voxel_num - 1)
-    bb_c = [int(indexes[i][j]) for i in range(dim)]
-    bb_c = [max(left_bound[i], bb_c[i]) for i in range(dim)]
-    bb_c = [min(right_bound[i], bb_c[i]) for i in range(dim)]
-    bb_min = [bb_c[i] - left_bound[i] for i in range(dim)]
+    bb_c = [int(indices[i][j]) for i in range(dim)]
+    bb_min = [max(0, bb_c[i] - left_margin[i]) for i in range(dim)]
+    mask_shape = np.shape(mask)
+    bb_min = [min(bb_min[i], mask_shape[i] - out_shape[i]) for i in range(dim)]
     bb_max = [bb_min[i] + out_shape[i] for i in range(dim)]
 
     return bb_min, bb_max
@@ -205,7 +233,7 @@ def random_crop_ND_volume_with_mask(volume, out_shape, mask):
         pad  = [(ml[i], mr[i])  for i in range(dim)]
         pad  = tuple(pad)
         image_pad = np.pad(volume, pad, 'reflect') 
-        mask_pad  = np.pad(mask,   pad, 'reflect') 
+        mask_pad  = np.pad(mask,   pad, 'constant') 
     
     bb_min, bb_max = get_random_box_from_mask(mask_pad, out_shape)
     # left_margin = [int(out_shape[i]/2)   for i in range(dim)]
