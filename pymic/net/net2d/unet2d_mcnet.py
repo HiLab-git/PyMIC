@@ -4,22 +4,19 @@ from __future__ import print_function, division
 import torch.nn as nn
 from pymic.net.net2d.unet2d import *
 
-
 class MCNet2D(nn.Module):
     """
     A tri-branch network using UNet2D as backbone.
 
     * Reference: Yicheng Wu, Zongyuan Ge et al. Mutual consistency learning for 
-    semi-supervised medical image segmentation.
-      `MIA 2022. <https://doi.org/10.1016/j.media.2022.102530>`_ 
+      semi-supervised medical image segmentation.
+      `Medical Image Analysis 2022. <https://doi.org/10.1016/j.media.2022.102530>`_ 
 
     The original code is at: https://github.com/ycwu1997/MC-Net
     
     The parameters for the backbone should be given in the `params` dictionary. 
     See :mod:`pymic.net.net2d.unet2d.UNet2D` for details. 
     """
-
-class MCNet2D(nn.Module):
     def __init__(self, params):
         super(MCNet2D, self).__init__()
         in_chns   = params['in_chns']

@@ -28,6 +28,14 @@ pymic.net\_run.semi\_sup.ssl\_cps module
    :undoc-members:
    :show-inheritance:
 
+pymic.net\_run.semi\_sup.ssl\_mcnet module
+----------------------------------------
+
+.. automodule:: pymic.net_run.semi_sup.ssl_mcnet
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pymic.net\_run.semi\_sup.ssl\_em module
 ---------------------------------------
 
