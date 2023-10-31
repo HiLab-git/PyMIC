@@ -25,10 +25,25 @@ class UNet2D_DualBranch(nn.Module):
     """
     def __init__(self, params):
         super(UNet2D_DualBranch, self).__init__()
-        self.output_mode = params.get("output_mode", "average")
+        params = self.get_default_parameters(params)
+        self.output_mode = params["output_mode"]
         self.encoder  = Encoder(params)
         self.decoder1 = Decoder(params)    
         self.decoder2 = Decoder(params)        
+
+    def get_default_parameters(self, params):
+        default_param = {
+            'feature_chns': [32, 64, 128, 256, 512],
+            'dropout': [0.0, 0.0, 0.2, 0.3, 0.4],
+            'up_mode': 2,
+            'multiscale_pred': False,
+            'output_mode': "average"
+        }
+        for key in default_param:
+            params[key] = params.get(key, default_param[key])
+        for key in params:
+                logging.info("{0:}  = {1:}".format(key, params[key]))
+        return params
 
     def forward(self, x):
         x_shape = list(x.shape)
