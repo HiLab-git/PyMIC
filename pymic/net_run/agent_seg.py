@@ -18,6 +18,7 @@ from tensorboardX import SummaryWriter
 from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.io.nifty_dataset import NiftyDataset
 from pymic.net.net_dict_seg import SegNetDict
+from pymic.net.multi_net import MultiNet
 from pymic.net_run.agent_abstract import NetRunAgent
 from pymic.net_run.infer_func import Inferer
 from pymic.loss.loss_dict_seg import SegLossDict
@@ -78,9 +79,12 @@ class SegmentationAgent(NetRunAgent):
     def create_network(self):
         if(self.net is None):
             net_name = self.config['network']['net_type']
-            if(net_name not in self.net_dict):
-                raise ValueError("Undefined network {0:}".format(net_name))
-            self.net = self.net_dict[net_name](self.config['network'])
+            if(isinstance(net_name, (tuple, list))):
+                self.net = MultiNet(self.net_dict, self.config['network'])
+            else:
+                if(net_name not in self.net_dict):
+                    raise ValueError("Undefined network {0:}".format(net_name))
+                self.net = self.net_dict[net_name](self.config['network'])
         if(self.tensor_type == 'float'):
             self.net.float()
         else:
@@ -164,10 +168,11 @@ class SegmentationAgent(NetRunAgent):
             if(mixup_prob > 0 and random() < mixup_prob):
                 inputs, labels_prob = mixup(inputs, labels_prob) 
                    
-            # # for debug
+            # for debug
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
-            #     label_i = labels_prob[i][1]
+            #     # label_i = labels_prob[i][1]
+            #     label_i = np.argmax(labels_prob[i], axis = 0)
             #     # pixw_i  = pix_w[i][0]
             #     print(image_i.shape, label_i.shape)
             #     image_name = "temp/image_{0:}_{1:}.nii.gz".format(it, i)
@@ -176,7 +181,7 @@ class SegmentationAgent(NetRunAgent):
             #     save_nd_array_as_image(image_i, image_name, reference_name = None)
             #     save_nd_array_as_image(label_i, label_name, reference_name = None)
             #     # save_nd_array_as_image(pixw_i, weight_name, reference_name = None)
-            # # continue
+            # continue
 
             inputs, labels_prob = inputs.to(self.device), labels_prob.to(self.device)
             
@@ -271,6 +276,27 @@ class SegmentationAgent(NetRunAgent):
             valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")        
 
+    def load_pretrained_weights(self, network, pretrained_dict, device_ids):
+        if(len(device_ids) > 1):
+            if(hasattr(network.module, "get_parameters_to_load")):
+                model_dict = network.module.get_parameters_to_load()
+            else:
+                model_dict = network.module.state_dict()
+        else:
+            if(hasattr(network, "get_parameters_to_load")):
+                model_dict = network.get_parameters_to_load()
+            else:
+                model_dict = network.state_dict()
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if \
+            k in model_dict and tensor_shape_match(pretrained_dict[k], model_dict[k])}
+        logging.info("Initializing the following parameters with pre-trained model")
+        for k in pretrained_dict:
+            logging.info(k)
+        if (len(device_ids) > 1):
+            network.module.load_state_dict(pretrained_dict, strict = False)
+        else:
+            network.load_state_dict(pretrained_dict, strict = False) 
+
     def train_valid(self):
         device_ids = self.config['training']['gpus']
         if(len(device_ids) > 1):
@@ -310,16 +336,7 @@ class SegmentationAgent(NetRunAgent):
         if(ckpt_init_name is not None):
             checkpoint = torch.load(ckpt_dir + "/" + ckpt_init_name, map_location = self.device)
             pretrained_dict = checkpoint['model_state_dict']
-            model_dict = self.net.module.state_dict() if (len(device_ids) > 1) else self.net.state_dict()
-            pretrained_dict = {k: v for k, v in pretrained_dict.items() if \
-                k in model_dict and tensor_shape_match(pretrained_dict[k], model_dict[k])}
-            logging.info("Initializing the following parameters with pre-trained model")
-            for k in pretrained_dict:
-                logging.info(k)
-            if (len(device_ids) > 1):
-                self.net.module.load_state_dict(pretrained_dict, strict = False)
-            else:
-                self.net.load_state_dict(pretrained_dict, strict = False)
+            self.load_pretrained_weights(self.net, pretrained_dict, device_ids)
 
             if(ckpt_init_mode > 0): # Load  other information
                 self.max_val_dice = checkpoint.get('valid_pred', 0)

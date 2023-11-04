@@ -3,29 +3,11 @@ from __future__ import print_function, division
 import logging
 import numpy as np
 import torch
-import torch.nn as nn
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.net_run.semi_sup import SSLSegAgent
-from pymic.net.net_dict_seg import SegNetDict
 from pymic.util.ramps import get_rampup_ratio
-
-class BiNet(nn.Module):
-    def __init__(self, params):
-        super(BiNet, self).__init__()
-        net_name  = params['net_type']
-        self.net1 = SegNetDict[net_name](params)
-        self.net2 = SegNetDict[net_name](params)   
-
-    def forward(self, x):
-        out1 = self.net1(x)
-        out2 = self.net2(x)
-
-        if(self.training):
-          return out1, out2
-        else:
-          return (out1 + out2) / 2
 
 class SSLCPS(SSLSegAgent):
     """
@@ -46,14 +28,6 @@ class SSLCPS(SSLSegAgent):
     """
     def __init__(self, config, stage = 'train'):
         super(SSLCPS, self).__init__(config, stage)
-
-    def create_network(self):
-        if(self.net is None):
-            self.net = BiNet(self.config['network'])
-        if(self.tensor_type == 'float'):
-            self.net.float()
-        else:
-            self.net.double()
 
     def training(self):
         class_num   = self.config['network']['class_num']
@@ -89,7 +63,7 @@ class SSLCPS(SSLSegAgent):
             # zero the parameter gradients
             self.optimizer.zero_grad()
                 
-            outputs1, outputs2 = self.net(inputs)
+            outputs1, outputs2 = self.net(inputs) 
             outputs_soft1 = torch.softmax(outputs1, dim=1)
             outputs_soft2 = torch.softmax(outputs2, dim=1)
 
