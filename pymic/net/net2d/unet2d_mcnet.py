@@ -39,7 +39,7 @@ class MCNet2D(nn.Module):
                   'class_num': class_num,
                   'up_mode': 2,
                   'multiscale_pred': False}
-        self.encoder = Encoder(params1)
+        self.encoder  = Encoder(params1)
         self.decoder1 = Decoder(params1)
         self.decoder2 = Decoder(params2)
         self.decoder3 = Decoder(params3)

@@ -4,14 +4,7 @@ from __future__ import print_function, division
 import torch
 import torch.nn as nn
 from pymic.net.net2d.unet2d import *
-"""
-A Reimplementation of the attention U-Net paper:
-    Ozan Oktay, Jo Schlemper et al.:
-    Attentin U-Net: Looking Where to Look for the Pancreas. MIDL, 2018.
 
-Note that there are some modifications from the original paper, such as
-the use of batch normalization, dropout, and leaky relu here.
-"""
 class AttentionGateBlock(nn.Module):
     def __init__(self, chns_l, chns_h):
         """
@@ -80,6 +73,14 @@ class UpBlockWithAttention(nn.Module):
         return self.conv(x)
 
 class AttentionUNet2D(UNet2D):
+    """
+    A Reimplementation of the attention U-Net paper:
+        Ozan Oktay, Jo Schlemper et al.:
+        Attentin U-Net: Looking Where to Look for the Pancreas. MIDL, 2018.
+
+    Note that there are some modifications from the original paper, such as
+    the use of batch normalization, dropout, and leaky relu here.
+    """
     def __init__(self, params):
         super(AttentionUNet2D, self).__init__(params)
         self.up1    = UpBlockWithAttention(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], dropout_p = 0.0)

@@ -15,7 +15,7 @@ class MultiNet(nn.Module):
     '''
     def __init__(self, net_dict, params):
         super(MultiNet, self).__init__() 
-        net_names = params['net_names'] # should be a list of network class name
+        net_names        = params['net_type'] # should be a list of network class name
         self.output_mode = params.get('infer_mode', 0)
         self.networks    = nn.ModuleList([net_dict[item](params) for item in net_names]) 
 
