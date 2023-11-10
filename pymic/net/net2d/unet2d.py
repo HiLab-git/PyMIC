@@ -153,8 +153,8 @@ class Decoder(nn.Module):
         self.ft_chns   = self.params['feature_chns']
         self.dropout   = self.params['dropout']
         self.n_class   = self.params['class_num']
-        self.up_mode   = self.params['up_mode']
-        self.mul_pred  = self.params['multiscale_pred']
+        self.up_mode   = self.params.get('up_mode', 2)
+        self.mul_pred  = self.params.get('multiscale_pred', False)
 
         assert(len(self.ft_chns) == 5 or len(self.ft_chns) == 4)
 
@@ -183,10 +183,10 @@ class Decoder(nn.Module):
         x_d1 = self.up3(x_d2, x1)
         x_d0 = self.up4(x_d1, x0)
         output = self.out_conv(x_d0)
-        if(self.mul_pred):
+        if(self.mul_pred and self.training):
             output1 = self.out_conv1(x_d1)
-            output2 = self.out_conv1(x_d2)
-            output3 = self.out_conv1(x_d3)
+            output2 = self.out_conv2(x_d2)
+            output3 = self.out_conv3(x_d3)
             output = [output, output1, output2, output3]
         return output
 
@@ -263,19 +263,23 @@ class UNet2D(nn.Module):
 
 if __name__ == "__main__":
     params = {'in_chns':4,
-              'feature_chns':[2, 8, 32, 48, 64],
+              'feature_chns':[16, 32, 64, 128, 256],
               'dropout':  [0, 0, 0.3, 0.4, 0.5],
               'class_num': 2,
               'up_mode': 0,
-              'multiscale_pred': False}
+              'multiscale_pred': True}
     Net = UNet2D(params)
     Net = Net.double()
 
-    x  = np.random.rand(4, 4, 10, 96, 96)
+    x  = np.random.rand(4, 4, 10, 256, 256)
     xt = torch.from_numpy(x)
     xt = torch.tensor(xt)
     
-    y = Net(xt)
-    print(len(y.size()))
-    y = y.detach().numpy()
-    print(y.shape)
+    out = Net(xt)
+    if params['multiscale_pred']:
+        for y in out:
+            print(len(y.size()))
+            y = y.detach().numpy()
+            print(y.shape)
+    else:
+        print(out.shape)
