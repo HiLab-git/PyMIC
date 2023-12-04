@@ -89,6 +89,8 @@ class SegmentationAgent(NetRunAgent):
             self.net.float()
         else:
             self.net.double()
+        if(hasattr(self.net, "set_stage")):
+            self.net.set_stage(self.stage)
         param_number = sum(p.numel() for p in self.net.parameters() if p.requires_grad)
         logging.info('parameter number {0:}'.format(param_number))
 

@@ -22,8 +22,8 @@ class SSLMCNet(SSLSegAgent):
     with multiple decoders for learning, such as `pymic.net.net2d.unet2d_mcnet.MCNet2D`.
 
     * Reference: Yicheng Wu, Zongyuan Ge et al. Mutual consistency learning for 
-      semi-supervised medical image segmentation.
-      `Medical Image Analysis 2022. <https://doi.org/10.1016/j.media.2022.102530>`_ 
+    semi-supervised medical image segmentation.
+      `MIA 2022. <https://doi.org/10.1016/j.media.2022.102530>`_ 
 
     The original code is at: https://github.com/ycwu1997/MC-Net
 
@@ -34,11 +34,6 @@ class SSLMCNet(SSLSegAgent):
         In the configuration dictionary, in addition to the four sections (`dataset`,
         `network`, `training` and `inference`) used in fully supervised learning, an 
         extra section `semi_supervised_learning` is needed. See :doc:`usage.ssl` for details.
-    
-    Special parameters required for MCNet in `semi_supervised_learning` section:
-
-    :param temperature: (float) temperature for label sharpening. The default value is 0.1.
-    
     """
     def training(self):
         class_num   = self.config['network']['class_num']

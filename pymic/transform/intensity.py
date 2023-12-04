@@ -62,6 +62,7 @@ class IntensityClip(AbstractTransform):
         self.channels =  params['IntensityClip_channels'.lower()]
         self.lower = params.get('IntensityClip_lower'.lower(), None)
         self.upper = params.get('IntensityClip_upper'.lower(), None)
+        self.perct = params.get('IntensityClip_percentile_mode'.lower(), False)
         self.inverse   = params.get('IntensityClip_inverse'.lower(), False)
     
     def __call__(self, sample):
@@ -72,8 +73,12 @@ class IntensityClip(AbstractTransform):
             lower_c, upper_c = lower[chn], upper[chn]
             if(lower_c is None):
                 lower_c = np.percentile(image[chn], 0.05)
+            elif(self.perct):
+                lower_c = np.percentile(image[chn], lower_c)
             if(upper_c is None):
-                upper_c = np.percentile(image[chn, 99.95])
+                upper_c = np.percentile(image[chn], 99.95)
+            elif(self.perct):
+                upper_c = np.percentile(image[chn], upper_c)
             image[chn] = np.clip(image[chn], lower_c, upper_c)
         sample['image'] = image
         return sample

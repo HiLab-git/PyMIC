@@ -18,7 +18,8 @@ def test_assd_2d():
     plt.show()
 
 def test_assd_3d():
-    img_name = "/home/x/projects/PyMIC_project/PyMIC_examples/seg_ssl/ACDC/result/unet2d_baseline/patient001_frame01.nii.gz"
+    # img_name = "/home/x/projects/PyMIC_project/PyMIC_examples/seg_ssl/ACDC/result/unet2d_baseline/patient001_frame01.nii.gz"
+    img_name = "/home/disk4t/data/heart/ACDC/preprocess/patient001_frame12_gt.nii.gz"
     img_obj = sitk.ReadImage(img_name) 
     spacing = img_obj.GetSpacing()
     spacing = spacing[::-1]

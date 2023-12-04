@@ -113,16 +113,20 @@ class CropWithBoundingBox(CenterCrop):
 
     :param `CropWithBoundingBox_start`: (None, or list/tuple) The start index 
         along each spatial axis. If None, calculate the start index automatically 
-        so that the cropped region is centered at the non-zero region.
+        so that the cropped region is centered at the mask region defined by the threshold.
     :param `CropWithBoundingBox_output_size`: (None or tuple/list): 
         Desired spatial output size.
-        If None, set it as the size of bounding box of non-zero region.
+        If None, set it as the size of bounding box of the mask region defined by the threshold.
+    :param `CropWithBoundingBox_threshold`: (None or float):
+        Threshold for obtaining a mask. This is used only when 
+        `CropWithBoundingBox_start` is None. Default is 1.0
     :param `CropWithBoundingBox_inverse`: (optional, bool) Is inverse transform needed for inference.
         Default is `True`.
     """
     def __init__(self, params):
         self.start       = params['CropWithBoundingBox_start'.lower()]
         self.output_size = params['CropWithBoundingBox_output_size'.lower()]
+        self.threshold   = params.get('CropWithBoundingBox_threshold'.lower(), 1.0)
         self.inverse     = params.get('CropWithBoundingBox_inverse'.lower(), True)
         self.task = params['task']
         
@@ -130,8 +134,9 @@ class CropWithBoundingBox(CenterCrop):
         image = sample['image']
         input_shape = sample['image'].shape
         input_dim   = len(input_shape) - 1
-        bb_min, bb_max = get_ND_bounding_box(image)
-        bb_min, bb_max = bb_min[1:], bb_max[1:]
+        if(self.start is None or self.output_size is None):
+            bb_min, bb_max = get_ND_bounding_box(image > self.threshold)
+            bb_min, bb_max = bb_min[1:], bb_max[1:]
         if(self.start is None):
             if(self.output_size is None):
                 crop_min, crop_max = bb_min, bb_max
@@ -212,7 +217,9 @@ class RandomCrop(CenterCrop):
 
     :param `RandomCrop_output_size`: (list/tuple) Desired output size [D, H, W] or [H, W].
         The output channel is the same as the input channel. 
-        If D is None for 3D images, the z-axis is not cropped.
+        If `None` is set for a certain axis, that axis will not be cropped. For example,
+        for 3D vlumes, (None, H, W) means only crop in 2D, and (D, None, None) means only
+        crop along the z axis. 
     :param `RandomCrop_foreground_focus`: (optional, bool) 
         If true, allow crop around the foreground. Default is False.
     :param `RandomCrop_foreground_ratio`: (optional, float) 
@@ -242,10 +249,16 @@ class RandomCrop(CenterCrop):
         input_shape = image.shape[1:]
         input_dim   = len(input_shape)
         assert(input_dim == len(self.output_size))
-
-        crop_margin = [input_shape[i] - self.output_size[i] for i in range(input_dim)]
+        
+        output_size = [item for item in self.output_size]
+        # print("crop input and output size", input_shape, output_size)
+        for i in range(input_dim):
+            if(output_size[i] is None):
+                output_size[i] = input_shape[i]
+        # print(output_size)
+        crop_margin = [input_shape[i] - output_size[i] for i in range(input_dim)]
         crop_min = [0 if item == 0 else random.randint(0, item) for item in crop_margin]
-        crop_max = [crop_min[i] + self.output_size[i] for i in range(input_dim)]
+        crop_max = [crop_min[i] + output_size[i] for i in range(input_dim)]
         
         label_exist = False if ('label' not in sample or sample['label']) is None else True
         if(label_exist and self.fg_focus and random.random() < self.fg_ratio):
@@ -255,7 +268,7 @@ class RandomCrop(CenterCrop):
             else:
                 mask_label = self.mask_label
             random_label = random.choice(mask_label)
-            crop_min, crop_max = get_random_box_from_mask(label == random_label, self.output_size, mode = 1)
+            crop_min, crop_max = get_random_box_from_mask(label == random_label, output_size, mode = 1)
 
         crop_min = [0] + crop_min
         crop_max = [chns] + crop_max

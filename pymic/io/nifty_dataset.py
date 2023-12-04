@@ -38,7 +38,8 @@ class NiftyDataset(Dataset):
         if('label' not in csv_keys):
             logging.warning("`label` section is not found in the csv file {0:}".format(
                 csv_file) + "\n -- This is only allowed for self-supervised learning" + 
-                "\n -- when `SelfSuperviseLabel` is used in the transform.")
+                "\n -- when `SelfSuperviseLabel` is used in the transform, or when" + 
+                "\n -- loading the unlabeled data for preprocessing.")
             self.with_label = False
         self.image_weight_idx = None
         self.pixel_weight_idx = None
@@ -52,15 +53,15 @@ class NiftyDataset(Dataset):
 
     def __getlabel__(self, idx):
         csv_keys = list(self.csv_items.keys())        
-        label_idx = csv_keys.index('label')
-        label_name = "{0:}/{1:}".format(self.root_dir, 
-            self.csv_items.iloc[idx, label_idx])
-        label = load_image_as_nd_array(label_name)['data_array']
+        label_idx  = csv_keys.index('label')
+        label_name = self.csv_items.iloc[idx, label_idx]
+        label_name_full = "{0:}/{1:}".format(self.root_dir, label_name)
+        label = load_image_as_nd_array(label_name_full)['data_array']
         if(self.task ==  TaskType.SEGMENTATION):
             label = np.asarray(label, np.int32)
         elif(self.task == TaskType.RECONSTRUCTION):
             label = np.asarray(label, np.float32)
-        return label
+        return label, label_name
 
     def __get_pixel_weight__(self, idx):
         weight_name = "{0:}/{1:}".format(self.root_dir, 
@@ -80,12 +81,14 @@ class NiftyDataset(Dataset):
             image_list.append(image_data)
         image = np.concatenate(image_list, axis = 0)
         image = np.asarray(image, np.float32)    
-        sample = {'image': image, 'names' : names_list[0], 
+        
+        sample = {'image': image, 'names' : names_list, 
                  'origin':image_dict['origin'],
                  'spacing': image_dict['spacing'],
                  'direction':image_dict['direction']}
         if (self.with_label):   
-            sample['label'] = self.__getlabel__(idx) 
+            sample['label'], label_name = self.__getlabel__(idx) 
+            sample['names'].append(label_name)
             assert(image.shape[1:] == sample['label'].shape[1:])
         if (self.image_weight_idx is not None):
             sample['image_weight'] = self.csv_items.iloc[idx, self.image_weight_idx]

@@ -6,6 +6,7 @@ import torch
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
+from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.net_run.semi_sup import SSLSegAgent
 from pymic.util.ramps import get_rampup_ratio
 
@@ -57,6 +58,19 @@ class SSLCPS(SSLSegAgent):
             x0   = self.convert_tensor_type(data_lab['image'])
             y0   = self.convert_tensor_type(data_lab['label_prob'])  
             x1   = self.convert_tensor_type(data_unlab['image'])
+
+            # for debug
+            # for i in range(x0.shape[0]):
+            #     image_i = x0[i][0]
+            #     label_i = np.argmax(y0[i], axis = 0)
+            #     # pixw_i  = pix_w[i][0]
+            #     print(image_i.shape, label_i.shape)
+            #     image_name = "temp/image_{0:}_{1:}.nii.gz".format(it, i)
+            #     label_name = "temp/label_{0:}_{1:}.nii.gz".format(it, i)
+            #     save_nd_array_as_image(image_i, image_name, reference_name = None)
+            #     save_nd_array_as_image(label_i, label_name, reference_name = None)
+            # continue
+
             inputs = torch.cat([x0, x1], dim = 0)               
             inputs, y0 = inputs.to(self.device), y0.to(self.device)
 

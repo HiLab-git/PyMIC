@@ -24,11 +24,12 @@ class NormalizeWithMeanStd(AbstractTransform):
     :param `NormalizeWithMeanStd_std`: (list/tuple or None) 
         The std values along each specified channel.
         If None, the std values are calculated automatically.
-    :param `NormalizeWithMeanStd_ignore_non_positive`: (optional, bool) 
-        Only used when mean and std are not given. Default is False.
-        If True, calculate mean and std in the positive region for normalization,
-        and set non-positive region to random. If False, calculate
-        the mean and std values in the entire image region. 
+    :param `NormalizeWithMeanStd_mask_threshold`: (optional, float) 
+        Only used when mean and std are not given. Default is 1.0.
+        Calculate mean and std in the mask region where the intensity is higher than the mask.
+    :param `NormalizeWithMeanStd_set_background_to_random`: (optional, bool) 
+        Set background region to random or not, and only applicable when
+        `NormalizeWithMeanStd_mask_threshold` is not None. Default is True. 
     :param `NormalizeWithMeanStd_inverse`: (optional, bool) 
         Is inverse transform needed for inference. Default is `False`.
     """
@@ -37,8 +38,9 @@ class NormalizeWithMeanStd(AbstractTransform):
         self.chns = params.get('NormalizeWithMeanStd_channels'.lower(), None)
         self.mean = params.get('NormalizeWithMeanStd_mean'.lower(), None)
         self.std  = params.get('NormalizeWithMeanStd_std'.lower(), None)
-        self.ingore_np = params.get('NormalizeWithMeanStd_ignore_non_positive'.lower(), False)
-        self.inverse = params.get('NormalizeWithMeanStd_inverse'.lower(), False)
+        self.mask_thrd = params.get('NormalizeWithMeanStd_mask_threshold'.lower(), 1.0)
+        self.bg_random = params.get('NormalizeWithMeanStd_set_background_to_random'.lower(), True)
+        self.inverse   = params.get('NormalizeWithMeanStd_inverse'.lower(), False)
 
     def __call__(self, sample):
         image= sample['image']
@@ -52,8 +54,8 @@ class NormalizeWithMeanStd(AbstractTransform):
             chn = self.chns[i]
             chn_mean, chn_std = self.mean[i], self.std[i]
             if(chn_mean is None):
-                if(self.ingore_np):
-                    pixels = image[chn][image[chn] > 0]
+                if(self.mask_thrd is not None):
+                    pixels   = image[chn][image[chn] > self.mask_thrd]
                     if(len(pixels) > 0):
                         chn_mean, chn_std = pixels.mean(), pixels.std() + 1e-5
                     else:
@@ -63,9 +65,9 @@ class NormalizeWithMeanStd(AbstractTransform):
     
             chn_norm = (image[chn] - chn_mean)/chn_std
 
-            if(self.ingore_np):
+            if(self.mask_thrd is not None and self.bg_random):
                 chn_random = np.random.normal(0, 1, size = chn_norm.shape)
-                chn_norm[image[chn] <= 0] = chn_random[image[chn] <= 0]
+                chn_norm[image[chn] <= self.mask_thrd] = chn_random[image[chn] <=self.mask_thrd]
             image[chn] = chn_norm
         sample['image'] = image
         return sample

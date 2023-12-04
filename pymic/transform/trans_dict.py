@@ -31,6 +31,7 @@ The built-in transforms in PyMIC are:
 
 """
 from __future__ import print_function, division
+from pymic.transform.affine import *
 from pymic.transform.intensity import  *
 from pymic.transform.flip import *
 from pymic.transform.pad import *
@@ -44,6 +45,7 @@ from pymic.transform.mix import *
 from pymic.transform.label_convert import *  
 
 TransformDict = {
+    'Affine': Affine,
     'ChannelWiseThreshold': ChannelWiseThreshold,
     'ChannelWiseThresholdWithNormalize': ChannelWiseThresholdWithNormalize,
     'CropWithBoundingBox': CropWithBoundingBox,

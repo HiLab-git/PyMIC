@@ -78,11 +78,12 @@ def main():
         os.makedirs(log_dir, exist_ok=True)
     dst_cfg = cfg_file if "/" not in cfg_file else cfg_file.split("/")[-1]
     shutil.copy(cfg_file, log_dir + "/" + dst_cfg)
+    datetime_str = str(datetime.now())[:-7].replace(":", "_")
     if sys.version.startswith("3.9"):
-        logging.basicConfig(filename=log_dir+"/log_train_{0:}.txt".format(str(datetime.now())[:-7]), 
+        logging.basicConfig(filename=log_dir+"/log_train_{0:}.txt".format(datetime_str), 
                             level=logging.INFO, format='%(message)s', force=True) # for python 3.9
     else:
-        logging.basicConfig(filename=log_dir+"/log_train_{0:}.txt".format(str(datetime.now())[:-7]), 
+        logging.basicConfig(filename=log_dir+"/log_train_{0:}.txt".format(datetime_str), 
                             level=logging.INFO, format='%(message)s') # for python 3.6
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging_config(config)
