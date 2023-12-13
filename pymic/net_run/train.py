@@ -11,8 +11,9 @@ from pymic.net_run.agent_cls import ClassificationAgent
 from pymic.net_run.agent_seg import SegmentationAgent
 from pymic.net_run.semi_sup import SSLMethodDict
 from pymic.net_run.weak_sup import WSLMethodDict
+from pymic.net_run.self_sup import SelfSupMethodDict
 from pymic.net_run.noisy_label import NLLMethodDict
-from pymic.net_run.self_sup import SelfSLSegAgent
+# from pymic.net_run.self_sup import SelfSLSegAgent
 
 def get_seg_rec_agent(config, sup_type):
     assert(sup_type in ['fully_sup', 'semi_sup', 'self_sup', 'weak_sup', 'noisy_label'])
@@ -34,28 +35,7 @@ def get_seg_rec_agent(config, sup_type):
     elif(sup_type == 'self_sup'):
         logging.info("\n********** Self Supervised Learning **********\n")
         method = config['self_supervised_learning']['method_name']
-        if(method == "custom"):
-            pass
-        elif(method == "model_genesis"):
-            transforms = ['RandomFlip', 'LocalShuffling', 'NonLinearTransform', 'InOutPainting']
-            genesis_cfg = {
-                'randomflip_flip_depth': True,
-                'randomflip_flip_height': True,
-                'randomflip_flip_width': True,
-                'localshuffling_probability': 0.5,
-                'nonLineartransform_probability': 0.9,
-                'inoutpainting_probability': 0.9,
-                'inpainting_probability': 0.2
-            }
-            config['dataset']['train_transform'].extend(transforms)
-            # config['dataset']['valid_transform'].extend(transforms)
-            config['dataset'].update(genesis_cfg)
-            logging_config(config['dataset'])
-        else:
-            raise ValueError("The specified method {0:} is not implemented. ".format(method) + \
-                         "Consider to set `self_sl_method = custom` and use customized" + \
-                         " transforms for self-supervised learning.")
-        agent = SelfSLSegAgent(config, 'train')
+        agent = SelfSupMethodDict[method](config, 'train')
     else:
         raise ValueError("undefined supervision type: {0:}".format(sup_type))
     return agent

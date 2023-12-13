@@ -71,7 +71,8 @@ class PatchMix(AbstractTransform):
     """
     def __init__(self, params):
         super(PatchMix, self).__init__(params)
-        self.inverse  = params.get('PatchMix_inverse'.lower(), False)
+        self.inverse        = params.get('PatchMix_inverse'.lower(), False)
+        self.threshold      = params.get('PatchMix_threshold'.lower(), 0)
         self.crop_size      = params.get('PatchMix_crop_size'.lower(), [64, 128, 128])
         self.fg_cls_num     = params.get('PatchMix_cls_num'.lower(), [4, 40])
         self.patch_num_range= params.get('PatchMix_patch_range'.lower(), [4, 40])
@@ -79,7 +80,8 @@ class PatchMix(AbstractTransform):
         self.patch_size_max = params.get('PatchMix_patch_size_max'.lower(), [20, 40, 40])
 
     def __call__(self, sample):
-        x0, x1 = self._random_crop_and_flip(sample)
+        x0 = self._random_crop_and_flip(sample)
+        x1 = self._random_crop_and_flip(sample)
         C, D, H, W = x0.shape
         # generate mask 
         fg_mask = np.zeros_like(x0, np.uint8)
@@ -104,46 +106,48 @@ class PatchMix(AbstractTransform):
         return sample
     
     def _random_crop_and_flip(self, sample):
-        input_shape = sample['image'].shape
-        input_dim   = len(input_shape) - 1
+        image       = sample['image']
+        input_dim   = len(image.shape) - 1
         assert(input_dim == 3)
-        
+        C, D, H, W  = image.shape
+
+        half_size = [x // 2 for x in self.crop_size]
+        dc = random.randint(half_size[0], D - half_size[0])
+        image2d = image[0, dc, :, :]
+        mask2d  = np.zeros_like(image2d)
+        mask2d[half_size[1]:H+1-half_size[1], half_size[2]:W+1-half_size[2]] = \
+            np.ones([H-self.crop_size[1]+1, W-self.crop_size[2]+1])
         if('label' in sample):
-            # get the center for crop randomly
-            mask = sample['label'] > 0
-            C, D, H, W = input_shape 
-            size_h     = [i// 2 for i in self.crop_size]
-            temp_mask  = np.zeros_like(mask)
-            temp_mask[:,size_h[0]:D-size_h[0]+1,size_h[1]:H-size_h[1]+1,size_h[2]:W-size_h[2]+1] = \
-                np.ones([C, D-self.crop_size[0]+1, H-self.crop_size[1]+1, W-self.crop_size[2]+1])
-            mask    = mask * temp_mask
-            indices = np.where(mask)
-            n0 = random.randint(0, len(indices[0])-1)
-            n1 = random.randint(0, len(indices[0])-1)
-            center0 = [indices[i][n0] for i in range(1, 4)]
-            center1 = [indices[i][n1] for i in range(1, 4)]
-            crop_min0 = [center0[i] - size_h[i] for i in range(3)]
-            crop_min1 = [center1[i] - size_h[i] for i in range(3)]
-        else:
-            crop_margin = [input_shape[1+i] - self.crop_size[i] for i in range(input_dim)]
-            crop_min0 = [0 if item == 0 else random.randint(0, item) for item in crop_margin]
-            crop_min1 = [0 if item == 0 else random.randint(0, item) for item in crop_margin]
+            temp_mask = sample['label'][0, dc, :, :] > 0
+            mask2d = temp_mask * mask2d
+        elif(self.threshold is not None):
+            temp_mask = image2d > self.threshold
+            se         = np.ones([3,3])
+            temp_mask  = ndimage.binary_opening(temp_mask, se, iterations = 2)
+            temp_mask  = get_largest_k_components(temp_mask, 1)
+            mask2d = temp_mask * mask2d
 
-        patches = []
-        for crop_min in [crop_min0, crop_min1]:
-            crop_max = [crop_min[i] + self.crop_size[i] for i in range(input_dim)]
-            crop_min = [0] + crop_min
-            crop_max = [C] + crop_max
-            x = crop_ND_volume_with_bounding_box(sample['image'], crop_min, crop_max)
-            flip_axis = []
-            if(random.random() > 0.5):
-                flip_axis.append(-1)
-            if(random.random() > 0.5):
-                flip_axis.append(-2)
-            if(random.random() > 0.5):
-                flip_axis.append(-3)
-            if(len(flip_axis) > 0):
-                x = np.flip(x, flip_axis).copy()
-            patches.append(x)
+        indices = np.where(mask2d)
+        n = random.randint(0, len(indices[0])-1)
+        center = [indices[i][n] for i in range(2)]
+        crop_min = [dc - half_size[0], center[0]-half_size[1], center[1] - half_size[2]]
+        crop_max = [crop_min[i] + self.crop_size[i] for i in range(input_dim)]
+        crop_min = [0] + crop_min
+        crop_max = [C] + crop_max
+        x = crop_ND_volume_with_bounding_box(image, crop_min, crop_max)
 
-        return patches
+        flip_axis = []
+        if(random.random() > 0.5):
+            flip_axis.append(-1)
+        if(random.random() > 0.5):
+            flip_axis.append(-2)
+        if(random.random() > 0.5):
+            flip_axis.append(-3)
+        if(len(flip_axis) > 0):
+            x = np.flip(x, flip_axis).copy()
+
+        if(x.shape[1] == 63):
+            print("crop shape == 63", x.shape)
+            print(sample['names'])
+            print(image.shape, crop_min, crop_max)
+        return x

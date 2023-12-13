@@ -39,36 +39,44 @@ class SegmentationAgent(NetRunAgent):
         self.net_dict         = SegNetDict
         self.postprocess_dict = PostProcessDict
         self.postprocessor    = None
-        
-    def get_stage_dataset_from_config(self, stage):
-        assert(stage in ['train', 'valid', 'test'])
-        root_dir  = self.config['dataset']['root_dir']
-        modal_num = self.config['dataset'].get('modal_num', 1)
 
+    def get_transform_names_and_parameters(self, stage):
+        """
+        Get a list of transform objects for creating a dataset
+        """
+        assert(stage in ['train', 'valid', 'test'])
         transform_key = stage +  '_transform'
         if(stage == "valid" and transform_key not in self.config['dataset']):
             transform_key = "train_transform"
-        transform_names = self.config['dataset'][transform_key]
-        
-        self.transform_list  = []
-        if(transform_names is None or len(transform_names) == 0):
-            data_transform = None 
-        else:
-            transform_param = self.config['dataset']
-            transform_param['task'] = self.task_type
-            for name in transform_names:
+        trans_names  = self.config['dataset'][transform_key]
+        trans_params = self.config['dataset']
+        trans_params['task'] = self.task_type
+        return trans_names, trans_params
+
+    def get_stage_dataset_from_config(self, stage):
+        trans_names, trans_params = self.get_transform_names_and_parameters(stage)
+        transform_list  = []
+        if(trans_names is not None and len(trans_names) > 0):
+            for name in trans_names:
                 if(name not in self.transform_dict):
                     raise(ValueError("Undefined transform {0:}".format(name))) 
-                one_transform = self.transform_dict[name](transform_param)
-                self.transform_list.append(one_transform)
-            data_transform = transforms.Compose(self.transform_list)
+                one_transform = self.transform_dict[name](trans_params)
+                transform_list.append(one_transform)
+        data_transform = transforms.Compose(transform_list)
 
-        csv_file = self.config['dataset'].get(stage + '_csv', None)
+        csv_file  = self.config['dataset'].get(stage + '_csv', None)
         if(stage == 'test'):
             with_label = False 
+            self.test_transforms = transform_list
         else:
             with_label = self.config['dataset'].get(stage + '_label', True)
-        dataset  = NiftyDataset(root_dir  = root_dir,
+        modal_num = self.config['dataset'].get('modal_num', 1)
+        stage_dir = self.config['dataset'].get('train_dir', None)
+        if(stage == 'valid' and "valid_dir" in self.config['dataset']):
+            stage_dir = self.config['dataset']['valid_dir']
+        if(stage == 'test' and "test_dir" in self.config['dataset']):
+            stage_dir = self.config['dataset']['test_dir']
+        dataset  = NiftyDataset(root_dir  = stage_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
                                 with_label= with_label,
@@ -471,7 +479,7 @@ class SegmentationAgent(NetRunAgent):
                     pred = pred.cpu().numpy()
                 data['predict'] = pred
                 # inverse transform
-                for transform in self.transform_list[::-1]:
+                for transform in self.test_transforms[::-1]:
                     if (transform.inverse):
                         data = transform.inverse_transform_for_prediction(data) 
 
@@ -525,7 +533,7 @@ class SegmentationAgent(NetRunAgent):
                 pred = np.mean(predict_list, axis=0)
                 data['predict'] = pred
                 # inverse transform
-                for transform in self.transform_list[::-1]:
+                for transform in self.test_transforms[::-1]:
                     if (transform.inverse):
                         data = transform.inverse_transform_for_prediction(data) 
                 
@@ -564,15 +572,18 @@ class SegmentationAgent(NetRunAgent):
             for i in range(len(names)):
                 output[i] = self.postprocessor(output[i])
         # save the output and (optionally) probability predictions
-        root_dir  = self.config['dataset']['root_dir']
+        test_dir = self.config['dataset'].get('test_dir', None)
+        if(test_dir is None):
+            test_dir = self.config['dataset']['train_dir']
+
         for i in range(len(names)):
-            save_name = names[i].split('/')[-1] if ignore_dir else \
-                names[i].replace('/', '_')
+            save_name = names[i][0].split('/')[-1] if ignore_dir else \
+                names[i][0].replace('/', '_')
             if((filename_replace_source is  not None) and (filename_replace_target is not None)):
                 save_name = save_name.replace(filename_replace_source, filename_replace_target)
             print(save_name)
             save_name = "{0:}/{1:}".format(output_dir, save_name)
-            save_nd_array_as_image(output[i], save_name, root_dir + '/' + names[i])
+            save_nd_array_as_image(output[i], save_name, test_dir + '/' + names[i][0])
             save_name_split = save_name.split('.')
 
             if(not save_prob):
@@ -590,4 +601,4 @@ class SegmentationAgent(NetRunAgent):
                 prob_save_name = "{0:}_prob_{1:}.{2:}".format(save_prefix, c, save_format)
                 if(len(temp_prob.shape) == 2):
                     temp_prob = np.asarray(temp_prob * 255, np.uint8)
-                save_nd_array_as_image(temp_prob, prob_save_name, root_dir + '/' + names[i])
+                save_nd_array_as_image(temp_prob, prob_save_name, test_dir + '/' + names[i][0])

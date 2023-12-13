@@ -19,6 +19,10 @@ def get_human_region_mask(img):
     mask = np.asarray(img > -600)
     se = np.ones([3,3,3])
     mask = ndimage.binary_opening(mask, se, iterations = 2)
+    D, H, W = mask.shape 
+    for h in range(H):
+        if(mask[:,h,:].sum() < 2000):
+            mask[:,h, :] = np.zeros((D, W))
     mask = get_largest_k_components(mask, 1)
     mask_close = ndimage.binary_closing(mask, se, iterations = 2)
 
@@ -47,20 +51,39 @@ def get_human_region_mask(img):
     fg = np.asarray(fg, np.uint8)
     return fg 
 
-def crop_ct_scan(input_img, output_img, input_lab = None, output_lab = None):
+def get_human_region_mask_fast(img, itk_spacing):
+    # downsample
+    D, H, W = img.shape 
+    # scale_down = [1, 1, 1]
+    if(itk_spacing[2] <= 1):
+        scale_down = [1/2, 1/2, 1/2]
+    else:
+        scale_down = [1, 1/2, 1/2]
+    img_sub    = ndimage.interpolation.zoom(img, scale_down, order = 0)
+    mask       = get_human_region_mask(img_sub)
+    D1, H1, W1 = mask.shape 
+    scale_up = [D/D1, H/H1, W/W1]
+    mask = ndimage.interpolation.zoom(mask, scale_up, order = 0)
+    return mask
+
+def crop_ct_scan(input_img, output_img, input_lab = None, output_lab = None, z_axis_density = 0.5):
     """
     Crop a CT scan based on the bounding box of the human region. 
     """
     img_obj = sitk.ReadImage(input_img)
-    img  = sitk.GetArrayFromImage(img_obj)
-    mask = np.asarray(img > -600)
-    se   = np.ones([3,3,3])
-    mask = ndimage.binary_opening(mask, se, iterations = 2)
-    mask = get_largest_k_components(mask, 1)
-    bbmin, bbmax = get_ND_bounding_box(mask, margin = [5, 10, 10])
+    img     = sitk.GetArrayFromImage(img_obj)
+    mask    = np.asarray(img > -600)
+    mask2d  = np.mean(mask, axis = 0) > z_axis_density
+    se      = np.ones([3,3])
+    mask2d  = ndimage.binary_opening(mask2d, se, iterations = 2)
+    mask2d  = get_largest_k_components(mask2d, 1)
+    bbmin, bbmax = get_ND_bounding_box(mask2d, margin = [0, 0])
+    bbmin   = [0] + bbmin
+    bbmax   = [img.shape[0]] + bbmax
     img_sub = crop_ND_volume_with_bounding_box(img, bbmin, bbmax)
     img_sub_obj = sitk.GetImageFromArray(img_sub)
     img_sub_obj.SetSpacing(img_obj.GetSpacing())
+    img_sub_obj.SetDirection(img_obj.GetDirection())
     sitk.WriteImage(img_sub_obj, output_img)
     if(input_lab is not None):
         lab_obj  = sitk.ReadImage(input_lab)
@@ -69,6 +92,49 @@ def crop_ct_scan(input_img, output_img, input_lab = None, output_lab = None):
         lab_sub_obj = sitk.GetImageFromArray(lab_sub)
         lab_sub_obj.SetSpacing(img_obj.GetSpacing())
         sitk.WriteImage(lab_sub_obj, output_lab)
+
+def get_human_body_mask_and_crop(input_dir, out_img_dir, out_mask_dir):
+    if(not os.path.exists(out_img_dir)):
+        os.mkdir(out_img_dir)
+        os.mkdir(out_mask_dir)
+
+    img_names = [item for item in os.listdir(input_dir) if "nii.gz" in item]
+    img_names  = sorted(img_names)
+    for img_name in img_names:
+        print(img_name)
+        input_name = input_dir + "/" + img_name
+        out_name   = out_img_dir + "/" + img_name 
+        mask_name  = out_mask_dir + "/" + img_name 
+        if(os.path.isfile(out_name)):
+            continue
+        img_obj = sitk.ReadImage(input_name)
+        img     = sitk.GetArrayFromImage(img_obj)
+        spacing = img_obj.GetSpacing()
+
+        # downsample
+        D, H, W = img.shape 
+        spacing = img_obj.GetSpacing()
+        # scale_down = [1, 1, 1]
+        if(spacing[2] <= 1):
+            scale_down = [1/2, 1/2, 1/2]
+        else:
+            scale_down = [1, 1/2, 1/2]
+        img_sub    = ndimage.interpolation.zoom(img, scale_down, order = 0)
+        mask       = get_human_region_mask(img_sub)
+        D1, H1, W1 = mask.shape 
+        scale_up = [D/D1, H/H1, W/W1]
+        mask = ndimage.interpolation.zoom(mask, scale_up, order = 0)
+
+        bbmin, bbmax = get_ND_bounding_box(mask)
+        img_crop  = crop_ND_volume_with_bounding_box(img, bbmin, bbmax)
+        mask_crop = crop_ND_volume_with_bounding_box(mask, bbmin, bbmax)
+
+        out_img_obj = sitk.GetImageFromArray(img_crop)
+        out_img_obj.SetSpacing(spacing)
+        sitk.WriteImage(out_img_obj, out_name)
+        mask_obj = sitk.GetImageFromArray(mask_crop)
+        mask_obj.CopyInformation(out_img_obj)
+        sitk.WriteImage(mask_obj, mask_name)
 
 
 def patch_mix(x, fg_num, patch_num, size_d, size_h, size_w):
@@ -99,7 +165,7 @@ def patch_mix(x, fg_num, patch_num, size_d, size_h, size_w):
     y_prob = get_one_hot_seg(fg_mask.to(torch.int32), fg_num + 1)
     return x_fuse, y_prob 
 
-def create_mixed_dataset(input_dir, output_dir, fg_num = 1,  crop_num = 1, 
+def create_mixed_dataset(input_dir, output_dir, fg_num = 1,  crop_num = 1, patch_size=[128,128,128], 
         mask_dir = None, data_format = "nii.gz"):
     """
     Create dataset based on patch mix. 
@@ -136,6 +202,7 @@ def create_mixed_dataset(input_dir, output_dir, fg_num = 1,  crop_num = 1,
         img_j = load_image_as_nd_array(input_dir + "/" + img_names[j])['data_array']
 
         chns  = img_i.shape[0]
+        crop_size = [chns] + patch_size
         # random crop to patch size
         if(mask_dir is None):
             mask_i = get_human_region_mask(img_i)
@@ -148,8 +215,9 @@ def create_mixed_dataset(input_dir, output_dir, fg_num = 1,  crop_num = 1,
             #     img_ik = random_crop_ND_volume(img_i, [chns, 96, 96, 96])
             #     img_jk = random_crop_ND_volume(img_j, [chns, 96, 96, 96])
             # else:
-            img_ik = random_crop_ND_volume_with_mask(img_i, [chns, 96, 96, 96], mask_i)
-            img_jk = random_crop_ND_volume_with_mask(img_j, [chns, 96, 96, 96], mask_j)
+
+            img_ik = random_crop_ND_volume_with_mask(img_i, crop_size, mask_i)
+            img_jk = random_crop_ND_volume_with_mask(img_j, crop_size, mask_j)
             C, D, H, W = img_ik.shape
             # generate mask 
             fg_mask = np.zeros_like(img_ik, np.uint8)
