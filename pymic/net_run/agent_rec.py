@@ -29,14 +29,6 @@ class ReconstructionAgent(SegmentationAgent):
     """
     def __init__(self, config, stage = 'train'):
         super(ReconstructionAgent, self).__init__(config, stage)
-        output_act_name = config['network'].get('output_activation', 'sigmoid')
-        if(output_act_name == "sigmoid"):
-            self.out_act = nn.Sigmoid()
-        elif(output_act_name == "tanh"):
-            self.out_act = nn.Tanh() 
-        else:
-            raise ValueError("For reconstruction task, only sigmoid and tanh are " + \
-            "supported for output_activation.")
 
     def create_loss_calculator(self):
         if(self.loss_dict is None):
@@ -48,7 +40,6 @@ class ReconstructionAgent(SegmentationAgent):
             raise ValueError("Undefined loss function {0:}".format(loss_name))
         else:
             loss_param = self.config['training']
-            loss_param['loss_softmax'] = False
             base_loss = self.loss_dict[loss_name](self.config['training'])
         if(self.config['training'].get('deep_supervise', False)):
             raise ValueError("Deep supervised loss not implemented for reconstruction tasks")
@@ -80,8 +71,13 @@ class ReconstructionAgent(SegmentationAgent):
             # print(inputs.shape)
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
+            #     label_i = label[i][0]
             #     image_name = "temp/image_{0:}_{1:}.nii.gz".format(it, i)
+            #     label_name = "temp/label_{0:}_{1:}.nii.gz".format(it, i)
             #     save_nd_array_as_image(image_i, image_name, reference_name = None)
+            #     save_nd_array_as_image(label_i, label_name, reference_name = None)
+            # if(it > 10):
+            #     break
             # return
 
             inputs, label = inputs.to(self.device), label.to(self.device)
@@ -91,7 +87,18 @@ class ReconstructionAgent(SegmentationAgent):
                 
             # forward + backward + optimize
             outputs = self.net(inputs)
-            outputs = self.out_act(outputs)
+            
+            # for debug
+            # if it < 5:
+            #     outputs = nn.Tanh()(outputs)
+            #     for i in range(inputs.shape[0]):
+            #         out_name = "temp/output_{0:}_{1:}.nii.gz".format(it, i)
+            #         output = outputs[i][0]
+            #         output = output.cpu().detach().numpy()
+            #         save_nd_array_as_image(output, out_name, reference_name = None)
+            # else:
+            #     break
+
             loss = self.get_loss_value(data, outputs, label)
             loss.backward()
             self.optimizer.step()
@@ -123,7 +130,6 @@ class ReconstructionAgent(SegmentationAgent):
                 label  = self.convert_tensor_type(data['label'])
                 inputs, label  = inputs.to(self.device), label.to(self.device)
                 outputs = self.inferer.run(self.net, inputs)
-                outputs = self.out_act(outputs)
                 # The tensors are on CPU when calculating loss for validation data
                 loss = self.get_loss_value(data, outputs, label)
                 valid_loss_list.append(loss.item())
@@ -187,7 +193,7 @@ class ReconstructionAgent(SegmentationAgent):
         self.min_val_loss = 10000.0
         self.max_val_it   = 0
         self.best_model_wts = None 
-        self.checkpoint = None
+        checkpoint = None
          # initialize the network with pre-trained weights
         ckpt_init_name = self.config['training'].get('ckpt_init_name', None)
         ckpt_init_mode = self.config['training'].get('ckpt_init_mode', 0)
@@ -206,7 +212,7 @@ class ReconstructionAgent(SegmentationAgent):
             else:
                 self.net.load_state_dict(pretrained_dict, strict = False)
             if(ckpt_init_mode > 0): # Load  other information
-                self.min_val_loss = self.checkpoint.get('valid_loss', 10000)
+                self.min_val_loss = checkpoint.get('valid_loss', 10000)
                 iter_start = checkpoint['iteration']
                 self.max_val_it = iter_start
                 self.best_model_wts = checkpoint['model_state_dict']
@@ -293,19 +299,20 @@ class ReconstructionAgent(SegmentationAgent):
         names, pred = data['names'], data['predict']
         if(isinstance(pred, (list, tuple))):
             pred =  pred[0]
-        if(isinstance(self.out_act, nn.Sigmoid)):
-            pred = scipy.special.expit(pred)
-        else:
-            pred = np.tanh(pred)
+        pred = np.tanh(pred)
+        # pred = scipy.special.expit(pred)
         # save the output predictions
-        root_dir  = self.config['dataset']['root_dir']
+        test_dir = self.config['dataset'].get('test_dir', None)
+        if(test_dir is None):
+            test_dir = self.config['dataset']['train_dir']
+
         for i in range(len(names)):
-            save_name = names[i].split('/')[-1] if ignore_dir else \
-                names[i].replace('/', '_')
+            save_name = names[i][0].split('/')[-1] if ignore_dir else \
+                names[i][0].replace('/', '_')
             if((filename_replace_source is  not None) and (filename_replace_target is not None)):
                 save_name = save_name.replace(filename_replace_source, filename_replace_target)
             print(save_name)
             save_name = "{0:}/{1:}".format(output_dir, save_name)
-            save_nd_array_as_image(pred[i][i], save_name, root_dir + '/' + names[i])
+            save_nd_array_as_image(pred[i][i], save_name, test_dir + '/' + names[i][0])
 
             

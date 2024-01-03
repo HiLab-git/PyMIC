@@ -32,11 +32,13 @@ from pymic.transform.trans_dict import TransformDict
 from pymic.util.post_process import PostProcessDict
 from pymic.util.image_process import convert_label
 from pymic.util.parse_config import *
+from pymic.util.general import get_one_hot_seg
 from pymic.io.image_read_write import save_nd_array_as_image
-from pymic.net_run.self_sup.util import patch_mix
+from pymic.net_run.self_sup.util import volume_fusion
 from pymic.net_run.agent_seg import SegmentationAgent
 
-class SelfSLPatchMixAgent(SegmentationAgent):
+
+class SelfSupVolumeFusion(SegmentationAgent):
     """
     Abstract class for self-supervised segmentation.
 
@@ -50,16 +52,15 @@ class SelfSLPatchMixAgent(SegmentationAgent):
         extra section `semi_supervised_learning` is needed. See :doc:`usage.ssl` for details.
     """
     def __init__(self, config, stage = 'train'):
-        super(SelfSLPatchMixAgent, self).__init__(config, stage)
+        super(SelfSupVolumeFusion, self).__init__(config, stage)
  
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
-        fg_num    = self.config['network']['class_num'] - 1
-        patch_num = self.config['patch_mix']['patch_num_range']
-        size_d    = self.config['patch_mix']['patch_depth_range']
-        size_h    = self.config['patch_mix']['patch_height_range']
-        size_w    = self.config['patch_mix']['patch_width_range']
+        cls_num     = self.config['network']['class_num']
+        block_range = self.config['self_supervised_learning']['VolumeFusion_block_range'.lower()]
+        size_min    = self.config['self_supervised_learning']['VolumeFusion_size_min'.lower()]
+        size_max    = self.config['self_supervised_learning']['VolumeFusion_size_max'.lower()]
 
         train_loss  = 0
         train_dice_list = []
@@ -72,16 +73,16 @@ class SelfSLPatchMixAgent(SegmentationAgent):
                 data = next(self.trainIter)
             # get the inputs
             inputs  = self.convert_tensor_type(data['image'])  
-            inputs, labels_prob = patch_mix(inputs, fg_num, patch_num, size_d, size_h, size_w)
+            inputs, labels = volume_fusion(inputs, cls_num - 1, block_range, size_min, size_max)
+            labels_prob = get_one_hot_seg(labels, cls_num)
                    
-            # # for debug
+            # for debug
             # if(it==10):
             #     break
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
             #     label_i = np.argmax(labels_prob[i], axis = 0)
             #     # pixw_i  = pix_w[i][0]
-            #     print(image_i.shape, label_i.shape)
             #     image_name = "temp/image_{0:}_{1:}.nii.gz".format(it, i)
             #     label_name = "temp/label_{0:}_{1:}.nii.gz".format(it, i)
             #     # weight_name= "temp/weight_{0:}_{1:}.nii.gz".format(it, i)
@@ -116,29 +117,3 @@ class SelfSLPatchMixAgent(SegmentationAgent):
         train_scalers = {'loss': train_avg_loss, 'avg_fg_dice':train_avg_dice,\
             'class_dice': train_cls_dice}
         return train_scalers
-
-def main():
-    cfg_file = str(sys.argv[1])
-    if(not os.path.isfile(cfg_file)):
-        raise ValueError("The config file does not exist: " + cfg_file)
-    config   = parse_config(cfg_file)
-    config   = synchronize_config(config)
-    log_dir  = config['training']['ckpt_save_dir']
-    if(not os.path.exists(log_dir)):
-        os.makedirs(log_dir, exist_ok=True)
-    dst_cfg = cfg_file if "/" not in cfg_file else cfg_file.split("/")[-1]
-    shutil.copy(cfg_file, log_dir + "/" + dst_cfg)
-    if sys.version.startswith("3.9"):
-        logging.basicConfig(filename=log_dir+"/log_train_{0:}.txt".format(str(datetime.now())[:-7]), 
-                            level=logging.INFO, format='%(message)s', force=True) # for python 3.9
-    else:
-        logging.basicConfig(filename=log_dir+"/log_train_{0:}.txt".format(str(datetime.now())[:-7]), 
-                            level=logging.INFO, format='%(message)s') # for python 3.6
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging_config(config)
-    agent = SelfSLPatchMixAgent(config)
-    agent.run()
-
-
-if __name__ == "__main__":
-    main()       

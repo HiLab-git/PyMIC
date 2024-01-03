@@ -3,11 +3,9 @@ from __future__ import print_function, division
 
 import logging
 import os
-import torch
 import pandas as pd
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
+from torch.utils.data import Dataset
 from pymic import TaskType
 from pymic.io.image_read_write import load_image_as_nd_array
 
@@ -38,7 +36,8 @@ class NiftyDataset(Dataset):
         if('label' not in csv_keys):
             logging.warning("`label` section is not found in the csv file {0:}".format(
                 csv_file) + "\n -- This is only allowed for self-supervised learning" + 
-                "\n -- when `SelfSuperviseLabel` is used in the transform.")
+                "\n -- when `SelfSuperviseLabel` is used in the transform, or when" + 
+                "\n -- loading the unlabeled data for preprocessing.")
             self.with_label = False
         self.image_weight_idx = None
         self.pixel_weight_idx = None
@@ -52,15 +51,15 @@ class NiftyDataset(Dataset):
 
     def __getlabel__(self, idx):
         csv_keys = list(self.csv_items.keys())        
-        label_idx = csv_keys.index('label')
-        label_name = "{0:}/{1:}".format(self.root_dir, 
-            self.csv_items.iloc[idx, label_idx])
-        label = load_image_as_nd_array(label_name)['data_array']
+        label_idx  = csv_keys.index('label')
+        label_name = self.csv_items.iloc[idx, label_idx]
+        label_name_full = "{0:}/{1:}".format(self.root_dir, label_name)
+        label = load_image_as_nd_array(label_name_full)['data_array']
         if(self.task ==  TaskType.SEGMENTATION):
             label = np.asarray(label, np.int32)
         elif(self.task == TaskType.RECONSTRUCTION):
             label = np.asarray(label, np.float32)
-        return label
+        return label, label_name
 
     def __get_pixel_weight__(self, idx):
         weight_name = "{0:}/{1:}".format(self.root_dir, 
@@ -68,6 +67,25 @@ class NiftyDataset(Dataset):
         weight = load_image_as_nd_array(weight_name)['data_array']
         weight = np.asarray(weight, np.float32)
         return weight        
+
+    # def __getitem__(self, idx):
+    #     sample_name = self.csv_items.iloc[idx, 0]
+    #     h5f = h5py.File(self.root_dir + '/' +  sample_name, 'r')
+    #     image = np.asarray(h5f['image'][:], np.float32)
+        
+    #     # this a temporaory process, will be delieted later
+    #     if(len(image.shape) == 3 and image.shape[0] > 1):
+    #         image = np.expand_dims(image, 0)
+    #     sample = {'image': image, 'names':sample_name}
+        
+    #     if('label' in h5f):
+    #         label = np.asarray(h5f['label'][:], np.uint8)
+    #         if(len(label.shape) == 3 and label.shape[0] > 1):
+    #             label = np.expand_dims(label, 0)
+    #         sample['label'] = label
+    #     if self.transform:
+    #         sample = self.transform(sample)
+    #     return sample
 
     def __getitem__(self, idx):
         names_list, image_list = [], []
@@ -80,12 +98,14 @@ class NiftyDataset(Dataset):
             image_list.append(image_data)
         image = np.concatenate(image_list, axis = 0)
         image = np.asarray(image, np.float32)    
-        sample = {'image': image, 'names' : names_list[0], 
+        
+        sample = {'image': image, 'names' : names_list, 
                  'origin':image_dict['origin'],
                  'spacing': image_dict['spacing'],
                  'direction':image_dict['direction']}
         if (self.with_label):   
-            sample['label'] = self.__getlabel__(idx) 
+            sample['label'], label_name = self.__getlabel__(idx) 
+            sample['names'].append(label_name)
             assert(image.shape[1:] == sample['label'].shape[1:])
         if (self.image_weight_idx is not None):
             sample['image_weight'] = self.csv_items.iloc[idx, self.image_weight_idx]

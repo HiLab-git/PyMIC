@@ -18,6 +18,7 @@ from tensorboardX import SummaryWriter
 from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.io.nifty_dataset import NiftyDataset
 from pymic.net.net_dict_seg import SegNetDict
+from pymic.net.multi_net import MultiNet
 from pymic.net_run.agent_abstract import NetRunAgent
 from pymic.net_run.infer_func import Inferer
 from pymic.loss.loss_dict_seg import SegLossDict
@@ -38,36 +39,42 @@ class SegmentationAgent(NetRunAgent):
         self.net_dict         = SegNetDict
         self.postprocess_dict = PostProcessDict
         self.postprocessor    = None
-        
-    def get_stage_dataset_from_config(self, stage):
-        assert(stage in ['train', 'valid', 'test'])
-        root_dir  = self.config['dataset']['root_dir']
-        modal_num = self.config['dataset'].get('modal_num', 1)
 
+    def get_transform_names_and_parameters(self, stage):
+        """
+        Get a list of transform objects for creating a dataset
+        """
+        assert(stage in ['train', 'valid', 'test'])
         transform_key = stage +  '_transform'
-        if(stage == "valid" and transform_key not in self.config['dataset']):
-            transform_key = "train_transform"
-        transform_names = self.config['dataset'][transform_key]
-        
-        self.transform_list  = []
-        if(transform_names is None or len(transform_names) == 0):
-            data_transform = None 
-        else:
-            transform_param = self.config['dataset']
-            transform_param['task'] = self.task_type
-            for name in transform_names:
+        trans_names  = self.config['dataset'][transform_key]
+        trans_params = self.config['dataset']
+        trans_params['task'] = self.task_type
+        return trans_names, trans_params
+
+    def get_stage_dataset_from_config(self, stage):
+        trans_names, trans_params = self.get_transform_names_and_parameters(stage)
+        transform_list  = []
+        if(trans_names is not None and len(trans_names) > 0):
+            for name in trans_names:
                 if(name not in self.transform_dict):
                     raise(ValueError("Undefined transform {0:}".format(name))) 
-                one_transform = self.transform_dict[name](transform_param)
-                self.transform_list.append(one_transform)
-            data_transform = transforms.Compose(self.transform_list)
+                one_transform = self.transform_dict[name](trans_params)
+                transform_list.append(one_transform)
+        data_transform = transforms.Compose(transform_list)
 
-        csv_file = self.config['dataset'].get(stage + '_csv', None)
+        csv_file  = self.config['dataset'].get(stage + '_csv', None)
         if(stage == 'test'):
             with_label = False 
+            self.test_transforms = transform_list
         else:
             with_label = self.config['dataset'].get(stage + '_label', True)
-        dataset  = NiftyDataset(root_dir  = root_dir,
+        modal_num = self.config['dataset'].get('modal_num', 1)
+        stage_dir = self.config['dataset'].get('train_dir', None)
+        if(stage == 'valid' and "valid_dir" in self.config['dataset']):
+            stage_dir = self.config['dataset']['valid_dir']
+        if(stage == 'test' and "test_dir" in self.config['dataset']):
+            stage_dir = self.config['dataset']['test_dir']
+        dataset  = NiftyDataset(root_dir  = stage_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
                                 with_label= with_label,
@@ -78,13 +85,18 @@ class SegmentationAgent(NetRunAgent):
     def create_network(self):
         if(self.net is None):
             net_name = self.config['network']['net_type']
-            if(net_name not in self.net_dict):
-                raise ValueError("Undefined network {0:}".format(net_name))
-            self.net = self.net_dict[net_name](self.config['network'])
+            if(isinstance(net_name, (tuple, list))):
+                self.net = MultiNet(self.net_dict, self.config['network'])
+            else:
+                if(net_name not in self.net_dict):
+                    raise ValueError("Undefined network {0:}".format(net_name))
+                self.net = self.net_dict[net_name](self.config['network'])
         if(self.tensor_type == 'float'):
             self.net.float()
         else:
             self.net.double()
+        if(hasattr(self.net, "set_stage")):
+            self.net.set_stage(self.stage)
         param_number = sum(p.numel() for p in self.net.parameters() if p.requires_grad)
         logging.info('parameter number {0:}'.format(param_number))
 
@@ -164,10 +176,13 @@ class SegmentationAgent(NetRunAgent):
             if(mixup_prob > 0 and random() < mixup_prob):
                 inputs, labels_prob = mixup(inputs, labels_prob) 
                    
-            # # for debug
+            # for debug
+            # if(it > 10):
+            #     break
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
-            #     label_i = labels_prob[i][1]
+            #     # label_i = labels_prob[i][1]
+            #     label_i = np.argmax(labels_prob[i], axis = 0)
             #     # pixw_i  = pix_w[i][0]
             #     print(image_i.shape, label_i.shape)
             #     image_name = "temp/image_{0:}_{1:}.nii.gz".format(it, i)
@@ -176,7 +191,8 @@ class SegmentationAgent(NetRunAgent):
             #     save_nd_array_as_image(image_i, image_name, reference_name = None)
             #     save_nd_array_as_image(label_i, label_name, reference_name = None)
             #     # save_nd_array_as_image(pixw_i, weight_name, reference_name = None)
-            # # continue
+            # continue
+            
 
             inputs, labels_prob = inputs.to(self.device), labels_prob.to(self.device)
             
@@ -226,6 +242,9 @@ class SegmentationAgent(NetRunAgent):
             self.net.eval()
             for data in validIter:
                 inputs      = self.convert_tensor_type(data['image'])
+                if('label_prob' not in data):
+                    raise ValueError("label_prob is not found in validation data, make sure" + 
+                        "that LabelToProbability is used in valid_transform.")
                 labels_prob = self.convert_tensor_type(data['label_prob'])
                 inputs, labels_prob  = inputs.to(self.device), labels_prob.to(self.device)
                 batch_n = inputs.shape[0]
@@ -271,6 +290,27 @@ class SegmentationAgent(NetRunAgent):
             valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")        
 
+    def load_pretrained_weights(self, network, pretrained_dict, device_ids):
+        if(len(device_ids) > 1):
+            if(hasattr(network.module, "get_parameters_to_load")):
+                model_dict = network.module.get_parameters_to_load()
+            else:
+                model_dict = network.module.state_dict()
+        else:
+            if(hasattr(network, "get_parameters_to_load")):
+                model_dict = network.get_parameters_to_load()
+            else:
+                model_dict = network.state_dict()
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if \
+            k in model_dict and tensor_shape_match(pretrained_dict[k], model_dict[k])}
+        logging.info("Initializing the following parameters with pre-trained model")
+        for k in pretrained_dict:
+            logging.info(k)
+        if (len(device_ids) > 1):
+            network.module.load_state_dict(pretrained_dict, strict = False)
+        else:
+            network.load_state_dict(pretrained_dict, strict = False) 
+
     def train_valid(self):
         device_ids = self.config['training']['gpus']
         if(len(device_ids) > 1):
@@ -310,16 +350,7 @@ class SegmentationAgent(NetRunAgent):
         if(ckpt_init_name is not None):
             checkpoint = torch.load(ckpt_dir + "/" + ckpt_init_name, map_location = self.device)
             pretrained_dict = checkpoint['model_state_dict']
-            model_dict = self.net.module.state_dict() if (len(device_ids) > 1) else self.net.state_dict()
-            pretrained_dict = {k: v for k, v in pretrained_dict.items() if \
-                k in model_dict and tensor_shape_match(pretrained_dict[k], model_dict[k])}
-            logging.info("Initializing the following parameters with pre-trained model")
-            for k in pretrained_dict:
-                logging.info(k)
-            if (len(device_ids) > 1):
-                self.net.module.load_state_dict(pretrained_dict, strict = False)
-            else:
-                self.net.load_state_dict(pretrained_dict, strict = False)
+            self.load_pretrained_weights(self.net, pretrained_dict, device_ids)
 
             if(ckpt_init_mode > 0): # Load  other information
                 self.max_val_dice = checkpoint.get('valid_pred', 0)
@@ -452,7 +483,7 @@ class SegmentationAgent(NetRunAgent):
                     pred = pred.cpu().numpy()
                 data['predict'] = pred
                 # inverse transform
-                for transform in self.transform_list[::-1]:
+                for transform in self.test_transforms[::-1]:
                     if (transform.inverse):
                         data = transform.inverse_transform_for_prediction(data) 
 
@@ -506,7 +537,7 @@ class SegmentationAgent(NetRunAgent):
                 pred = np.mean(predict_list, axis=0)
                 data['predict'] = pred
                 # inverse transform
-                for transform in self.transform_list[::-1]:
+                for transform in self.test_transforms[::-1]:
                     if (transform.inverse):
                         data = transform.inverse_transform_for_prediction(data) 
                 
@@ -545,15 +576,18 @@ class SegmentationAgent(NetRunAgent):
             for i in range(len(names)):
                 output[i] = self.postprocessor(output[i])
         # save the output and (optionally) probability predictions
-        root_dir  = self.config['dataset']['root_dir']
+        test_dir = self.config['dataset'].get('test_dir', None)
+        if(test_dir is None):
+            test_dir = self.config['dataset']['train_dir']
+
         for i in range(len(names)):
-            save_name = names[i].split('/')[-1] if ignore_dir else \
-                names[i].replace('/', '_')
+            save_name = names[i][0].split('/')[-1] if ignore_dir else \
+                names[i][0].replace('/', '_')
             if((filename_replace_source is  not None) and (filename_replace_target is not None)):
                 save_name = save_name.replace(filename_replace_source, filename_replace_target)
             print(save_name)
             save_name = "{0:}/{1:}".format(output_dir, save_name)
-            save_nd_array_as_image(output[i], save_name, root_dir + '/' + names[i])
+            save_nd_array_as_image(output[i], save_name, test_dir + '/' + names[i][0])
             save_name_split = save_name.split('.')
 
             if(not save_prob):
@@ -571,4 +605,4 @@ class SegmentationAgent(NetRunAgent):
                 prob_save_name = "{0:}_prob_{1:}.{2:}".format(save_prefix, c, save_format)
                 if(len(temp_prob.shape) == 2):
                     temp_prob = np.asarray(temp_prob * 255, np.uint8)
-                save_nd_array_as_image(temp_prob, prob_save_name, root_dir + '/' + names[i])
+                save_nd_array_as_image(temp_prob, prob_save_name, test_dir + '/' + names[i][0])

@@ -52,6 +52,14 @@ pymic.net.net2d.unet2d\_dual\_branch module
    :undoc-members:
    :show-inheritance:
 
+pymic.net.net2d.unet2d\_mcnet module
+-------------------------------------------
+
+.. automodule:: pymic.net.net2d.unet2d_mcnet
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pymic.net.net2d.unet2d\_nest module
 -----------------------------------
 

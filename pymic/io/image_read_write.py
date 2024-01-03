@@ -23,11 +23,9 @@ def load_nifty_volume_as_4d_array(filename):
     spacing    = img_obj.GetSpacing()
     direction  = img_obj.GetDirection()
     shape = data_array.shape
-    if(len(shape) == 4):
-        assert(shape[3] == 1) 
-    elif(len(shape) == 3):
+    if(len(shape) == 3):
         data_array = np.expand_dims(data_array, axis = 0)
-    else:
+    elif(len(shape) > 4 or len(shape) < 3):
         raise ValueError("unsupported image dim: {0:}".format(len(shape)))
     output = {}
     output['data_array'] = data_array
@@ -81,10 +79,10 @@ def load_image_as_nd_array(image_name):
          image_name.endswith(".tif") or image_name.endswith(".png")):
         image_dict = load_rgb_image_as_3d_array(image_name)
     else:
-        raise ValueError("unsupported image format")
+        raise ValueError("unsupported image format: {0:}".format(image_name))
     return image_dict
 
-def save_array_as_nifty_volume(data, image_name, reference_name = None):
+def save_array_as_nifty_volume(data, image_name, reference_name = None, spacing = [1.0,1.0,1.0]):
     """
     Save a numpy array as nifty image
 
@@ -92,6 +90,7 @@ def save_array_as_nifty_volume(data, image_name, reference_name = None):
     :param image_name:  (str) The ouput file name.
     :param reference_name:  (str) File name of the reference image of which 
         meta information is used.
+    :param spacing: (list or tuple) the spacing of a volume data when `reference_name` is not provided.  
     """
     img = sitk.GetImageFromArray(data)
     if(reference_name is not None):
@@ -99,7 +98,13 @@ def save_array_as_nifty_volume(data, image_name, reference_name = None):
         #img.CopyInformation(img_ref)
         img.SetSpacing(img_ref.GetSpacing())
         img.SetOrigin(img_ref.GetOrigin())
-        img.SetDirection(img_ref.GetDirection())
+        direction0 = img_ref.GetDirection()
+        direction1 = img.GetDirection()
+        if(len(direction0) == len(direction1)):
+            img.SetDirection(direction0)
+    else:
+        nifty_spacing = spacing[1:] + spacing[:1]
+        img.SetSpacing(nifty_spacing)
     sitk.WriteImage(img, image_name)
 
 def save_array_as_rgb_image(data, image_name):
@@ -118,7 +123,7 @@ def save_array_as_rgb_image(data, image_name):
     img = Image.fromarray(data)
     img.save(image_name)
 
-def save_nd_array_as_image(data, image_name, reference_name = None):
+def save_nd_array_as_image(data, image_name, reference_name = None, spacing = [1.0,1.0,1.0]):
     """
     Save a 3D or 2D numpy array as medical image or RGB image
     
@@ -126,13 +131,14 @@ def save_nd_array_as_image(data, image_name, reference_name = None):
         [H, W, 3] or [H, W]. 
     :param reference_name: (str) File name of the reference image of which 
         meta information is used.
+    :param spacing: (list or tuple) the spacing of a volume data when `reference_name` is not provided.  
     """
     data_dim = len(data.shape)
     assert(data_dim == 2 or data_dim == 3)
     if (image_name.endswith(".nii.gz") or image_name.endswith(".nii") or
         image_name.endswith(".mha")):
         assert(data_dim == 3)
-        save_array_as_nifty_volume(data, image_name, reference_name)
+        save_array_as_nifty_volume(data, image_name, reference_name, spacing)
 
     elif(image_name.endswith(".jpg") or image_name.endswith(".jpeg") or
          image_name.endswith(".tif") or image_name.endswith(".png")):

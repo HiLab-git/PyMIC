@@ -16,9 +16,20 @@ class AbstractSegLoss(nn.Module):
     def __init__(self, params = None):
         super(AbstractSegLoss, self).__init__()
         if(params is None):
-            self.softmax = True
+            self.acti_func = 'softmax'
         else:
-            self.softmax = params.get('loss_softmax', True)
+            self.acti_func = params.get('loss_acti_func', 'softmax')
+
+    def get_activated_prediction(self, p, acti_func = 'softmax'):
+        if(acti_func == "softmax"):
+            p = nn.Softmax(dim = 1)(p)
+        elif(acti_func == "tanh"):
+            p = nn.Tanh()(p)
+        elif(acti_func == "sigmoid"):
+            p = nn.Sigmoid()(p)
+        else:
+            raise ValueError("activation for output is not supported: {0:}".format(acti_func))
+        return p 
 
     def forward(self, loss_input_dict):
         """

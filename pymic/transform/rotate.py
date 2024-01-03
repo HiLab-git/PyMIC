@@ -34,8 +34,8 @@ class RandomRotate(AbstractTransform):
     def __init__(self, params): 
         super(RandomRotate, self).__init__(params)
         self.angle_range_d  = params['RandomRotate_angle_range_d'.lower()]
-        self.angle_range_h  = params['RandomRotate_angle_range_h'.lower()]
-        self.angle_range_w  = params['RandomRotate_angle_range_w'.lower()]
+        self.angle_range_h  = params.get('RandomRotate_angle_range_h'.lower(), None)
+        self.angle_range_w  = params.get('RandomRotate_angle_range_w'.lower(), None)
         self.prob = params.get('RandomRotate_probability'.lower(), 0.5)
         self.inverse = params.get('RandomRotate_inverse'.lower(), True)
 

@@ -155,6 +155,15 @@ class NetRunAgent(object):
         return ckpt_name
 
     @abstractmethod    
+    def get_stage_transform_from_config(self, stage):
+        """
+        Get the transform list required by dataset for training, validation or inference stage. 
+
+        :param stage: (str) `train`, `valid` or `test`.
+        """
+        raise(ValueError("not implemented"))
+
+    @abstractmethod    
     def get_stage_dataset_from_config(self, stage):
         """
         Create dataset based on training, validation or inference stage. 
@@ -261,13 +270,13 @@ class NetRunAgent(object):
 
             bn_train = self.config['dataset']['train_batch_size']
             bn_valid = self.config['dataset'].get('valid_batch_size', 1)
-            num_worker = self.config['dataset'].get('num_worker', 16)
+            num_worker = self.config['dataset'].get('num_worker', 8)
             g_train, g_valid = torch.Generator(), torch.Generator()
             g_train.manual_seed(self.random_seed)
             g_valid.manual_seed(self.random_seed)
             self.train_loader = torch.utils.data.DataLoader(self.train_set, 
                 batch_size = bn_train, shuffle=True, num_workers= num_worker,
-                worker_init_fn=worker_init, generator = g_train)
+                worker_init_fn=worker_init, generator = g_train, drop_last = True)
             self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
                 batch_size = bn_valid, shuffle=False, num_workers= num_worker,
                 worker_init_fn=worker_init, generator = g_valid)

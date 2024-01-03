@@ -167,18 +167,46 @@ def random_crop_ND_volume(volume, out_shape):
     crop_volume = crop_ND_volume_with_bounding_box(image_pad, bb_min, bb_max) 
     return crop_volume
 
-def get_random_box_from_mask(mask, out_shape):
-    indexes   = np.where(mask)
-    voxel_num = len(indexes[0])
-    dim       = len(out_shape)
-    left_bound  = [int(out_shape[i]/2)   for i in range(dim)]
-    right_bound = [mask.shape[i] - (out_shape[i] - left_bound[i])  for i in range(dim)]
+def get_random_box_from_mask(mask, out_shape, mode = 0):
+    """
+    get a bounding box of a subvolume according to a mask
+    
+    mode == 0: The output bounding box should be a sub region of the mask region
+    mode == 1: The center point of the output bounding box can be ahy where of the mask region
+    """
+    dim          = len(out_shape)
+    left_margin  = [int(out_shape[i]/2)   for i in range(dim)]
+    right_margin = [out_shape[i] - left_margin[i]  for i in range(dim)]
 
+    if(mode == 0):
+        bb_mask_min, bb_mask_max = get_ND_bounding_box(mask)
+        bb_valid_min, bb_valid_max = [], []
+        for i in range(dim):
+            mask_size = bb_mask_max[i] - bb_mask_min[i] 
+            if(mask_size > out_shape[i]):
+                valid_left  = bb_mask_min[i] + left_margin[i]
+                valid_right = bb_mask_max[i] - right_margin[i]
+            else:
+                valid_left  = (bb_mask_max[i] - bb_mask_min[i]) // 2 
+                valid_right = valid_left + 1
+            bb_valid_min.append(valid_left)
+            bb_valid_max.append(valid_right)
+
+        valid_region_shape = [bb_valid_max[i] - bb_valid_min[i] for i in range(dim)]
+        valid_mask = np.zeros_like(mask)
+        valid_mask = set_ND_volume_roi_with_bounding_box_range(valid_mask, 
+            bb_valid_min, bb_valid_max, np.ones(valid_region_shape, np.bool), addition = True)
+        valid_mask = valid_mask * mask 
+    else:
+        valid_mask = mask
+
+    indices = np.where(valid_mask)
+    voxel_num = len(indices[0])
     j    = random.randint(0, voxel_num - 1)
-    bb_c = [int(indexes[i][j]) for i in range(dim)]
-    bb_c = [max(left_bound[i], bb_c[i]) for i in range(dim)]
-    bb_c = [min(right_bound[i], bb_c[i]) for i in range(dim)]
-    bb_min = [bb_c[i] - left_bound[i] for i in range(dim)]
+    bb_c = [int(indices[i][j]) for i in range(dim)]
+    bb_min = [max(0, bb_c[i] - left_margin[i]) for i in range(dim)]
+    mask_shape = np.shape(mask)
+    bb_min = [min(bb_min[i], mask_shape[i] - out_shape[i]) for i in range(dim)]
     bb_max = [bb_min[i] + out_shape[i] for i in range(dim)]
 
     return bb_min, bb_max
@@ -205,7 +233,7 @@ def random_crop_ND_volume_with_mask(volume, out_shape, mask):
         pad  = [(ml[i], mr[i])  for i in range(dim)]
         pad  = tuple(pad)
         image_pad = np.pad(volume, pad, 'reflect') 
-        mask_pad  = np.pad(mask,   pad, 'reflect') 
+        mask_pad  = np.pad(mask,   pad, 'constant') 
     
     bb_min, bb_max = get_random_box_from_mask(mask_pad, out_shape)
     # left_margin = [int(out_shape[i]/2)   for i in range(dim)]
@@ -299,7 +327,7 @@ def convert_label(label, source_list, target_list):
         label_converted[label_s > 0] =  label_t[label_s > 0]
     return label_converted
 
-def resample_sitk_image_to_given_spacing(image, spacing, order):
+def resample_sitk_image_to_given_spacing(image, spacing, order = 3):
     """
     Resample an sitk image objct to a given spacing. 
 
@@ -319,26 +347,44 @@ def resample_sitk_image_to_given_spacing(image, spacing, order):
     out_img.SetDirection(image.GetDirection())
     return out_img
 
-def get_image_info(img_names):
-    space0, space1, slices = [], [], []
+def get_image_info(img_names, output_csv = None):
+    spacing_list, shape_list = [], []
     for img_name in img_names:
         img_obj = sitk.ReadImage(img_name)
         img_arr = sitk.GetArrayFromImage(img_obj)
         spacing = img_obj.GetSpacing()
-        slices.append(img_arr.shape[0])
-        space0.append(spacing[0])
-        space1.append(spacing[2])
-        print(img_name, spacing, img_arr.shape)
-    
-    space0 = np.asarray(space0)
-    space1 = np.asarray(space1)
-    slices = np.asarray(slices)
-    print("intra-slice spacing")
-    print(space0.min(), space0.max(), space0.mean())
-    print("inter-slice spacing")
-    print(space1.min(), space1.max(), space1.mean())
-    print("slice number")
-    print(slices.min(), slices.max(), slices.mean())
+        shape   = img_arr.shape
+        spacing_list.append(spacing)
+        shape_list.append(shape)
+        print(img_name, spacing, shape)
+    spacings = np.asarray(spacing_list)
+    shapes   = np.asarray(shape_list)
+    spacing_min = spacings.min(axis = 0)
+    spacing_max = spacings.max(axis = 0)
+    spacing_median = np.percentile(spacings, 50, axis = 0)
+    print("spacing min", spacing_min)
+    print("spacing max", spacing_max)
+    print("spacing median", spacing_median)
+
+    shape_min = shapes.min(axis = 0)
+    shape_max = shapes.max(axis = 0)
+    shape_median = np.percentile(shapes, 50, axis = 0)
+    print("shape min", shape_min)
+    print("shape max", shape_max)
+    print("shape median", shape_median)
+
+    if(output_csv is not None):
+        img_names_short = [item.split("/")[-1] for item in img_names]
+        img_names_short.extend(["spacing min", "spacing max", "spacing median",
+                            "shape min", "shape max", "shape median"])
+        spacing_list.extend([spacing_min, spacing_max, spacing_median,
+                             shape_min, shape_max, shape_median])
+        shape_list.extend(['']* 6)
+        out_dict = {"img_name": img_names_short, 
+                    "spacing": spacing_list, 
+                    "shape": shape_list}
+        df = pd.DataFrame.from_dict(out_dict)
+        df.to_csv(output_csv, index=False)
 
 def get_average_mean_std(data_dir, data_csv):
     df = pd.read_csv(data_csv)

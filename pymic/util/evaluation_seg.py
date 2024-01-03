@@ -108,22 +108,30 @@ def binary_hd95(s, g, spacing = None):
     """
     s_edge = get_edge_points(s)
     g_edge = get_edge_points(g)
-    image_dim = len(s.shape)
-    assert(image_dim == len(g.shape))
-    if(spacing == None):
-        spacing = [1.0] * image_dim
+    ns = s_edge.sum()
+    ng = g_edge.sum()
+    if(ns + ng == 0):
+        hd95 = 0.0
+    elif(ns * ng == 0):
+        hd95 = 100.0
     else:
-        assert(image_dim == len(spacing))
-    s_dis = ndimage.distance_transform_edt(1-s_edge, sampling = spacing)
-    g_dis = ndimage.distance_transform_edt(1-g_edge, sampling = spacing)
-  
-    dist_list1 = s_dis[g_edge > 0]
-    dist_list1 = sorted(dist_list1)
-    dist1 = dist_list1[int(len(dist_list1)*0.95)]
-    dist_list2 = g_dis[s_edge > 0]
-    dist_list2 = sorted(dist_list2)
-    dist2 = dist_list2[int(len(dist_list2)*0.95)]
-    return max(dist1, dist2)
+        image_dim = len(s.shape)
+        assert(image_dim == len(g.shape))
+        if(spacing == None):
+            spacing = [1.0] * image_dim
+        else:
+            assert(image_dim == len(spacing))
+        s_dis = ndimage.distance_transform_edt(1-s_edge, sampling = spacing)
+        g_dis = ndimage.distance_transform_edt(1-g_edge, sampling = spacing)
+    
+        dist_list1 = s_dis[g_edge > 0]
+        dist_list1 = sorted(dist_list1)
+        dist1 = dist_list1[int(len(dist_list1)*0.95)]
+        dist_list2 = g_dis[s_edge > 0]
+        dist_list2 = sorted(dist_list2)
+        dist2 = dist_list2[int(len(dist_list2)*0.95)]
+        hd95  = max(dist1, dist2)
+    return hd95
 
 
 def binary_assd(s, g, spacing = None):
@@ -150,9 +158,14 @@ def binary_assd(s, g, spacing = None):
 
     ns = s_edge.sum()
     ng = g_edge.sum()
-    s_dis_g_edge = s_dis * g_edge
-    g_dis_s_edge = g_dis * s_edge
-    assd = (s_dis_g_edge.sum() + g_dis_s_edge.sum()) / (ns + ng) 
+    if(ns + ng == 0):
+        assd = 0.0
+    elif(ns*ng == 0):
+        assd = 20.0
+    else:
+        s_dis_g_edge = s_dis * g_edge
+        g_dis_s_edge = g_dis * s_edge
+        assd = (s_dis_g_edge.sum() + g_dis_s_edge.sum()) / (ns + ng) 
     return assd
 
 # relative volume error evaluation
@@ -315,8 +328,10 @@ def evaluation(config):
     
         # save the result as csv 
         if(output_name is None):
-            output_name = "{0:}/eval_{1:}.csv".format(seg_root, metric)
-        with open(output_name, mode='w') as csv_file:
+            metric_output_name = "{0:}/eval_{1:}.csv".format(seg_root, metric)
+        else:
+            metric_output_name = output_name
+        with open(metric_output_name, mode='w') as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=',', 
                             quotechar='"',quoting=csv.QUOTE_MINIMAL)
             head = ['image'] + ["class_{0:}".format(i) for i in label_list]

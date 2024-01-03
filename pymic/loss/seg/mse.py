@@ -19,8 +19,8 @@ class MSELoss(AbstractSegLoss):
         
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
         mse  = torch.square(predict - soft_y)
         mse  = torch.mean(mse) 
         return mse 
@@ -44,8 +44,8 @@ class MAELoss(AbstractSegLoss):
         
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
         mae = torch.abs(predict - soft_y)
         if(weight is None):
             mae = torch.mean(mae)

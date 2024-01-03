@@ -3,29 +3,14 @@ from __future__ import print_function, division
 import logging
 import numpy as np
 import torch
-import torch.nn as nn
+from random import random
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
+from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.net_run.semi_sup import SSLSegAgent
-from pymic.net.net_dict_seg import SegNetDict
 from pymic.util.ramps import get_rampup_ratio
-
-class BiNet(nn.Module):
-    def __init__(self, params):
-        super(BiNet, self).__init__()
-        net_name  = params['net_type']
-        self.net1 = SegNetDict[net_name](params)
-        self.net2 = SegNetDict[net_name](params)   
-
-    def forward(self, x):
-        out1 = self.net1(x)
-        out2 = self.net2(x)
-
-        if(self.training):
-          return out1, out2
-        else:
-          return (out1 + out2) / 2
+from pymic.util.general import mixup, tensor_shape_match
 
 class SSLCPS(SSLSegAgent):
     """
@@ -47,19 +32,12 @@ class SSLCPS(SSLSegAgent):
     def __init__(self, config, stage = 'train'):
         super(SSLCPS, self).__init__(config, stage)
 
-    def create_network(self):
-        if(self.net is None):
-            self.net = BiNet(self.config['network'])
-        if(self.tensor_type == 'float'):
-            self.net.float()
-        else:
-            self.net.double()
-
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
         ssl_cfg     = self.config['semi_supervised_learning']
-        iter_max     = self.config['training']['iter_max']
+        iter_max    = self.config['training']['iter_max']
+        mixup_prob  = self.config['training'].get('mixup_probability', 0.0)
         rampup_start = ssl_cfg.get('rampup_start', 0)
         rampup_end   = ssl_cfg.get('rampup_end', iter_max)
         train_loss  = 0
@@ -83,13 +61,27 @@ class SSLCPS(SSLSegAgent):
             x0   = self.convert_tensor_type(data_lab['image'])
             y0   = self.convert_tensor_type(data_lab['label_prob'])  
             x1   = self.convert_tensor_type(data_unlab['image'])
+
+            # for debug
+            # for i in range(x0.shape[0]):
+            #     image_i = x0[i][0]
+            #     label_i = np.argmax(y0[i], axis = 0)
+            #     # pixw_i  = pix_w[i][0]
+            #     print(image_i.shape, label_i.shape)
+            #     image_name = "temp/image_{0:}_{1:}.nii.gz".format(it, i)
+            #     label_name = "temp/label_{0:}_{1:}.nii.gz".format(it, i)
+            #     save_nd_array_as_image(image_i, image_name, reference_name = None)
+            #     save_nd_array_as_image(label_i, label_name, reference_name = None)
+            # continue
+            if(mixup_prob > 0 and random() < mixup_prob):
+                x0, y0 = mixup(x0, y0) 
             inputs = torch.cat([x0, x1], dim = 0)               
             inputs, y0 = inputs.to(self.device), y0.to(self.device)
 
             # zero the parameter gradients
             self.optimizer.zero_grad()
                 
-            outputs1, outputs2 = self.net(inputs)
+            outputs1, outputs2 = self.net(inputs) 
             outputs_soft1 = torch.softmax(outputs1, dim=1)
             outputs_soft2 = torch.softmax(outputs2, dim=1)
 

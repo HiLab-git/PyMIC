@@ -6,7 +6,6 @@ import json
 import math
 import random
 import numpy as np
-from scipy import ndimage
 from pymic import TaskType
 from pymic.transform.abstract_transform import AbstractTransform
 from pymic.util.image_process import *

@@ -13,8 +13,10 @@ class CrossEntropyLoss(AbstractSegLoss):
     The parameters should be written in the `params` dictionary, and it has the
     following fields:
 
-    :param `loss_softmax`: (optional, bool) 
-        Apply softmax to the prediction of network or not. Default is True.
+    :param `loss_acti_func`: (optional, string) 
+        Apply an activation function to the prediction of network or not, for example,
+        'softmax' for image segmentation tasks, 'tanh' for reconstruction tasks, and None
+        means no activation is used. 
     """
     def __init__(self, params = None):
         super(CrossEntropyLoss, self).__init__(params)
@@ -27,8 +29,9 @@ class CrossEntropyLoss(AbstractSegLoss):
 
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
+
         predict = reshape_tensor_to_2D(predict)
         soft_y  = reshape_tensor_to_2D(soft_y)
 
@@ -74,8 +77,8 @@ class GeneralizedCELoss(AbstractSegLoss):
 
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
         predict = reshape_tensor_to_2D(predict)
         soft_y  = reshape_tensor_to_2D(soft_y)
         gce     = (1.0 - torch.pow(predict, self.q)) / self.q * soft_y
