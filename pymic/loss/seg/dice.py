@@ -25,8 +25,8 @@ class DiceLoss(AbstractSegLoss):
         
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
         predict = reshape_tensor_to_2D(predict)
         soft_y  = reshape_tensor_to_2D(soft_y) 
         if(pix_w is not None):
@@ -52,8 +52,8 @@ class BinaryDiceLoss(AbstractSegLoss):
         
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
         predict = 1.0 - predict[:, :1, :, :, :]
         soft_y  = 1.0 -  soft_y[:, :1, :, :, :]
         predict = reshape_tensor_to_2D(predict)
@@ -76,8 +76,8 @@ class GroupDiceLoss(AbstractSegLoss):
         
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
         predict = reshape_tensor_to_2D(predict)
         soft_y  = reshape_tensor_to_2D(soft_y) 
         num_class  = list(predict.size())[1]
@@ -115,8 +115,8 @@ class FocalDiceLoss(AbstractSegLoss):
 
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
         predict = reshape_tensor_to_2D(predict)
         soft_y  = reshape_tensor_to_2D(soft_y) 
 
@@ -149,8 +149,8 @@ class NoiseRobustDiceLoss(AbstractSegLoss):
 
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
         predict = reshape_tensor_to_2D(predict)
         soft_y  = reshape_tensor_to_2D(soft_y) 
 

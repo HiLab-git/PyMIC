@@ -74,7 +74,7 @@ class NormalizeWithMeanStd(AbstractTransform):
 
 
 class NormalizeWithMinMax(AbstractTransform):
-    """Nomralize the image to [0, 1]. The shape should be [C, D, H, W] or [C, H, W].
+    """Nomralize the image to [-1, 1]. The shape should be [C, D, H, W] or [C, H, W].
 
     The arguments should be written in the `params` dictionary, and it has the
     following fields:
@@ -112,13 +112,13 @@ class NormalizeWithMinMax(AbstractTransform):
 
             img_chn[img_chn < v0] = v0
             img_chn[img_chn > v1] = v1
-            img_chn = (img_chn - v0) / (v1 - v0)
+            img_chn = 2.0* (img_chn - v0) / (v1 - v0) -1.0
             image[chn] = img_chn
         sample['image'] = image
         return sample
 
 class NormalizeWithPercentiles(AbstractTransform):
-    """Nomralize the image to [0, 1] with percentiles for given channels.
+    """Nomralize the image to [-1, 1] with percentiles for given channels.
     The shape should be [C, D, H, W] or [C, H, W].
     
     The arguments should be written in the `params` dictionary, and it has the
@@ -152,7 +152,7 @@ class NormalizeWithPercentiles(AbstractTransform):
 
             img_chn[img_chn < v0] = v0
             img_chn[img_chn > v1] = v1
-            img_chn = (img_chn - v0) / (v1 - v0)
+            img_chn = 2.0* (img_chn - v0) / (v1 - v0) -1.0
             image[chn] = img_chn
         sample['image'] = image
         return sample

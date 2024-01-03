@@ -217,6 +217,7 @@ class Resample(Rescale):
             origin_shape = json.loads(sample['Resample_origin_shape'][0])
         else:
             origin_shape = json.loads(sample['Resample_origin_shape'])
+        
         origin_dim   = len(origin_shape) - 1
         predict = sample['predict']
         input_shape = predict.shape

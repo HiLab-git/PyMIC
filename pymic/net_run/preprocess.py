@@ -9,7 +9,6 @@ from pymic import TaskType
 from pymic.util.parse_config import *
 from pymic.net_run.agent_cls import ClassificationAgent
 from pymic.net_run.agent_seg import SegmentationAgent
-from pymic.net_run.agent_rec import ReconstructionAgent
 from pymic.net_run.semi_sup import SSLMethodDict
 from pymic.net_run.weak_sup import WSLMethodDict
 from pymic.net_run.self_sup import SelfSupMethodDict
@@ -20,10 +19,7 @@ def get_seg_rec_agent(config, sup_type):
     assert(sup_type in ['fully_sup', 'semi_sup', 'self_sup', 'weak_sup', 'noisy_label'])
     if(sup_type == 'fully_sup'):
         logging.info("\n********** Fully Supervised Learning **********\n")
-        if config['dataset']['task_type'] == TaskType.SEGMENTATION:
-            agent = SegmentationAgent(config, 'train')
-        else:
-            agent = ReconstructionAgent(config, 'train')
+        agent = SegmentationAgent(config, 'train')
     elif(sup_type == 'semi_sup'):
         logging.info("\n********** Semi Supervised Learning **********\n")
         method = config['semi_supervised_learning']['method_name']

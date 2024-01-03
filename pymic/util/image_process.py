@@ -327,7 +327,7 @@ def convert_label(label, source_list, target_list):
         label_converted[label_s > 0] =  label_t[label_s > 0]
     return label_converted
 
-def resample_sitk_image_to_given_spacing(image, spacing, order):
+def resample_sitk_image_to_given_spacing(image, spacing, order = 3):
     """
     Resample an sitk image objct to a given spacing. 
 

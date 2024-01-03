@@ -37,7 +37,7 @@ def bezier_curve(points, nTimes=1000):
 
     t = np.linspace(0.0, 1.0, nTimes)
 
-    polynomial_array = np.array([ bernstein_poly(i, nPoints-1, t) for i in range(0, nPoints)   ])
+    polynomial_array = np.array([ bernstein_poly(i, nPoints-1, t) for i in range(0, nPoints)])
     
     xvals = np.dot(xPoints, polynomial_array)
     yvals = np.dot(yPoints, polynomial_array)
@@ -182,30 +182,54 @@ class GrayscaleToRGB(AbstractTransform):
 class NonLinearTransform(AbstractTransform):
     def __init__(self, params):
         super(NonLinearTransform, self).__init__(params)
-        self.channels = params['NonLinearTransform_channels'.lower()]
+        self.channels = params.get('NonLinearTransform_channels'.lower(), None)
         self.prob     = params.get('NonLinearTransform_probability'.lower(), 0.5)
         self.inverse  = params.get('NonLinearTransform_inverse'.lower(), False)
+        self.block_range = params.get('NonLinearTransform_block_range'.lower(), None)
+        self.block_size  = params.get('NonLinearTransform_block_size'.lower(), [8, 16, 16])
         
     
+    def __apply_nonlinear_transform(self, img):
+        """
+        the input img should be normlized to [0, 1]"""
+        points = [[0, 0], [random.random(), random.random()], [random.random(), random.random()], [1, 1]]
+        xvals, yvals = bezier_curve(points, nTimes=10000)
+        if random.random() < 0.5: # Half chance to get flip
+            xvals = np.sort(xvals)
+        else:
+            xvals, yvals = np.sort(xvals), np.sort(yvals)
+        
+        img = np.interp(img, xvals, yvals)
+        return img
+
     def __call__(self, sample):
         if(random.random() >  self.prob):
             return sample
 
-        image = sample['image'] 
-        for chn in self.channels:
-            points = [[0, 0], [random.random(), random.random()], [random.random(), random.random()], [1, 1]]
-            xvals, yvals = bezier_curve(points, nTimes=10000)
-            if random.random() < 0.5: # Half change to get flip
-                xvals = np.sort(xvals)
-            else:
-                xvals, yvals = np.sort(xvals), np.sort(yvals)
+        image = sample['image']
+        img_shape = image.shape 
+        img_dim = len(img_shape) - 1
+        channels = self.channels if self.channels is not None else range(image.shape[0])
+        for chn in channels:
             # normalize the image intensity to [0, 1] before the non-linear tranform
             img_c = image[chn]
-            v_min = img_c.min()
-            v_max = img_c.max()
+            v_min, v_max = img_c.min(), img_c.max()
             if(v_min < v_max):
                 img_c = (img_c - v_min)/(v_max - v_min)
-                img_c = np.interp(img_c, xvals, yvals)
+                if(self.block_range is None): # apply non-linear transform to the entire image
+                    img_c = self.__apply_nonlinear_transform(img_c)
+                else:  # non-linear transform to random blocks
+                    img_c_sr = copy.deepcopy(img_c)
+                    for n in range(self.block_range[0], self.block_range[1]): 
+                        coord_min = [random.randint(0, img_shape[1+i] - self.block_size[i]) \
+                            for i in range(img_dim)]
+                        window = img_c_sr[coord_min[0]:coord_min[0] + self.block_size[0], 
+                                    coord_min[1]:coord_min[1] + self.block_size[1],
+                                    coord_min[2]:coord_min[2] + self.block_size[2]]
+                        img_c[coord_min[0]:coord_min[0] + self.block_size[0], 
+                            coord_min[1]:coord_min[1] + self.block_size[1],
+                            coord_min[2]:coord_min[2] + self.block_size[2]] = \
+                            self.__apply_nonlinear_transform(window)
                 image[chn] = img_c * (v_max - v_min) + v_min
         sample['image']  = image 
         return sample
@@ -218,9 +242,8 @@ class LocalShuffling(AbstractTransform):
         super(LocalShuffling, self).__init__(params)
         self.inverse  = params.get('LocalShuffling_inverse'.lower(), False)
         self.prob     = params.get('LocalShuffling_probability'.lower(), 0.5)
-        self.block_range = params.get('LocalShuffling_block_range'.lower(), (5000, 10000))
-        self.block_size_min = params.get('LocalShuffling_block_size_min'.lower(), None)
-        self.block_size_max = params.get('LocalShuffling_block_size_max'.lower(), None)
+        self.block_range = params.get('LocalShuffling_block_range'.lower(), [40, 80])
+        self.block_size  = params.get('LocalShuffling_block_size'.lower(), [4, 8, 8])
 
     def __call__(self, sample):
         if(random.random() >  self.prob):
@@ -231,49 +254,33 @@ class LocalShuffling(AbstractTransform):
         img_dim = len(img_shape) - 1
         assert(img_dim == 2 or img_dim == 3)
         img_out = copy.deepcopy(image)
-        if(self.block_size_min is None):
-            block_size_min = [2] * img_dim
-        elif(isinstance(self.block_size_min, int)):
-            block_size_min = [self.block_size_min] * img_dim
-        else:
-            assert(len(self.block_size_min) == img_dim)
-            block_size_min = self.block_size_min
-
-        if(self.block_size_max is None):
-            block_size_max = [img_shape[1+i]//10 for i in range(img_dim)]
-        elif(isinstance(self.block_size_min, int)):
-            block_size_max = [self.block_size_max] * img_dim
-        else:
-            assert(len(self.block_size_max) == img_dim)
-            block_size_max = self.block_size_max
+    
         block_num = random.randint(self.block_range[0], self.block_range[1])
 
         for n in range(block_num):
-            block_size = [random.randint(block_size_min[i], block_size_max[i]) \
-                for i in range(img_dim)]    
-            coord_min = [random.randint(0, img_shape[1+i] - block_size[i]) \
+            coord_min = [random.randint(0, img_shape[1+i] - self.block_size[i]) \
                 for i in range(img_dim)]
             if(img_dim == 2):
-                window = image[:, coord_min[0]:coord_min[0] + block_size[0], 
-                                  coord_min[1]:coord_min[1] + block_size[1]]
-                n_pixels = block_size[0] * block_size[1]
+                window = image[:, coord_min[0]:coord_min[0] + self.block_size[0], 
+                                  coord_min[1]:coord_min[1] + self.block_size[1]]
+                n_pixels = self.block_size[0] * self.block_size[1]
             else:
-                window = image[:, coord_min[0]:coord_min[0] + block_size[0], 
-                                  coord_min[1]:coord_min[1] + block_size[1],
-                                  coord_min[2]:coord_min[2] + block_size[2]]
-                n_pixels = block_size[0] * block_size[1] * block_size[2]
+                window = image[:, coord_min[0]:coord_min[0] + self.block_size[0], 
+                                  coord_min[1]:coord_min[1] + self.block_size[1],
+                                  coord_min[2]:coord_min[2] + self.block_size[2]]
+                n_pixels = self.block_size[0] * self.block_size[1] * self.block_size[2]
             window = np.reshape(window, [-1, n_pixels])
             np.random.shuffle(np.transpose(window))
             window = np.transpose(window)
             if(img_dim == 2):
-                window = np.reshape(window, [-1, block_size[0], block_size[1]])
-                img_out[:, coord_min[0]:coord_min[0] + block_size[0], 
-                           coord_min[1]:coord_min[1] + block_size[1]] = window
+                window = np.reshape(window, [-1, self.block_size[0], self.block_size[1]])
+                img_out[:, coord_min[0]:coord_min[0] + self.block_size[0], 
+                           coord_min[1]:coord_min[1] + self.block_size[1]] = window
             else:
-                window = np.reshape(window, [-1, block_size[0], block_size[1], block_size[2]])
-                img_out[:, coord_min[0]:coord_min[0] + block_size[0], 
-                           coord_min[1]:coord_min[1] + block_size[1],
-                           coord_min[2]:coord_min[2] + block_size[2]] = window
+                window = np.reshape(window, [-1, self.block_size[0], self.block_size[1], self.block_size[2]])
+                img_out[:, coord_min[0]:coord_min[0] + self.block_size[0], 
+                           coord_min[1]:coord_min[1] + self.block_size[1],
+                           coord_min[2]:coord_min[2] + self.block_size[2]] = window
         sample['image'] = img_out
         return sample
 
@@ -285,10 +292,9 @@ class InPainting(AbstractTransform):
         super(InPainting, self).__init__(params)
         self.inverse  = params.get('InPainting_inverse'.lower(), False)
         self.prob     = params.get('InPainting_probability'.lower(), 0.5)
-        self.block_range = params.get('InPainting_block_range'.lower(), (1, 6))
-        self.block_size_min = params.get('InPainting_block_size_min'.lower(), None)
-        self.block_size_max = params.get('InPainting_block_size_max'.lower(), None)
-
+        self.block_range = params.get('InPainting_block_range'.lower(), (20, 40))
+        self.block_size  = params.get('InPainting_block_size'.lower(), [8, 16, 16])
+       
     def __call__(self, sample):
         if(random.random() >  self.prob):
             return sample
@@ -298,38 +304,21 @@ class InPainting(AbstractTransform):
         img_dim = len(img_shape) - 1
         assert(img_dim == 2 or img_dim == 3)
 
-        if(self.block_size_min is None):
-            block_size_min = [img_shape[1+i]//6 for i in range(img_dim)]
-        elif(isinstance(self.block_size_min, int)):
-            block_size_min = [self.block_size_min] * img_dim
-        else:
-            assert(len(self.block_size_min) == img_dim)
-            block_size_min = self.block_size_min
-
-        if(self.block_size_max is None):
-            block_size_max = [img_shape[1+i]//3 for i in range(img_dim)]
-        elif(isinstance(self.block_size_min, int)):
-            block_size_max = [self.block_size_max] * img_dim
-        else:
-            assert(len(self.block_size_max) == img_dim)
-            block_size_max = self.block_size_max
         block_num = random.randint(self.block_range[0], self.block_range[1])
 
-        for n in range(block_num):
-            block_size = [random.randint(block_size_min[i], block_size_max[i]) \
-                for i in range(img_dim)]    
-            coord_min = [random.randint(3, img_shape[1+i] - block_size[i] - 3) \
+        for n in range(block_num):    
+            coord_min = [random.randint(3, img_shape[1+i] - self.block_size[i] - 3) \
                 for i in range(img_dim)]
             if(img_dim == 2):
-                random_block = np.random.rand(img_shape[0], block_size[0], block_size[1])
-                image[:, coord_min[0]:coord_min[0] + block_size[0], 
-                         coord_min[1]:coord_min[1] + block_size[1]] = random_block
+                random_block = np.random.rand(img_shape[0], self.block_size[0], self.block_size[1]) * 2 -1 
+                image[:, coord_min[0]:coord_min[0] + self.block_size[0], 
+                         coord_min[1]:coord_min[1] + self.block_size[1]] = random_block
             else:
-                random_block = np.random.rand(img_shape[0], block_size[0], 
-                                              block_size[1], block_size[2])
-                image[:, coord_min[0]:coord_min[0] + block_size[0], 
-                         coord_min[1]:coord_min[1] + block_size[1],
-                         coord_min[2]:coord_min[2] + block_size[2]] = random_block
+                random_block = np.random.rand(img_shape[0], self.block_size[0], 
+                                              self.block_size[1], self.block_size[2]) * 2 -1
+                image[:, coord_min[0]:coord_min[0] + self.block_size[0], 
+                         coord_min[1]:coord_min[1] + self.block_size[1],
+                         coord_min[2]:coord_min[2] + self.block_size[2]] = random_block
         sample['image'] = image
         return sample
 
@@ -341,9 +330,8 @@ class OutPainting(AbstractTransform):
         super(OutPainting, self).__init__(params)
         self.inverse  = params.get('OutPainting_inverse'.lower(), False)
         self.prob     = params.get('OutPainting_probability'.lower(), 0.5)
-        self.block_range = params.get('OutPainting_block_range'.lower(), (1, 6))
-        self.block_size_min = params.get('OutPainting_block_size_min'.lower(), None)
-        self.block_size_max = params.get('OutPainting_block_size_max'.lower(), None)
+        self.block_range = params.get('OutPainting_block_range'.lower(), (2, 8))
+        self.block_size  = params.get('OutPainting_block_size'.lower(), None)
 
     def __call__(self, sample):
         if(random.random() >  self.prob):
@@ -353,28 +341,18 @@ class OutPainting(AbstractTransform):
         img_shape = image.shape
         img_dim = len(img_shape) - 1
         assert(img_dim == 2 or img_dim == 3)
-        img_out = np.random.rand(*img_shape)
+        img_out = np.random.rand(*img_shape) * 2 -1
 
-        if(self.block_size_min is None):
-            block_size_min = [img_shape[1+i] - 4 * img_shape[1+i]//7 for i in range(img_dim)]
-        elif(isinstance(self.block_size_min, int)):
-            block_size_min = [self.block_size_min] * img_dim
+        if(self.block_size is None):
+            margin = [16, 32, 32]
+            block_size = [img_shape[1+i] - margin[i] for i in range(img_dim)]
         else:
-            assert(len(self.block_size_min) == img_dim)
-            block_size_min = self.block_size_min
+            assert(len(self.block_size) == img_dim)
+            block_size = self.block_size
 
-        if(self.block_size_max is None):
-            block_size_max = [img_shape[1+i] - 3 * img_shape[1+i]//7 for i in range(img_dim)]
-        elif(isinstance(self.block_size_min, int)):
-            block_size_max = [self.block_size_max] * img_dim
-        else:
-            assert(len(self.block_size_max) == img_dim)
-            block_size_max = self.block_size_max
         block_num = random.randint(self.block_range[0], self.block_range[1])
 
         for n in range(block_num):
-            block_size = [random.randint(block_size_min[i], block_size_max[i]) \
-                for i in range(img_dim)]    
             coord_min = [random.randint(3, img_shape[1+i] - block_size[i] - 3) \
                 for i in range(img_dim)]
             if(img_dim == 2):
@@ -401,8 +379,8 @@ class InOutPainting(AbstractTransform):
         self.inverse  = params.get('InOutPainting_inverse'.lower(), False)
         self.prob     = params.get('InOutPainting_probability'.lower(), 0.5)
         self.in_prob  = params.get('InPainting_probability'.lower(), 0.5)
-        params['InPainting_probability']  = 1.0
-        params['outPainting_probability'] = 1.0
+        params['InPainting_probability'.lower()]  = 1.0
+        params['OutPainting_probability'.lower()] = 1.0
         self.inpaint  = InPainting(params)
         self.outpaint = OutPainting(params)
 
@@ -423,35 +401,23 @@ class PatchSwaping(AbstractTransform):
     """
     def __init__(self, params):
         super(PatchSwaping, self).__init__(params)
+        self.block_range = params.get('PatchSwaping_block_range'.lower(), (10, 20))
+        self.block_size  = params.get('PatchSwaping_block_size'.lower(), [8, 16, 16])
         self.inverse  = params.get('PatchSwaping_inverse'.lower(), False)
-        self.swap_t   = params.get('PatchSwaping_swap_time'.lower(), (1, 6))
-        self.patch_size_min = params.get('PatchSwaping_patch_size_min'.lower(), None)
-        self.patch_size_max = params.get('PatchSwaping_patch_size_max'.lower(), None)
 
-    def __call__(self, sample):
-
+    def __call__(self, sample): 
         image= sample['image']       
         img_shape = image.shape
         img_dim = len(img_shape) - 1
         assert(img_dim == 2 or img_dim == 3)
-        img_out = image
-
-        C, D, H, W = image.shape
-        patch_size = [random.randint(self.patch_size_min[i], self.patch_size_max[i]) for \
-            i in range(img_dim)]
-
-        coordinate_list = []
-        for d in range(0, D-patch_size[0], patch_size[0]):
-            for h in range(0, H-patch_size[1], patch_size[1]):
-                for w in range(0, W-patch_size[2], patch_size[2]):
-                    coordinate_list.append((d, h, w))
-        random.shuffle(coordinate_list)
+        img_out = copy.deepcopy(image)
         
-        for t in range(self.swap_t):
-            pos_a0 = coordinate_list[2*t]
-            pos_b0 = coordinate_list[2*t + 1]
-            pos_a1 = [pos_a0[i] + patch_size[i] for i in range(img_dim)]
-            pos_b1 = [pos_b0[i] + patch_size[i] for i in range(img_dim)]
+        block_num = random.randint(self.block_range[0], self.block_range[1])
+        for t in range(block_num):
+            pos_a0 = [random.randint(0, img_shape[-3+i] - self.block_size[i]) for i in range(img_dim)]
+            pos_b0 = [random.randint(0, img_shape[-3+i] - self.block_size[i]) for i in range(img_dim)]
+            pos_a1 = [pos_a0[i] + self.block_size[i] for i in range(img_dim)]
+            pos_b1 = [pos_b0[i] + self.block_size[i] for i in range(img_dim)]
             img_out[:, pos_a0[0]:pos_a1[0], pos_a0[1]:pos_a1[1], pos_a0[2]:pos_a1[2]] = \
                 image[:, pos_b0[0]:pos_b1[0], pos_b0[1]:pos_b1[1], pos_b0[2]:pos_b1[2]]
             img_out[:, pos_b0[0]:pos_b1[0], pos_b0[1]:pos_b1[1], pos_b0[2]:pos_b1[2]] = \

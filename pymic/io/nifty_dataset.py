@@ -3,11 +3,9 @@ from __future__ import print_function, division
 
 import logging
 import os
-import torch
 import pandas as pd
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
+from torch.utils.data import Dataset
 from pymic import TaskType
 from pymic.io.image_read_write import load_image_as_nd_array
 
@@ -69,6 +67,25 @@ class NiftyDataset(Dataset):
         weight = load_image_as_nd_array(weight_name)['data_array']
         weight = np.asarray(weight, np.float32)
         return weight        
+
+    # def __getitem__(self, idx):
+    #     sample_name = self.csv_items.iloc[idx, 0]
+    #     h5f = h5py.File(self.root_dir + '/' +  sample_name, 'r')
+    #     image = np.asarray(h5f['image'][:], np.float32)
+        
+    #     # this a temporaory process, will be delieted later
+    #     if(len(image.shape) == 3 and image.shape[0] > 1):
+    #         image = np.expand_dims(image, 0)
+    #     sample = {'image': image, 'names':sample_name}
+        
+    #     if('label' in h5f):
+    #         label = np.asarray(h5f['label'][:], np.uint8)
+    #         if(len(label.shape) == 3 and label.shape[0] > 1):
+    #             label = np.expand_dims(label, 0)
+    #         sample['label'] = label
+    #     if self.transform:
+    #         sample = self.transform(sample)
+    #     return sample
 
     def __getitem__(self, idx):
         names_list, image_list = [], []

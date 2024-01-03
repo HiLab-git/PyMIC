@@ -5,7 +5,6 @@ import logging
 import torch
 import torch.nn as nn
 import numpy as np 
-from torch.nn.functional import interpolate
 
 class ConvBlock(nn.Module):
     """
@@ -61,8 +60,7 @@ class UpBlock(nn.Module):
         0 (or `TransConv`), 1 (`Nearest`), 2 (`Bilinear`), 3 (`Bicubic`). The default value
         is 2 (`Bilinear`).
     """
-    def __init__(self, in_channels1, in_channels2, out_channels, dropout_p,
-                 up_mode = 2):
+    def __init__(self, in_channels1, in_channels2, out_channels, dropout_p, up_mode = 2):
         super(UpBlock, self).__init__()
         if(isinstance(up_mode, int)):
             up_mode_values = ["transconv", "nearest", "bilinear", "bicubic"]
@@ -144,7 +142,7 @@ class Decoder(nn.Module):
     :param up_mode: (string or int) The mode for upsampling. The allowed values are:
         0 (or `TransConv`), 1 (or `Nearest`), 2 (or `Bilinear`), 3 (or `Bicubic`). 
         The default value is 2 (or `Bilinear`).
-    :param multiscale_pred: (bool) Get multiscale prediction.
+    :param multiscale_pred: (bool) Get multi-scale prediction. 
     """
     def __init__(self, params):
         super(Decoder, self).__init__()
@@ -165,10 +163,14 @@ class Decoder(nn.Module):
         self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], self.dropout[0], self.up_mode) 
         self.out_conv = nn.Conv2d(self.ft_chns[0], self.n_class, kernel_size = 1)
 
-        if(self.mul_pred):
+        if(self.mul_pred and (self.training or self.mul_infer)):
             self.out_conv1 = nn.Conv2d(self.ft_chns[1], self.n_class, kernel_size = 1)
             self.out_conv2 = nn.Conv2d(self.ft_chns[2], self.n_class, kernel_size = 1)
             self.out_conv3 = nn.Conv2d(self.ft_chns[3], self.n_class, kernel_size = 1)
+        self.stage = 'train'
+
+    def set_stage(self, stage):
+        self.stage = stage
 
     def forward(self, x):
         if(len(self.ft_chns) == 5):
@@ -183,7 +185,7 @@ class Decoder(nn.Module):
         x_d1 = self.up3(x_d2, x1)
         x_d0 = self.up4(x_d1, x0)
         output = self.out_conv(x_d0)
-        if(self.mul_pred and self.training):
+        if(self.mul_pred and self.stage == 'train'):
             output1 = self.out_conv1(x_d1)
             output2 = self.out_conv2(x_d2)
             output3 = self.out_conv3(x_d3)
@@ -239,6 +241,10 @@ class UNet2D(nn.Module):
                 logging.info("{0:}  = {1:}".format(key, params[key]))
         return params
 
+    def set_stage(self, stage):
+        self.stage = stage
+        self.decoder.set_stage(stage)
+
     def forward(self, x):
         x_shape = list(x.shape)
         if(len(x_shape) == 5):
@@ -259,27 +265,3 @@ class UNet2D(nn.Module):
                 output = torch.transpose(torch.reshape(output, new_shape), 1, 2)
             
         return output
-
-
-if __name__ == "__main__":
-    params = {'in_chns':4,
-              'feature_chns':[16, 32, 64, 128, 256],
-              'dropout':  [0, 0, 0.3, 0.4, 0.5],
-              'class_num': 2,
-              'up_mode': 0,
-              'multiscale_pred': True}
-    Net = UNet2D(params)
-    Net = Net.double()
-
-    x  = np.random.rand(4, 4, 10, 256, 256)
-    xt = torch.from_numpy(x)
-    xt = torch.tensor(xt)
-    
-    out = Net(xt)
-    if params['multiscale_pred']:
-        for y in out:
-            print(len(y.size()))
-            y = y.detach().numpy()
-            print(y.shape)
-    else:
-        print(out.shape)

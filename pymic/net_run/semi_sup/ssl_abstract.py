@@ -35,7 +35,7 @@ class SSLSegAgent(SegmentationAgent):
         """
         Create a dataset for the unlabeled images based on configuration.
         """
-        root_dir  = self.config['dataset']['root_dir']
+        train_dir  = self.config['dataset']['train_dir']
         modal_num = self.config['dataset'].get('modal_num', 1)
         transform_names = self.config['dataset']['train_transform_unlab']
         
@@ -53,7 +53,7 @@ class SSLSegAgent(SegmentationAgent):
             data_transform = transforms.Compose(self.transform_list)
 
         csv_file = self.config['dataset'].get('train_csv_unlab', None)
-        dataset  = NiftyDataset(root_dir=root_dir,
+        dataset  = NiftyDataset(root_dir  = train_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
                                 with_label= False,
@@ -76,7 +76,7 @@ class SSLSegAgent(SegmentationAgent):
             num_worker = self.config['dataset'].get('num_worker', 16)
             self.train_loader_unlab = torch.utils.data.DataLoader(self.train_set_unlab, 
                 batch_size = bn_train_unlab, shuffle=True, num_workers= num_worker,
-                worker_init_fn=worker_init)
+                worker_init_fn=worker_init, drop_last = True)
 
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         loss_scalar ={'train':train_scalars['loss'], 

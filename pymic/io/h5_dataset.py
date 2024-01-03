@@ -8,8 +8,9 @@ import h5py
 import pandas as pd
 from torch.utils.data import Dataset
 from torch.utils.data.sampler import Sampler
+from pymic import TaskType
 
-class H5DataSet(Dataset):
+class H5DataSet_backup(Dataset):
     """
     Dataset for loading images stored in h5 format. It generates 
     4D tensors with dimention order [C, D, H, W] for 3D images, and 
@@ -39,7 +40,9 @@ class H5DataSet(Dataset):
         if self.transform:
             sample = self.transform(sample)
         return sample
-    
+
+
+
 class TwoStreamBatchSampler(Sampler):
     """Iterate two sets of indices
 

@@ -46,8 +46,6 @@ class SegmentationAgent(NetRunAgent):
         """
         assert(stage in ['train', 'valid', 'test'])
         transform_key = stage +  '_transform'
-        if(stage == "valid" and transform_key not in self.config['dataset']):
-            transform_key = "train_transform"
         trans_names  = self.config['dataset'][transform_key]
         trans_params = self.config['dataset']
         trans_params['task'] = self.task_type
@@ -179,6 +177,8 @@ class SegmentationAgent(NetRunAgent):
                 inputs, labels_prob = mixup(inputs, labels_prob) 
                    
             # for debug
+            # if(it > 10):
+            #     break
             # for i in range(inputs.shape[0]):
             #     image_i = inputs[i][0]
             #     # label_i = labels_prob[i][1]
@@ -192,6 +192,7 @@ class SegmentationAgent(NetRunAgent):
             #     save_nd_array_as_image(label_i, label_name, reference_name = None)
             #     # save_nd_array_as_image(pixw_i, weight_name, reference_name = None)
             # continue
+            
 
             inputs, labels_prob = inputs.to(self.device), labels_prob.to(self.device)
             
@@ -241,6 +242,9 @@ class SegmentationAgent(NetRunAgent):
             self.net.eval()
             for data in validIter:
                 inputs      = self.convert_tensor_type(data['image'])
+                if('label_prob' not in data):
+                    raise ValueError("label_prob is not found in validation data, make sure" + 
+                        "that LabelToProbability is used in valid_transform.")
                 labels_prob = self.convert_tensor_type(data['label_prob'])
                 inputs, labels_prob  = inputs.to(self.device), labels_prob.to(self.device)
                 batch_n = inputs.shape[0]

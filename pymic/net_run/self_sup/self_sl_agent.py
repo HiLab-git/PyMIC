@@ -6,6 +6,7 @@ import time
 from pymic.net_run.agent_rec import ReconstructionAgent
 
 
+        
 class SelfSLSegAgent(ReconstructionAgent):
     """
     Abstract class for self-supervised segmentation.
@@ -17,7 +18,7 @@ class SelfSLSegAgent(ReconstructionAgent):
 
         In the configuration dictionary, in addition to the four sections (`dataset`,
         `network`, `training` and `inference`) used in fully supervised learning, an 
-        extra section `semi_supervised_learning` is needed. See :doc:`usage.ssl` for details.
+        extra section `self_supervised_learning` is needed. See :doc:`usage.selfsl` for details.
     """
     def __init__(self, config, stage = 'train'):
         super(SelfSLSegAgent, self).__init__(config, stage)

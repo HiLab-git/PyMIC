@@ -3,12 +3,14 @@ from __future__ import print_function, division
 import logging
 import numpy as np
 import torch
+from random import random
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.net_run.semi_sup import SSLSegAgent
 from pymic.util.ramps import get_rampup_ratio
+from pymic.util.general import mixup, tensor_shape_match
 
 class SSLCPS(SSLSegAgent):
     """
@@ -34,7 +36,8 @@ class SSLCPS(SSLSegAgent):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
         ssl_cfg     = self.config['semi_supervised_learning']
-        iter_max     = self.config['training']['iter_max']
+        iter_max    = self.config['training']['iter_max']
+        mixup_prob  = self.config['training'].get('mixup_probability', 0.0)
         rampup_start = ssl_cfg.get('rampup_start', 0)
         rampup_end   = ssl_cfg.get('rampup_end', iter_max)
         train_loss  = 0
@@ -70,7 +73,8 @@ class SSLCPS(SSLSegAgent):
             #     save_nd_array_as_image(image_i, image_name, reference_name = None)
             #     save_nd_array_as_image(label_i, label_name, reference_name = None)
             # continue
-
+            if(mixup_prob > 0 and random() < mixup_prob):
+                x0, y0 = mixup(x0, y0) 
             inputs = torch.cat([x0, x1], dim = 0)               
             inputs, y0 = inputs.to(self.device), y0.to(self.device)
 

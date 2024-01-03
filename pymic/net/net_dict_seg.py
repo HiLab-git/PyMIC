@@ -17,6 +17,7 @@ Built-in networks for segmentation.
 from __future__ import print_function, division
 from pymic.net.net2d.unet2d import UNet2D
 from pymic.net.net2d.unet2d_dual_branch import UNet2D_DualBranch
+from pymic.net.net2d.unet2d_canet import CANet
 from pymic.net.net2d.unet2d_cct import UNet2D_CCT
 from pymic.net.net2d.unet2d_mcnet import MCNet2D
 from pymic.net.net2d.cople_net import COPLENet
@@ -48,6 +49,7 @@ SegNetDict = {
 	'UNet2D_DualBranch': UNet2D_DualBranch,
 	'UNet2D_CCT': UNet2D_CCT,
 	'MCNet2D': MCNet2D,
+	'CANet': CANet,
 	'COPLENet': COPLENet,
 	'AttentionUNet2D': AttentionUNet2D,
 	'NestedUNet2D': NestedUNet2D,

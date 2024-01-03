@@ -193,7 +193,7 @@ class ReconstructionAgent(SegmentationAgent):
         self.min_val_loss = 10000.0
         self.max_val_it   = 0
         self.best_model_wts = None 
-        self.checkpoint = None
+        checkpoint = None
          # initialize the network with pre-trained weights
         ckpt_init_name = self.config['training'].get('ckpt_init_name', None)
         ckpt_init_mode = self.config['training'].get('ckpt_init_mode', 0)
@@ -212,7 +212,7 @@ class ReconstructionAgent(SegmentationAgent):
             else:
                 self.net.load_state_dict(pretrained_dict, strict = False)
             if(ckpt_init_mode > 0): # Load  other information
-                self.min_val_loss = self.checkpoint.get('valid_loss', 10000)
+                self.min_val_loss = checkpoint.get('valid_loss', 10000)
                 iter_start = checkpoint['iteration']
                 self.max_val_it = iter_start
                 self.best_model_wts = checkpoint['model_state_dict']
@@ -300,6 +300,7 @@ class ReconstructionAgent(SegmentationAgent):
         if(isinstance(pred, (list, tuple))):
             pred =  pred[0]
         pred = np.tanh(pred)
+        # pred = scipy.special.expit(pred)
         # save the output predictions
         test_dir = self.config['dataset'].get('test_dir', None)
         if(test_dir is None):

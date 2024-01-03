@@ -13,8 +13,9 @@ def get_optimizer(name, net_params, optim_params):
     # see https://www.codeleading.com/article/44815584159/
     param_group = [{'params': net_params, 'initial_lr': lr}]
     if(keyword_match(name, "SGD")):
+        nesterov = optim_params.get('nesterov', True)
         return optim.SGD(param_group, lr, 
-            momentum = momentum, weight_decay = weight_decay, nesterov = True)
+            momentum = momentum, weight_decay = weight_decay, nesterov = nesterov)
     elif(keyword_match(name, "Adam")):
         return optim.Adam(param_group, lr, weight_decay = weight_decay)
     elif(keyword_match(name, "SparseAdam")):

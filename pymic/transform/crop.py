@@ -385,3 +385,91 @@ class RandomResizedCrop(CenterCrop):
                 weight = ndimage.interpolation.zoom(weight, scale, order = 1)
             sample['pixel_weight'] = weight
         return sample
+
+class RandomSlice(AbstractTransform):
+    """Randomly selecting N slices from a volume
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `RandomSlice_output_size`: (int) Desired number of slice for output. 
+    :param `RandomSlice_inverse`: (optional, bool) Is inverse transform needed for inference.
+        Default is `True`.
+    """
+    def __init__(self, params):
+        self.output_size = params['RandomSlice_output_size'.lower()]
+        self.shuffle     = params.get('RandomSlice_shuffle'.lower(), False)
+        self.inverse     = params.get('RandomSlice_inverse'.lower(), False)
+        self.task        = params['Task'.lower()]
+        
+    def __call__(self, sample):
+        image = sample['image']
+        D = image.shape[1]
+        assert( D >= self.output_size)
+        slice_idx = list(range(D))
+        if(self.shuffle):
+            random.shuffle(slice_idx)
+            slice_idx = slice_idx[:self.output_size]
+        else:
+            d0 = random.randint(0, D - self.output_size)
+            d1 = d0 + self.output_size
+            slice_idx = slice_idx[d0:d1]
+        sample['image'] = image[:, slice_idx, :, :]
+        
+        if('label' in sample and \
+            self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
+            label = sample['label']
+            sample['label'] = label[:, slice_idx, :, :]
+            
+        if('pixel_weight' in sample and \
+            self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
+            weight = sample['pixel_weight']
+            sample['pixel_weight'] = weight[:, slice_idx, :, :]
+            
+        return sample
+
+class CropHumanRegionFromCT(CenterCrop):
+    """
+    Crop the human region from a CT volume.
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `CropWithBoundingBox_start`: (None, or list/tuple) The start index 
+        along each spatial axis. If None, calculate the start index automatically 
+        so that the cropped region is centered at the mask region defined by the threshold.
+    :param `CropWithBoundingBox_output_size`: (None or tuple/list): 
+        Desired spatial output size.
+        If None, set it as the size of bounding box of the mask region defined by the threshold.
+    :param `CropWithBoundingBox_threshold`: (None or float):
+        Threshold for obtaining a mask. This is used only when 
+        `CropWithBoundingBox_start` is None. Default is 1.0
+    :param `CropWithBoundingBox_inverse`: (optional, bool) Is inverse transform needed for inference.
+        Default is `True`.
+    """
+    def __init__(self, params):
+        self.threshold_i = params.get('CropHumanRegionFromCT_intensity_threshold'.lower(), -600)
+        self.threshold_z = params.get('CropHumanRegionFromCT_zaxis_threshold'.lower(), 0.5)
+        self.inverse     = params.get('CropHumanRegionFromCT_inverse'.lower(), True)
+        self.task = params['task']
+        
+    def _get_crop_param(self, sample):
+        image = sample['image']
+        input_shape = image.shape
+        mask    = np.asarray(image[0] > self.threshold_i)
+        mask2d  = np.mean(mask, axis = 0) > self.threshold_z
+        se      = np.ones([3,3])
+        mask2d  = ndimage.binary_opening(mask2d, se, iterations = 2)
+        mask2d  = get_largest_k_components(mask2d, 1)
+        bbmin, bbmax = get_ND_bounding_box(mask2d, margin = [0, 0])
+        crop_min   = [0, 0] + bbmin
+        crop_max   = list(input_shape[:2]) + bbmax
+        sample['CropHumanRegionFromCT_Param'] = json.dumps((input_shape, crop_min, crop_max))   
+        return sample, crop_min, crop_max
+
+    def _get_param_for_inverse_transform(self, sample):
+        if(isinstance(sample['CropHumanRegionFromCT_Param'], list) or \
+            isinstance(sample['CropHumanRegionFromCT_Param'], tuple)):
+            params = json.loads(sample['CropHumanRegionFromCT_Param'][0]) 
+        else:
+            params = json.loads(sample['CropHumanRegionFromCT_Param']) 
+        return params
