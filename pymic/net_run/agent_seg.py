@@ -177,6 +177,7 @@ class SegmentationAgent(NetRunAgent):
                 inputs, labels_prob = mixup(inputs, labels_prob) 
                    
             # for debug
+            # print("current iteration", it)
             # if(it > 10):
             #     break
             # for i in range(inputs.shape[0]):
