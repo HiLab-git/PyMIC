@@ -14,7 +14,6 @@ from pymic.net_run.semi_sup import SSLMethodDict
 from pymic.net_run.weak_sup import WSLMethodDict
 from pymic.net_run.self_sup import SelfSupMethodDict
 from pymic.net_run.noisy_label import NLLMethodDict
-# from pymic.net_run.self_sup import SelfSLSegAgent
 
 def get_seg_rec_agent(config, sup_type):
     assert(sup_type in ['fully_sup', 'semi_sup', 'self_sup', 'weak_sup', 'noisy_label'])

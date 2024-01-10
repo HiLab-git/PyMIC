@@ -3,8 +3,9 @@ from __future__ import print_function, division
 
 import torch
 import torch.nn as nn
+from pymic.loss.seg.abstract import AbstractSegLoss
 
-class MumfordShahLoss(nn.Module):
+class MumfordShahLoss(AbstractSegLoss):
     """
     Implementation of Mumford Shah Loss for weakly supervised learning.
 
@@ -76,8 +77,8 @@ class MumfordShahLoss(nn.Module):
         image   = loss_input_dict['image']
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict) 
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
 
         pred_shape  = list(predict.shape)
         if(len(pred_shape) == 5):
