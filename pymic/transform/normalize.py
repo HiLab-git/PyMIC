@@ -38,7 +38,7 @@ class NormalizeWithMeanStd(AbstractTransform):
         self.chns = params.get('NormalizeWithMeanStd_channels'.lower(), None)
         self.mean = params.get('NormalizeWithMeanStd_mean'.lower(), None)
         self.std  = params.get('NormalizeWithMeanStd_std'.lower(), None)
-        self.mask_thrd = params.get('NormalizeWithMeanStd_mask_threshold'.lower(), 1.0)
+        self.mask_thrd = params.get('NormalizeWithMeanStd_mask_threshold'.lower(), None)
         self.bg_random = params.get('NormalizeWithMeanStd_set_background_to_random'.lower(), True)
         self.inverse   = params.get('NormalizeWithMeanStd_inverse'.lower(), False)
 
