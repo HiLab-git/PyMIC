@@ -41,7 +41,7 @@ setuptools.setup(
     python_requires = '>=3.6',
     entry_points = {
         'console_scripts': [
-            'pymic_preprocess = pymic.net_run.agent_preprocess:main'
+            'pymic_preprocess = pymic.net_run.preprocess:main',
             'pymic_train = pymic.net_run.train:main',
             'pymic_test  = pymic.net_run.predict:main',
             'pymic_eval_cls = pymic.util.evaluation_cls:main',
