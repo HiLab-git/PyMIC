@@ -193,4 +193,4 @@ def get_confidence_map(cfg_file):
                    "label": df_train["label"]}
     train_cl_csv = csv_file.replace(".csv", "_clslsr.csv")
     df_cl = pd.DataFrame.from_dict(train_cl_dict)
-    df_cl.to_csv(train_cl_csv, index = False) False)
+    df_cl.to_csv(train_cl_csv, index = False)
