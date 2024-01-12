@@ -73,7 +73,8 @@ class PreprocessAgent(object):
         Do preprocessing for labeled and unlabeled data.  
         """
         self.get_dataset_from_config()
-        out_dir = self.config['dataset']['output_dir']
+        out_dir   = self.config['dataset']['output_dir']
+        modal_num = self.config['dataset']['modal_num']
         if(not os.path.isdir(out_dir)):
             os.mkdir(out_dir)
         batch_operation = self.config['dataset'].get('batch_operation', None)
@@ -82,9 +83,12 @@ class PreprocessAgent(object):
                 continue
             for data in dataloader:
                 inputs    = data['image']
-                labels    = data.get('label', None)
+                labels    = data.get('label', None)                    
                 img_names = data['names']
-                lab_names = img_names[-1]
+                if(len(img_names) == modal_num): # for unlabeled dataset
+                    lab_names = [item.replace(".nii.gz", "_lab.nii.gz") for item in img_names[0]] 
+                else:
+                    lab_names = img_names[-1]
                 B, C    = inputs.shape[0], inputs.shape[1]
                 spacing = [x.numpy()[0] for x in data['spacing']]
                 
@@ -93,8 +97,6 @@ class PreprocessAgent(object):
                     block_range = self.config['dataset']['VolumeFusion_block_range'.lower()]
                     size_min    = self.config['dataset']['VolumeFusion_size_min'.lower()]
                     size_max    = self.config['dataset']['VolumeFusion_size_max'.lower()]
-                    if(labels is None):
-                        lab_names = [item.replace(".nii.gz", "_lab.nii.gz") for item in img_names[0]] 
                     inputs, labels = volume_fusion(inputs, class_num - 1, block_range, size_min, size_max)
 
                 for b in range(B):
