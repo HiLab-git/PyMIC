@@ -106,7 +106,7 @@ class SSLMeanTeacher(SSLSegAgent):
             alpha = ssl_cfg.get('ema_decay', 0.99)
             alpha = min(1 - 1 / (self.glob_it / iter_valid + 1), alpha)
             for ema_param, param in zip(self.net_ema.parameters(), self.net.parameters()):
-                ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
+                ema_param.data.mul_(alpha).add(param.data, alpha = 1.0 - alpha)
 
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()

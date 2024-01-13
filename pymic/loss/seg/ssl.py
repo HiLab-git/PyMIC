@@ -34,8 +34,8 @@ class EntropyLoss(AbstractSegLoss):
 
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
 
         # for numeric stability
         predict = predict * 0.999 + 5e-4
@@ -70,8 +70,8 @@ class TotalVariationLoss(AbstractSegLoss):
 
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
 
         # for numeric stability
         predict = predict * 0.999 + 5e-4
