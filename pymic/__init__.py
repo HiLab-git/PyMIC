@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from enum import Enum
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 class TaskType(Enum):
     CLASSIFICATION_ONE_HOT = 1
