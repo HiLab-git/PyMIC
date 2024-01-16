@@ -18,22 +18,6 @@ from pymic.net.net_dict_seg import SegNetDict
 from pymic.util.parse_config import *
 from pymic.util.ramps import get_rampup_ratio
 
-class BiNet(nn.Module):
-    def __init__(self, params):
-        super(BiNet, self).__init__()
-        net_name  = params['net_type']
-        self.net1 = SegNetDict[net_name](params)
-        self.net2 = SegNetDict[net_name](params)   
-
-    def forward(self, x):
-        out1 = self.net1(x)
-        out2 = self.net2(x)
-
-        if(self.training):
-          return out1, out2
-        else:
-          return (out1 + out2) / 2
-
 class NLLCoTeaching(SegmentationAgent):
     """
     Co-teaching for noisy-label learning. 
@@ -57,14 +41,6 @@ class NLLCoTeaching(SegmentationAgent):
         if(loss_type != "CrossEntropyLoss"):
             logging.warn("only CrossEntropyLoss supported for" +  
             " coteaching, the specified loss {0:} is ingored".format(loss_type))
-
-    def create_network(self):
-        if(self.net is None):
-            self.net = BiNet(self.config['network'])
-        if(self.tensor_type == 'float'):
-            self.net.float()
-        else:
-            self.net.double()
 
     def training(self):
         class_num   = self.config['network']['class_num']

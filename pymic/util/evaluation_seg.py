@@ -286,63 +286,65 @@ def evaluation(config):
         label_list = [label_list]
     label_fuse  = config.get('label_fuse', False)
     output_name = config.get('output_name', None)
-    gt_root     = config['ground_truth_folder_root']
-    seg_root    = config['segmentation_folder_root']
+    gt_dir      = config['ground_truth_folder']
+    seg_dirs    = config['segmentation_folder']
     image_pair_csv = config.get('evaluation_image_pair', None)
 
+    if(not isinstance(seg_dirs, (tuple, list))):
+        seg_dirs = [seg_dirs]
     if(image_pair_csv is not None):
         image_pair = pd.read_csv(image_pair_csv)
         gt_names, seg_names = image_pair.iloc[:, 0], image_pair.iloc[:, 1]
     else:
-        seg_names = sorted(os.listdir(seg_root)) 
+        seg_names = sorted(os.listdir(seg_dirs[0]))
         seg_names = [item  for item in seg_names if is_image_name(item)]
         gt_names  = seg_names
         
+    for seg_dir in seg_dirs:    
+        for metric in metric_list:
+            print(metric)
+            score_all_data = []
+            name_score_list= []
+            for i in range(len(gt_names)):
+                gt_full_name  = join(gt_dir, gt_names[i])
+                seg_full_name = join(seg_dir, seg_names[i])
+                s_dict = load_image_as_nd_array(seg_full_name)
+                g_dict = load_image_as_nd_array(gt_full_name)
+                s_volume = s_dict["data_array"]; s_spacing = s_dict["spacing"]
+                g_volume = g_dict["data_array"]; g_spacing = g_dict["spacing"]
+                # for dim in range(len(s_spacing)):
+                #     assert(s_spacing[dim] == g_spacing[dim])
+
+                score_vector = get_multi_class_evaluation_score(s_volume, g_volume, label_list, 
+                    label_fuse, s_spacing, metric )
+                if(len(label_list) > 1):
+                    score_vector.append(np.asarray(score_vector).mean())
+                score_all_data.append(score_vector)
+                name_score_list.append([seg_names[i]] + score_vector)
+                print(seg_names[i], score_vector)
+            score_all_data = np.asarray(score_all_data)
+            score_mean = score_all_data.mean(axis = 0)
+            score_std  = score_all_data.std(axis = 0)
+            name_score_list.append(['mean'] + list(score_mean))
+            name_score_list.append(['std'] + list(score_std))
         
-    for metric in metric_list:
-        print(metric)
-        score_all_data = []
-        name_score_list= []
-        for i in range(len(gt_names)):
-            gt_full_name  = join(gt_root, gt_names[i])
-            seg_full_name = join(seg_root, seg_names[i])
-            s_dict = load_image_as_nd_array(seg_full_name)
-            g_dict = load_image_as_nd_array(gt_full_name)
-            s_volume = s_dict["data_array"]; s_spacing = s_dict["spacing"]
-            g_volume = g_dict["data_array"]; g_spacing = g_dict["spacing"]
-            # for dim in range(len(s_spacing)):
-            #     assert(s_spacing[dim] == g_spacing[dim])
+            # save the result as csv 
+            if(output_name is None):
+                metric_output_name = "{0:}/eval_{1:}.csv".format(seg_dir, metric)
+            else:
+                metric_output_name = output_name
+            with open(metric_output_name, mode='w') as csv_file:
+                csv_writer = csv.writer(csv_file, delimiter=',', 
+                                quotechar='"',quoting=csv.QUOTE_MINIMAL)
+                head = ['image'] + ["class_{0:}".format(i) for i in label_list]
+                if(len(label_list) > 1):
+                    head = head + ["average"]
+                csv_writer.writerow(head)
+                for item in name_score_list:
+                    csv_writer.writerow(item)
 
-            score_vector = get_multi_class_evaluation_score(s_volume, g_volume, label_list, 
-                label_fuse, s_spacing, metric )
-            if(len(label_list) > 1):
-                score_vector.append(np.asarray(score_vector).mean())
-            score_all_data.append(score_vector)
-            name_score_list.append([seg_names[i]] + score_vector)
-            print(seg_names[i], score_vector)
-        score_all_data = np.asarray(score_all_data)
-        score_mean = score_all_data.mean(axis = 0)
-        score_std  = score_all_data.std(axis = 0)
-        name_score_list.append(['mean'] + list(score_mean))
-        name_score_list.append(['std'] + list(score_std))
-    
-        # save the result as csv 
-        if(output_name is None):
-            metric_output_name = "{0:}/eval_{1:}.csv".format(seg_root, metric)
-        else:
-            metric_output_name = output_name
-        with open(metric_output_name, mode='w') as csv_file:
-            csv_writer = csv.writer(csv_file, delimiter=',', 
-                            quotechar='"',quoting=csv.QUOTE_MINIMAL)
-            head = ['image'] + ["class_{0:}".format(i) for i in label_list]
-            if(len(label_list) > 1):
-                head = head + ["average"]
-            csv_writer.writerow(head)
-            for item in name_score_list:
-                csv_writer.writerow(item)
-
-        print("{0:} mean ".format(metric), score_mean)
-        print("{0:} std  ".format(metric), score_std) 
+            print("{0:} mean ".format(metric), score_mean)
+            print("{0:} std  ".format(metric), score_std) 
 
 def main():
     """

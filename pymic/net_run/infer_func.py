@@ -104,7 +104,7 @@ class Inferer(object):
         weight       = torch.zeros(output_shape).to(image.device)
         temp_w       = self.__get_gaussian_weight_map(window_size)
         temp_w       = np.broadcast_to(temp_w, [batch_size, class_num] + window_size)
-        temp_w       = torch.from_numpy(temp_w).to(image.device)
+        temp_w       = torch.from_numpy(np.array(temp_w)).to(image.device)
         temp_in_shape = img_full_shape[:2] + window_size
         tempx = torch.ones(temp_in_shape).to(image.device)
         out_num, scale_list = self.__get_prediction_number_and_scales(tempx)

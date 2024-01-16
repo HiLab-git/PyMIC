@@ -102,24 +102,35 @@ def parse_config(filename):
             
 def synchronize_config(config):
     data_cfg = config['dataset'] 
-    net_cfg  = config['network']
-    # data_cfg["modal_num"] = net_cfg["in_chns"]
     data_cfg["task_type"] = TaskDict[data_cfg["task_type"]]
-    data_cfg["LabelToProbability_class_num".lower()] = net_cfg["class_num"] 
-    if "PartialLabelToProbability" in data_cfg['train_transform']:
+    if('network' in config):
+        net_cfg  = config['network']
+    # data_cfg["modal_num"] = net_cfg["in_chns"]
+        data_cfg["LabelToProbability_class_num".lower()] = net_cfg["class_num"] 
+    transform = []
+    if('transform' in data_cfg and data_cfg['transform'] is not None):
+        transform.extend(data_cfg['transform'])
+    if('train_transform' in data_cfg and data_cfg['train_transform'] is not None):
+        transform.extend(data_cfg['train_transform'])
+    if('valid_transform' in data_cfg and data_cfg['valid_transform'] is not None):
+        transform.extend(data_cfg['valid_transform'])
+    if('test_transform' in data_cfg and data_cfg['test_transform'] is not None):
+        transform.extend(data_cfg['test_transform'])
+    if ( "PartialLabelToProbability" in transform and 'network' in config):
         data_cfg["PartialLabelToProbability_class_num".lower()] = net_cfg["class_num"]
     patch_size = data_cfg.get('patch_size', None)
     if(patch_size is not None):
-        if('Pad' in data_cfg['train_transform']):
+        if('Pad' in transform and 'Pad_output_size'.lower() not in data_cfg):
             data_cfg['Pad_output_size'.lower()] = patch_size
-        if('CenterCrop' in data_cfg['train_transform']):
+        if('CenterCrop' in transform and 'CenterCrop_output_size'.lower() not in data_cfg):
             data_cfg['CenterCrop_output_size'.lower()] = patch_size
-        if('RandomCrop' in data_cfg['train_transform']):
+        if('RandomCrop' in transform and 'RandomCrop_output_size'.lower() not in data_cfg):
             data_cfg['RandomCrop_output_size'.lower()] = patch_size
-        if('RandomResizedCrop' in data_cfg['train_transform']):
+        if('RandomResizedCrop' in transform and \
+            'RandomResizedCrop_output_size'.lower() not in data_cfg):
             data_cfg['RandomResizedCrop_output_size'.lower()] = patch_size
     config['dataset'] = data_cfg
-    config['network'] = net_cfg
+    # config['network'] = net_cfg
     return config 
 
 def logging_config(config):

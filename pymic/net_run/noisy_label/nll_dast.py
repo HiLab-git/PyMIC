@@ -117,30 +117,26 @@ class NLLDAST(SegmentationAgent):
         """
         Create a dataset for images with noisy labels based on configuraiton.
         """
-        root_dir  = self.config['dataset']['root_dir']
-        modal_num = self.config['dataset'].get('modal_num', 1)
-        transform_names = self.config['dataset']['train_transform']
-        
-        self.transform_list  = []
-        if(transform_names is None or len(transform_names) == 0):
-            data_transform = None 
-        else:
-            transform_param = self.config['dataset']
-            transform_param['task'] = 'segmentation' 
-            for name in transform_names:
+        trans_names, trans_params = self.get_transform_names_and_parameters('train')
+        transform_list  = []
+        if(trans_names is not None and len(trans_names) > 0):
+            for name in trans_names:
                 if(name not in self.transform_dict):
                     raise(ValueError("Undefined transform {0:}".format(name))) 
-                one_transform = self.transform_dict[name](transform_param)
-                self.transform_list.append(one_transform)
-            data_transform = transforms.Compose(self.transform_list)
+                one_transform = self.transform_dict[name](trans_params)
+                transform_list.append(one_transform)
+        data_transform = transforms.Compose(transform_list)
 
+        modal_num = self.config['dataset'].get('modal_num', 1)
         csv_file = self.config['dataset'].get('train_csv_noise', None)
-        dataset  = NiftyDataset(root_dir=root_dir,
+        dataset  = NiftyDataset(root_dir  = self.config['dataset']['train_dir'],
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
                                 with_label= True,
-                                transform = data_transform )
+                                transform = data_transform , 
+                                task = self.task_type)
         return dataset
+
 
     def create_dataset(self):
         super(NLLDAST, self).create_dataset()

@@ -142,9 +142,9 @@ class NLLCLSLSR(SegmentationAgent):
         print(gt.shape, pred_cat.shape)
         conf = get_confident_map(gt, pred_cat)
         conf = conf.reshape(-1, 256, 256).astype(np.uint8) * 255
-        save_dir = self.config['dataset']['root_dir'] + "/slsr_conf"
+        save_dir = self.config['dataset']['train_dir'] + "/slsr_conf"
         for idx in range(len(filename_list)):
-            filename = filename_list[idx][0].split('/')[-1]
+            filename = filename_list[idx][0][0].split('/')[-1]
             conf_map = Image.fromarray(conf[idx])
             dst_path = os.path.join(save_dir, filename)
             conf_map.save(dst_path)
@@ -152,32 +152,29 @@ class NLLCLSLSR(SegmentationAgent):
 def get_confidence_map(cfg_file):
     config   = parse_config(cfg_file)
     config   = synchronize_config(config)
+    agent    = NLLCLSLSR(config, 'test')
 
-    # set dataset
-    transform_names = config['dataset']['valid_transform']
+    # set customized dataset for testing, i.e,. inference with training images 
+    trans_names, trans_params = agent.get_transform_names_and_parameters('valid')
     transform_list  = []
-    transform_dict  = TransformDict
-    if(transform_names is None or len(transform_names) == 0):
-        data_transform = None 
-    else:
-        transform_param = config['dataset']
-        transform_param['task'] = 'segmentation' 
-        for name in transform_names:
-            if(name not in transform_dict):
+    if(trans_names is not None and len(trans_names) > 0):
+        for name in trans_names:
+            if(name not in agent.transform_dict):
                 raise(ValueError("Undefined transform {0:}".format(name))) 
-            one_transform = transform_dict[name](transform_param)
+            one_transform = agent.transform_dict[name](trans_params)
             transform_list.append(one_transform)
-        data_transform = transforms.Compose(transform_list)
+    data_transform = transforms.Compose(transform_list)
 
     csv_file  = config['dataset']['train_csv']
     modal_num = config['dataset'].get('modal_num', 1)
-    dataset  = NiftyDataset(root_dir  = config['dataset']['root_dir'],
+    stage_dir = config['dataset']['train_dir']
+    dataset  = NiftyDataset(root_dir  = stage_dir,
                             csv_file  = csv_file,
                             modal_num = modal_num,
                             with_label= True,
-                            transform = data_transform )
+                            transform = data_transform, 
+                            task = agent.task_type)
 
-    agent = NLLCLSLSR(config, 'test')
     agent.set_datasets(None, None, dataset)
     agent.transform_list = transform_list
     agent.create_dataset()

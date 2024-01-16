@@ -38,8 +38,8 @@ class SLSRLoss(AbstractSegLoss):
 
         if(isinstance(predict, (list, tuple))):
             predict = predict[0]
-        if(self.softmax):
-            predict = nn.Softmax(dim = 1)(predict)
+        if(self.acti_func is not None):
+            predict = self.get_activated_prediction(predict, self.acti_func)
         predict = reshape_tensor_to_2D(predict)
         soft_y  = reshape_tensor_to_2D(soft_y)
         if(pix_w is not None):

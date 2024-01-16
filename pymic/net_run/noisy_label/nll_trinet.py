@@ -17,24 +17,6 @@ from pymic.net.net_dict_seg import SegNetDict
 from pymic.util.parse_config import *
 from pymic.util.ramps import get_rampup_ratio
 
-class TriNet(nn.Module):
-    def __init__(self, params):
-        super(TriNet, self).__init__()
-        net_name  = params['net_type']
-        self.net1 = SegNetDict[net_name](params)
-        self.net2 = SegNetDict[net_name](params)
-        self.net3 = SegNetDict[net_name](params)    
-
-    def forward(self, x):
-        out1 = self.net1(x)
-        out2 = self.net2(x)
-        out3 = self.net3(x)
-
-        if(self.training):
-          return out1, out2, out3
-        else:
-          return (out1 + out2 + out3) / 3
-
 class NLLTriNet(SegmentationAgent):
     """
     Implementation of trinet for learning from noisy samples for 
@@ -56,14 +38,6 @@ class NLLTriNet(SegmentationAgent):
     def __init__(self, config, stage = 'train'):
         super(NLLTriNet, self).__init__(config, stage)
        
-    def create_network(self):
-        if(self.net is None):
-            self.net = TriNet(self.config['network'])
-        if(self.tensor_type == 'float'):
-            self.net.float()
-        else:
-            self.net.double()
-
     def get_loss_and_confident_mask(self, pred, labels_prob, conf_ratio):
         prob = nn.Softmax(dim = 1)(pred)
         prob_2d = reshape_tensor_to_2D(prob) * 0.999 + 5e-4

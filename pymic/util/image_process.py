@@ -38,6 +38,18 @@ def get_ND_bounding_box(volume, margin = None):
         bb_max[i] = min(bb_max[i] + margin[i], input_shape[i])
     return bb_min, bb_max
 
+def get_human_region_from_ct(image, threshold_i = -600, threshold_z = 0.6):
+    input_shape = image.shape
+    mask    = np.asarray(image > threshold_i)
+    mask2d  = np.mean(mask, axis = 0) > threshold_z
+    se      = np.ones([3,3])
+    mask2d  = ndimage.binary_opening(mask2d, se, iterations = 2)
+    mask2d  = get_largest_k_components(mask2d, 1)
+    bbmin, bbmax = get_ND_bounding_box(mask2d, margin = [0, 0])
+    bb_min   = [0] + bbmin
+    bb_max   = list(input_shape[:1]) + bbmax
+    return bb_min, bb_max
+    
 def crop_ND_volume_with_bounding_box(volume, bb_min, bb_max):
     """
     Extract a subregion form an ND image.
