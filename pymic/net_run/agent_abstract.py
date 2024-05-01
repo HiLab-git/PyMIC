@@ -63,6 +63,7 @@ class NetRunAgent(object):
         if(self.deterministic):
             seed_torch(self.random_seed)
             logging.info("deterministric is true")
+
         
     def set_datasets(self, train_set, valid_set, test_set):
         """
@@ -139,7 +140,7 @@ class NetRunAgent(object):
         """
         ckpt_mode = self.config['testing']['ckpt_mode']
         if(ckpt_mode == 0 or ckpt_mode == 1):
-            ckpt_dir    = self.config['training']['ckpt_save_dir']
+            ckpt_dir    = self.config['training']['ckpt_dir']
             ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
             if(ckpt_prefix is None):
                 ckpt_prefix = ckpt_dir.split('/')[-1]
@@ -325,4 +326,6 @@ class NetRunAgent(object):
             self.train_valid()
         else:
             self.infer()
+
+
 

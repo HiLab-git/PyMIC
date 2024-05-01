@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
+import argparse
 import logging
 import os
 import sys
@@ -48,19 +49,28 @@ def main():
     The main function for running a network for training.
     """
     if(len(sys.argv) < 2):
-        print('Number of arguments should be 2. e.g.')
-        print('   pymic_train config.cfg')
+        print('Number of arguments should be at least 2. e.g.')
+        print('   pymic_train config.cfg -train_csv train.csv')
         exit()
-    cfg_file = str(sys.argv[1])
-    if(not os.path.isfile(cfg_file)):
-        raise ValueError("The config file does not exist: " + cfg_file)
-    config   = parse_config(cfg_file)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("cfg", help="configuration file for training")
+    parser.add_argument("-train_csv", help="the csv file for training images", 
+                        required=False, default=None)
+    parser.add_argument("-valid_csv", help="the csv file for validation images", 
+                    required=False, default=None)
+    parser.add_argument("-ckpt_dir", help="the output dir for trained model", 
+                    required=False, default=None)
+    parser.add_argument("-gpus", help="the gpus for runing, e.g., [0]", 
+                    required=False, default=None)
+    args = parser.parse_args()
+    if(not os.path.isfile(args.cfg)):
+        raise ValueError("The config file does not exist: " + args.cfg)
+    config   = parse_config(args)
     config   = synchronize_config(config)
-    log_dir  = config['training']['ckpt_save_dir']
+
+    log_dir  = config['training']['ckpt_dir']
     if(not os.path.exists(log_dir)):
         os.makedirs(log_dir, exist_ok=True)
-    dst_cfg = cfg_file if "/" not in cfg_file else cfg_file.split("/")[-1]
-    shutil.copy(cfg_file, log_dir + "/" + dst_cfg)
     datetime_str = str(datetime.now())[:-7].replace(":", "_")
     if sys.version.startswith("3.9"):
         logging.basicConfig(filename=log_dir+"/log_train_{0:}.txt".format(datetime_str), 
@@ -69,7 +79,9 @@ def main():
         logging.basicConfig(filename=log_dir+"/log_train_{0:}.txt".format(datetime_str), 
                             level=logging.INFO, format='%(message)s') # for python 3.6
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging_config(config)
+    dst_cfg = args.cfg if "/" not in args.cfg else args.cfg.split("/")[-1]
+    wrtie_config(config, log_dir + "/" + dst_cfg)
+
     task     = config['dataset']['task_type']
     if(task == TaskType.CLASSIFICATION_ONE_HOT or task == TaskType.CLASSIFICATION_COEXIST):
         agent = ClassificationAgent(config, 'train')

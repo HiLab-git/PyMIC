@@ -118,7 +118,7 @@ class NiftyDataset(Dataset):
         return sample
 
 
-class ClassificationDataset(NiftyDataset):
+class ClassificationDataset(Dataset):
     """
     Dataset for loading images for classification. It generates 4D tensors with
     dimention order [C, D, H, W] for 3D images, and 3D tensors 
@@ -134,16 +134,32 @@ class ClassificationDataset(NiftyDataset):
     """
     def __init__(self, root_dir, csv_file, modal_num = 1, class_num = 2, 
             with_label = False, transform=None, task = TaskType.CLASSIFICATION_ONE_HOT):
-        super(ClassificationDataset, self).__init__(root_dir, 
-            csv_file, modal_num, with_label, transform)
+        # super(ClassificationDataset, self).__init__(root_dir, 
+        #     csv_file, modal_num, with_label, transform, task)
+        self.root_dir   = root_dir
+        self.csv_items  = pd.read_csv(csv_file)
+        self.modal_num  = modal_num
+        self.with_label = with_label
+        self.transform  = transform
         self.class_num = class_num
         self.task      = task
         assert self.task in  [TaskType.CLASSIFICATION_ONE_HOT, TaskType.CLASSIFICATION_COEXIST]
+        
+        csv_keys = list(self.csv_items.keys())
+        self.image_weight_idx = None
+        if('image_weight' in csv_keys):
+            self.image_weight_idx = csv_keys.index('image_weight')
+
+    def __len__(self):
+        return len(self.csv_items)
 
     def __getlabel__(self, idx):
         csv_keys = list(self.csv_items.keys())
-        label_idx = csv_keys.index('label')
-        label = self.csv_items.iloc[idx, label_idx]
+        if self.task == TaskType.CLASSIFICATION_ONE_HOT:
+            label_idx = csv_keys.index('label')
+            label = self.csv_items.iloc[idx, label_idx]
+        else:
+            label = np.asarray(self.csv_items.iloc[idx, 1:self.class_num + 1], np.float32)
         return label
     
     def __getweight__(self, idx):
@@ -161,13 +177,15 @@ class ClassificationDataset(NiftyDataset):
             names_list.append(image_name)
             image_list.append(image_data)
         image = np.concatenate(image_list, axis = 0)
-        image = np.asarray(image, np.float32)    
+        image = np.asarray(image, np.float32)   
         sample = {'image': image, 'names' : names_list[0], 
                  'origin':image_dict['origin'],
                  'spacing': image_dict['spacing'],
                  'direction':image_dict['direction']}
+        
         if (self.with_label):   
-            sample['label'] = self.__getlabel__(idx) 
+            label = self.__getlabel__(idx) 
+            sample['label'] = label #np.asarray(label, np.float32)
         if (self.image_weight_idx is not None):
             sample['image_weight'] = self.__getweight__(idx) 
         if self.transform:

@@ -84,14 +84,18 @@ def parse_value_from_string(val_str):
         val = val_str
     return val
 
-def parse_config(filename):
+def parse_config(args):
     config = configparser.ConfigParser()
-    config.read(filename)
+    config.read(args.cfg)
     output = {}
     for section in config.sections():
         output[section] = {}
         for key in config[section]:
             val_str = str(config[section][key])
+            if hasattr(args, key):
+                args_key = getattr(args, key)
+                if(args_key is not None):
+                    val_str = args_key
             if(len(val_str)>0):
                 val = parse_value_from_string(val_str)
                 output[section][key] = val
@@ -132,6 +136,24 @@ def synchronize_config(config):
     config['dataset'] = data_cfg
     # config['network'] = net_cfg
     return config 
+
+def wrtie_config(config, output_name):
+    logging.info("The running configuations are: ")
+    with open(output_name, 'w') as f:
+        for section in config:
+            if(isinstance(config[section], dict)):
+                line = '[' + section + ']'
+                f.write('\n' + line + '\n')
+                logging.info(line)
+                for key in config[section]:
+                    value = config[section][key]
+                    line  = "{0:} = {1:}".format(key, value)
+                    f.write(line + '\n')
+                    logging.info(line)
+            else:
+                line = "{0:} = {1:}".format(section, config[section])
+                f.write(line + "\n")
+                logging.info(line)
 
 def logging_config(config):
     for section in config:

@@ -73,7 +73,8 @@ class ClassificationAgent(NetRunAgent):
                                 modal_num = modal_num,
                                 class_num = class_num,
                                 with_label= not (stage == 'test'),
-                                transform = data_transform )
+                                transform = data_transform,
+                                task = self.task_type)
         return dataset
 
     def create_network(self):
@@ -97,6 +98,8 @@ class ClassificationAgent(NetRunAgent):
         if(self.loss_dict is None):
             self.loss_dict = PyMICClsLossDict
         loss_name = self.config['training']['loss_type']
+        if(loss_name != "SigmoidCELoss" and self.task_type == TaskType.CLASSIFICATION_COEXIST):
+            raise ValueError("SigmoidCELoss should be used when task_type is cls_coexist")
         if(loss_name in self.loss_dict):
             self.loss_calculater = self.loss_dict[loss_name](self.config['training'])
         else:
@@ -218,7 +221,7 @@ class ClassificationAgent(NetRunAgent):
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
 
-        ckpt_dir    = self.config['training']['ckpt_save_dir']
+        ckpt_dir    = self.config['training']['ckpt_dir']
         if(ckpt_dir[-1] == "/"):
             ckpt_dir = ckpt_dir[:-1]
         ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
@@ -259,7 +262,7 @@ class ClassificationAgent(NetRunAgent):
         self.trainIter  = iter(self.train_loader)
 
         logging.info("{0:} training start".format(str(datetime.now())[:-7]))
-        self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
+        self.summ_writer = SummaryWriter(self.config['training']['ckpt_dir'])
         self.glob_it = iter_start
         for it in range(iter_start, iter_max, iter_valid):
             lr_value = self.optimizer.param_groups[0]['lr']
@@ -267,6 +270,7 @@ class ClassificationAgent(NetRunAgent):
             train_scalars = self.training()
             t1 = time.time()
             valid_scalars = self.validation()
+            
             t2 = time.time()
             if(isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau)):
                 self.scheduler.step(valid_scalars[metrics])

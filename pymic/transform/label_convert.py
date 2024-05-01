@@ -92,6 +92,8 @@ class LabelToProbability(AbstractTransform):
             label_prob = np.zeros((self.class_num,), np.float32)
             label_prob[label_idx] = 1.0
             sample['label_prob'] = label_prob 
+        elif(self.task == TaskType.CLASSIFICATION_COEXIST):
+            sample['label_prob'] = sample['label']
         return sample
 
 class LabelSmooth(AbstractTransform):

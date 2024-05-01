@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
-
+import logging
 import os
 import numpy as np
 import SimpleITK as sitk
@@ -53,10 +53,16 @@ def load_rgb_image_as_3d_array(filename):
         image = np.expand_dims(image, axis = 0)
     else:
         # transpose rgb image from [H, W, C] to [C, H, W]
-        assert(image_shape[2] == 3 or image_shape[2] == 4)
+        # logging.warning("The image is expected to have 1 or three channels, but it has a different channel number")
+        # logging.warning("({0:} {1:}".format(filename, image_shape))
         if(image_shape[2] == 4):
             image = image[:, :, range(3)]
+        elif(image_shape[2] == 2):
+            image = image[:, :, 0:1]
+        elif(image_shape[2] != 3):
+            raise ValueError("invalid channel number {0:}", image_shape[2])
         image = np.transpose(image, axes = [2, 0, 1])
+        
     output = {}
     output['data_array'] = image
     output['origin']     = (0, 0)

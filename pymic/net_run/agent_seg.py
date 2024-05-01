@@ -321,7 +321,7 @@ class SegmentationAgent(NetRunAgent):
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
         
-        ckpt_dir    = self.config['training']['ckpt_save_dir']
+        ckpt_dir    = self.config['training']['ckpt_dir']
         if(ckpt_dir[-1] == "/"):
             ckpt_dir = ckpt_dir[:-1]
         ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
@@ -365,7 +365,7 @@ class SegmentationAgent(NetRunAgent):
         self.trainIter  = iter(self.train_loader)
         
         logging.info("{0:} training start".format(str(datetime.now())[:-7]))
-        self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
+        self.summ_writer = SummaryWriter(self.config['training']['ckpt_dir'])
         self.glob_it = iter_start
         for it in range(iter_start, iter_max, iter_valid):
             lr_value = self.optimizer.param_groups[0]['lr']
@@ -581,7 +581,7 @@ class SegmentationAgent(NetRunAgent):
         if(test_dir is None):
             test_dir = self.config['dataset']['train_dir']
 
-        for i in range(len(names)):
+        for i in range(output.shape[0]):
             save_name = names[i][0].split('/')[-1] if ignore_dir else \
                 names[i][0].replace('/', '_')
             if((filename_replace_source is  not None) and (filename_replace_target is not None)):
@@ -607,3 +607,4 @@ class SegmentationAgent(NetRunAgent):
                 if(len(temp_prob.shape) == 2):
                     temp_prob = np.asarray(temp_prob * 255, np.uint8)
                 save_nd_array_as_image(temp_prob, prob_save_name, test_dir + '/' + names[i][0])
+0])

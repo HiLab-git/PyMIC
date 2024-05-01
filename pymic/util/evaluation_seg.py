@@ -387,18 +387,20 @@ def main():
     args = parser.parse_args()
     print(args)
     if(args.cfg is not None):
-        config = parse_config(args.cfg)['evaluation']
+        config = parse_config(args)['evaluation']
     else:
         config = {} 
         config['metric_list'] = parse_value_from_string(args.metric)   
         config['label_list']  = None if args.cls_index is None else parse_value_from_string(args.cls_index)
         config['class_number']= None if args.cls_num is None else parse_value_from_string(args.cls_num)
-        config['ground_truth_folder_root'] = args.gt_dir
-        config['segmentation_folder_root'] = args.seg_dir 
+        config['ground_truth_folder'] = args.gt_dir
+        config['segmentation_folder'] = args.seg_dir 
         config['evaluation_image_pair'] = args.name_pair 
         config['output_name'] = args.out 
     print(config)
     evaluation(config)
 
 if __name__ == '__main__':
+    main()
+
     main()

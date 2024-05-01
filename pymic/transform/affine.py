@@ -86,7 +86,7 @@ class Affine(AbstractTransform):
         # sample['Affine_Param'] = json.dumps((input_shape, tform["matrix"]))
         return sample, tform
 
-    def _apply_affine_to_ND_volume(self, image, output_shape, tform, order = 3):
+    def _apply_affine_to_ND_volume(self, image, output_shape, tform, order = 2):
         """
         output_shape should only has two dimensions, e.g., (H, W)
         """
@@ -151,6 +151,10 @@ class Affine(AbstractTransform):
     #     else:
     #         aff_out_shape = origin_shape[-2:]
     #         output_predict = self._apply_affine_to_ND_volume(predict, aff_out_shape, tform.inverse)
+        
+    #     sample['predict'] = output_predict
+    #     return sample
+ = self._apply_affine_to_ND_volume(predict, aff_out_shape, tform.inverse)
         
     #     sample['predict'] = output_predict
     #     return sample

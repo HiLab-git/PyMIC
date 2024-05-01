@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 import copy 
+import itertools
 import json
 import math
 import random
 import numpy as np
+from scipy import ndimage
+from skimage import exposure
 from pymic.transform.abstract_transform import AbstractTransform
 from pymic.util.image_process import *
 try:  # SciPy >= 0.19
@@ -82,7 +85,37 @@ class IntensityClip(AbstractTransform):
             image[chn] = np.clip(image[chn], lower_c, upper_c)
         sample['image'] = image
         return sample
+
+class HistEqual(AbstractTransform):
+    """
+    Histogram equalization. Note that the output will be in the range of [0, 1].
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `HistEqual_channels`: (list) A list of int for specifying the channels.
+    :param `HistEqual_bin`: (int) The number of bins.
+    :param `HistEqual_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
+    """
+    def __init__(self, params):
+        super(HistEqual, self).__init__(params)
+        self.channels =  params.get('HistEqual_channels'.lower(), None)
+        # self.min = params.get('HistEqual_min'.lower(), None)
+        # self.max = params.get('HistEqual_max'.lower(), None)
+        self.bin = params.get('HistEqual_bin'.lower(), 2000)
+        self.inverse   = params.get('HistEqual_inverse'.lower(), False)
     
+    def __call__(self, sample):
+        image = sample['image']
+        C = image.shape[0] 
+        chns = range(C) if self.channels is None else self.channels 
+        for i in range(len(chns)):
+            c = chns[i]
+            image[c] = exposure.equalize_hist(image[c],nbins= self.bin)
+        sample['image'] = image
+        return sample
+
 class GammaCorrection(AbstractTransform):
     """
     Apply random gamma correction to given channels.
@@ -189,7 +222,7 @@ class NonLinearTransform(AbstractTransform):
         self.block_size  = params.get('NonLinearTransform_block_size'.lower(), [8, 16, 16])
         
     
-    def __apply_nonlinear_transform(self, img):
+    def apply_nonlinear_transform(self, img):
         """
         the input img should be normlized to [0, 1]"""
         points = [[0, 0], [random.random(), random.random()], [random.random(), random.random()], [1, 1]]
@@ -217,7 +250,7 @@ class NonLinearTransform(AbstractTransform):
             if(v_min < v_max):
                 img_c = (img_c - v_min)/(v_max - v_min)
                 if(self.block_range is None): # apply non-linear transform to the entire image
-                    img_c = self.__apply_nonlinear_transform(img_c)
+                    img_c = self.apply_nonlinear_transform(img_c)
                 else:  # non-linear transform to random blocks
                     img_c_sr = copy.deepcopy(img_c)
                     for n in range(self.block_range[0], self.block_range[1]): 
@@ -229,7 +262,7 @@ class NonLinearTransform(AbstractTransform):
                         img_c[coord_min[0]:coord_min[0] + self.block_size[0], 
                             coord_min[1]:coord_min[1] + self.block_size[1],
                             coord_min[2]:coord_min[2] + self.block_size[2]] = \
-                            self.__apply_nonlinear_transform(window)
+                            self.apply_nonlinear_transform(window)
                 image[chn] = img_c * (v_max - v_min) + v_min
         sample['image']  = image 
         return sample
@@ -422,6 +455,44 @@ class PatchSwaping(AbstractTransform):
                 image[:, pos_b0[0]:pos_b1[0], pos_b0[1]:pos_b1[1], pos_b0[2]:pos_b1[2]]
             img_out[:, pos_b0[0]:pos_b1[0], pos_b0[1]:pos_b1[1], pos_b0[2]:pos_b1[2]] = \
                 image[:, pos_a0[0]:pos_a1[0], pos_a0[1]:pos_a1[1], pos_a0[2]:pos_a1[2]]
+
+        sample['image'] = img_out
+        sample['label'] = image
+        return sample
+
+class MaskedImageModeling(AbstractTransform):
+    """
+    Apply masking for context restoration in self-supervised learning. 
+    Reference:  Zekai Chen et al., Masked Image Modeling Advances 3D Medical Image Analysis, 
+    WACV, 2023 . 
+    """
+    def __init__(self, params):
+        super(MaskedImageModeling, self).__init__(params)
+        self.ratio       = params.get('MaskedImageModeling_ratio'.lower(), 0.45)
+        self.block_size  = params.get('MaskedImageModeling_block_size'.lower(), [8, 16, 16])
+        self.inverse  = params.get('MaskedImageModeling_inverse'.lower(), False)
+
+    def __call__(self, sample): 
+        image= sample['image']       
+        C, D, H, W = image.shape
+        img_out = copy.deepcopy(image)
+        
+        block = np.zeros([C] + list(self.block_size))
+        for d in range(0, D, self.block_size[0]):
+            d1 = d + self.block_size[0] 
+            if d1 > D:
+                continue 
+            for h in range(0, H, self.block_size[1]):
+                h1 = h + self.block_size[1]
+                if  h1 > H:
+                    continue
+                for w in range(0, W, self.block_size[2]):
+                    w1 = w + self.block_size[2]
+                    if w1 > W:
+                        continue 
+                    r = random.random()
+                    if ( r < self.ratio):
+                        img_out[:, d:d1, h:h1, w:w1] = block
 
         sample['image'] = img_out
         sample['label'] = image

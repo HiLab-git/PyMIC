@@ -9,7 +9,7 @@ from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.io.nifty_dataset import NiftyDataset
 from pymic.transform.trans_dict import TransformDict
 from pymic.net_run.agent_abstract import seed_torch
-from pymic.net_run.self_sup.util import volume_fusion
+from pymic.net_run.self_sup.util import volume_fusion, nonlienar_volume_fusion,augmented_volume_fusion,self_volume_fusion
 
 class PreprocessAgent(object):
     def __init__(self, config):
@@ -92,17 +92,37 @@ class PreprocessAgent(object):
                 B, C    = inputs.shape[0], inputs.shape[1]
                 spacing = [x.numpy()[0] for x in data['spacing']]
                 
-                if(batch_operation is not None and 'VolumeFusion' in batch_operation):
-                    class_num   = self.config['dataset']['VolumeFusion_cls_num'.lower()]
-                    block_range = self.config['dataset']['VolumeFusion_block_range'.lower()]
-                    size_min    = self.config['dataset']['VolumeFusion_size_min'.lower()]
-                    size_max    = self.config['dataset']['VolumeFusion_size_max'.lower()]
-                    inputs, labels = volume_fusion(inputs, class_num - 1, block_range, size_min, size_max)
+                if(batch_operation is not None):
+                    if('VolumeFusion' in batch_operation):
+                        class_num   = self.config['dataset']['VolumeFusion_cls_num'.lower()]
+                        block_range = self.config['dataset']['VolumeFusion_block_range'.lower()]
+                        size_min    = self.config['dataset']['VolumeFusion_size_min'.lower()]
+                        size_max    = self.config['dataset']['VolumeFusion_size_max'.lower()]
+                        inputs, labels = volume_fusion(inputs, class_num - 1, block_range, size_min, size_max)
+                    elif('SelfVolumeFusion' in batch_operation):
+                        class_num   = self.config['dataset']['SelfVolumeFusion_cls_num'.lower()]
+                        fuse_ratio  = self.config['dataset']['SelfVolumeFusion_fuse_ratio'.lower()]
+                        size_min    = self.config['dataset']['SelfVolumeFusion_size_min'.lower()]
+                        size_max    = self.config['dataset']['SelfVolumeFusion_size_max'.lower()]
+                        inputs, labels = self_volume_fusion(inputs, class_num - 1, fuse_ratio, size_min, size_max)
+                    elif('NonLinearVolumeFusion' in batch_operation):
+                        block_range = self.config['dataset']['NonLinearVolumeFusion_block_range'.lower()]
+                        size_min    = self.config['dataset']['NonLinearVolumeFusion_size_min'.lower()]
+                        size_max    = self.config['dataset']['NonLinearVolumeFusion_size_max'.lower()]
+                        inputs, labels = nonlienar_volume_fusion(inputs, block_range, size_min, size_max)
+                    elif('AugmentedVolumeFusion' in batch_operation):
+                        size_min    = self.config['dataset']['AugmentedVolumeFusion_size_min'.lower()]
+                        size_max    = self.config['dataset']['AugmentedVolumeFusion_size_max'.lower()]
+                        inputs, labels = augmented_volume_fusion(inputs, size_min, size_max)
 
                 for b in range(B):
                     for c in range(C):
                         image_name = out_dir + "/" + img_names[c][b]
                         print(image_name)
+                        out_dir_full = "/".join(image_name.split("/")[:-1])
+                        print(out_dir_full)
+                        if(not os.path.exists(out_dir_full)):
+                            os.mkdir(out_dir_full)
                         save_nd_array_as_image(inputs[b][c], image_name, reference_name = None, spacing=spacing)        
                     if(labels is not None):
                         label_name = out_dir + "/" + lab_names[b]
