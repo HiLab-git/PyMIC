@@ -47,6 +47,7 @@ def bezier_curve(points, nTimes=1000):
 
     return xvals, yvals
 
+
 class IntensityClip(AbstractTransform):
     """
     Clip the intensity for input image
@@ -161,6 +162,48 @@ class GammaCorrection(AbstractTransform):
         sample['image'] = image
         return sample
 
+def gaussian_noise(image, std_min, std_max,):
+    """
+    The input has a shape of [C, D, H, W] or [D, H, W]. 
+    In the former case, volume-level noise will be added.
+    In the latter case, slice-level noise will ba added. 
+    """
+    v_min  = image.min()
+    v_max  = image.max()
+    std    = random.random() * (std_max - std_min) + std_min
+    noise  = np.random.normal(0, std, image.shape)
+    out = image + noise
+    out = np.clip(out, v_min, v_max)
+    return out 
+
+def gaussian_blur(image, sigma_min, sigma_max):
+    sigma = random.random() * (sigma_max - sigma_min) + sigma_min
+    out   = ndimage.gaussian_filter(image, sigma, order = 0)
+    return out 
+
+def gaussian_sharpen(image, sigma_min, sigma_max, alpha = 10.0):
+    blurred = gaussian_blur(image, sigma_min, sigma_max)
+    out = image + (image - blurred) * alpha
+    return out
+
+def window_level_augment(image, offset = 0.1):
+    v_min  = image.min()
+    v_max  = image.max()
+    margin = (v_max - v_min) * offset
+    v0 = random.uniform(v_min - margin, v_min + margin)
+    v1 = random.uniform(v_max - margin, v_max + margin)
+    out = np.clip((image - v0) / (v1 - v0), 0, 1)
+    return out  
+
+def gamma_correction(image, gamma_min, gamma_max):
+    v_min  = image.min()
+    v_max  = image.max()
+    if(v_min < v_max):
+        image = (image - v_min)/(v_max - v_min)
+        gamma = random.random() * (gamma_max - gamma_min) + gamma_min
+        image = np.power(image, gamma)*(v_max - v_min) + v_min
+    return image  
+
 class GaussianNoise(AbstractTransform):
     """
     Add Gaussian Noise to given channels.
@@ -179,8 +222,8 @@ class GaussianNoise(AbstractTransform):
     def __init__(self, params):
         super(GaussianNoise, self).__init__(params)
         self.channels = params.get('GaussianNoise_channels'.lower(), None)
-        self.mean     = params['GaussianNoise_mean'.lower()]
-        self.std      = params['GaussianNoise_std'.lower()]
+        self.std_min  = params.get('GaussianNoise_std_min'.lower(), 0.02)
+        self.std_max  = params.get('GaussianNoise_std_max'.lower(), 0.1)
         self.prob     = params.get('GaussianNoise_probability'.lower(), 0.5)
         self.inverse  = params.get('GaussianNoise_inverse'.lower(), False)
     
@@ -190,10 +233,53 @@ class GaussianNoise(AbstractTransform):
             self.channels = range(image.shape[0])
         for chn in self.channels:
             if(np.random.uniform() < self.prob):
-                img_c = image[chn]
-                noise = np.random.normal(self.mean, self.std, img_c.shape)
-                image[chn] = img_c + noise
+                image[chn] = gaussian_noise(image[chn], self.std_min, self.std_max)
+        sample['image'] = image
+        return sample
 
+def adaptive_contrast_adjust(image, p0=0.1, p1=99.9):
+    v_min = image.min()
+    v_max = image.max()
+    v0 = np.percentile(image, p0)
+    v1 = np.percentile(image, p1)
+    mask_l = image < v0 
+    mask_m = (image >= v0) * (image <= v1)
+    mask_u = image > v1
+    image[mask_l] = (image[mask_l] - v_min)  * 0.1 / (v0 - v_min)
+    image[mask_m] = (image[mask_m] - v0) / (v1 - v0)*0.8 + 0.1
+    image[mask_u] = 0.9 + 0.1 * (image[mask_u] - v1) / (v_max - v1)
+    return image 
+
+class AdaptiveContrastAdjust(AbstractTransform):
+    """
+    Add Gaussian Noise to given channels.
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `GaussianNoise_channels`: (list) A list of int for specifying the channels.
+    :param `GaussianNoise_mean`: (float) The mean value of noise.
+    :param `GaussianNoise_std`: (float) The std of noise.
+    :param `GaussianNoise_probability`: (optional, float) 
+        The probability of applying GaussianNoise. Default is 0.5.
+    :param `GaussianNoise_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
+    """
+    def __init__(self, params):
+        super(AdaptiveContrastAdjust, self).__init__(params)
+        self.channels = params.get('AdaptiveContrastAdjust_channels'.lower(), None)
+        self.p0       = params.get('AdaptiveContrastAdjust_percent_lower'.lower(), 2)
+        self.p1       = params.get('AdaptiveContrastAdjust_percent_upper'.lower(), 98)
+        self.prob     = params.get('AdaptiveContrastAdjust_probability'.lower(), 0.5)
+        self.inverse  = params.get('AdaptiveContrastAdjust_inverse'.lower(), False)
+    
+    def __call__(self, sample):
+        image = sample['image'] * 1.0
+        if(self.channels is None):
+            self.channels = range(image.shape[0])
+        for chn in self.channels:
+            if(np.random.uniform() < self.prob):
+                image[chn] = adaptive_contrast_adjust(image[chn], self.p0, self.p1)
         sample['image'] = image
         return sample
 
@@ -219,7 +305,7 @@ class NonLinearTransform(AbstractTransform):
         self.prob     = params.get('NonLinearTransform_probability'.lower(), 0.5)
         self.inverse  = params.get('NonLinearTransform_inverse'.lower(), False)
         self.block_range = params.get('NonLinearTransform_block_range'.lower(), None)
-        self.block_size  = params.get('NonLinearTransform_block_size'.lower(), [8, 16, 16])
+        self.block_size  = params.get('NonLinearTransform_block_size'.lower(), [4, 8, 8])
         
     
     def apply_nonlinear_transform(self, img):
@@ -326,7 +412,7 @@ class InPainting(AbstractTransform):
         self.inverse  = params.get('InPainting_inverse'.lower(), False)
         self.prob     = params.get('InPainting_probability'.lower(), 0.5)
         self.block_range = params.get('InPainting_block_range'.lower(), (20, 40))
-        self.block_size  = params.get('InPainting_block_size'.lower(), [8, 16, 16])
+        self.block_size  = params.get('InPainting_block_size'.lower(), [4, 8, 8])
        
     def __call__(self, sample):
         if(random.random() >  self.prob):

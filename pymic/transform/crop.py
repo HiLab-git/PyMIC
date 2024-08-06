@@ -428,9 +428,9 @@ class RandomSlice(AbstractTransform):
             
         return sample
 
-class CropHumanRegionFromCT(CenterCrop):
+class CropHumanRegion(CenterCrop):
     """
-    Crop the human region from a CT volume.
+    Crop the human region from a CT for MRI volume.
     The arguments should be written in the `params` dictionary, and it has the
     following fields:
 
@@ -447,9 +447,9 @@ class CropHumanRegionFromCT(CenterCrop):
         Default is `True`.
     """
     def __init__(self, params):
-        self.threshold_i = params.get('CropHumanRegionFromCT_intensity_threshold'.lower(), -600)
-        self.threshold_z = params.get('CropHumanRegionFromCT_zaxis_threshold'.lower(), 0.5)
-        self.inverse     = params.get('CropHumanRegionFromCT_inverse'.lower(), True)
+        self.threshold_i = params.get('CropHumanRegion_intensity_threshold'.lower(), -600)
+        self.threshold_z = params.get('CropHumanRegion_zaxis_threshold'.lower(), 0.5)
+        self.inverse     = params.get('CropHumanRegion_inverse'.lower(), True)
         self.task = params['task']
         
     def _get_crop_param(self, sample):

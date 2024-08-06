@@ -131,14 +131,17 @@ class NormalizeWithPercentiles(AbstractTransform):
         The min percentile, which must be between 0 and 100 inclusive.
     :param `NormalizeWithPercentiles_percentile_upper`: (float) 
         The max percentile, which must be between 0 and 100 inclusive.
+    :param `NormalizeWithPercentiles_output_mode`: (int) 0: the output is in the range [0,1]
+        Otherwise the output is in the range of [-1, 1]
     :param `NormalizeWithMinMax_inverse`: (optional, bool) 
         Is inverse transform needed for inference. Default is `False`.
     """
     def __init__(self, params):
         super(NormalizeWithPercentiles, self).__init__(params)
-        self.chns = params['NormalizeWithPercentiles_channels'.lower()]
-        self.percent_lower = params['NormalizeWithPercentiles_percentile_lower'.lower()]
-        self.percent_upper = params['NormalizeWithPercentiles_percentile_upper'.lower()]
+        self.chns = params.get('NormalizeWithPercentiles_channels'.lower(), None)
+        self.percent_lower = params.get('NormalizeWithPercentiles_percentile_lower'.lower(), 0.1)
+        self.percent_upper = params.get('NormalizeWithPercentiles_percentile_upper'.lower(), 99.9)
+        self.out_mode      = params.get('NormalizeWithPercentiles_output_mode'.lower(), 0)
         self.inverse = params.get('NormalizeWithPercentiles_inverse'.lower(), False)
 
     def __call__(self, sample):
@@ -152,7 +155,13 @@ class NormalizeWithPercentiles(AbstractTransform):
 
             img_chn[img_chn < v0] = v0
             img_chn[img_chn > v1] = v1
-            img_chn = 2.0* (img_chn - v0) / (v1 - v0) -1.0
+            if(self.out_mode == 0):
+                img_chn = (img_chn - v0) / (v1 - v0)
+                img_chn = np.clip(img_chn, 0, 1)
+            else:
+                img_chn = 2.0* (img_chn - v0) / (v1 - v0) -1.0
+                img_chn = np.clip(img_chn, -1, 1)
+
             image[chn] = img_chn
         sample['image'] = image
         return sample
