@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 
-import torch
 import torch.nn as nn
 from pymic.net.net3d.unet3d import *
 
@@ -20,7 +19,7 @@ class UNet3D_DualBranch(nn.Module):
 
     :param output_mode: (str) How to obtain the result during the inference. 
       `average`: taking average of the two branches. 
-      `first`: takeing the result in the first branch. 
+      `first`: taking the result in the first branch. 
       `second`: taking the result in the second branch.
     """
     def __init__(self, params):

@@ -2,9 +2,8 @@
 
 from __future__ import print_function, division
 import logging
-import os
-import sys
 import numpy as np
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -62,14 +61,16 @@ class NLLTriNet(SegmentationAgent):
         train_loss_no_select2 = 0
         train_loss1, train_loss2, train_loss3 = 0, 0, 0
         train_dice_list = []
+        data_time, gpu_time, loss_time, back_time = 0, 0, 0, 0
         self.net.train()
         for it in range(iter_valid):
+            t0 = time.time()
             try:
                 data = next(self.trainIter)
             except StopIteration:
                 self.trainIter = iter(self.train_loader)
                 data = next(self.trainIter)
-            
+            t1 = time.time()
             # get the inputs
             inputs      = self.convert_tensor_type(data['image'])
             labels_prob = self.convert_tensor_type(data['label_prob'])
@@ -80,7 +81,7 @@ class NLLTriNet(SegmentationAgent):
                 
             # forward + backward + optimize
             outputs1, outputs2, outputs3 = self.net(inputs)
-
+            t2 = time.time()
             rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end)
             forget_ratio = (1 - select_ratio) * rampup_ratio
             remb_ratio   = 1 - forget_ratio
@@ -95,8 +96,9 @@ class NLLTriNet(SegmentationAgent):
             loss2_avg = torch.sum(loss2 * mask13) / mask13.sum()
             loss3_avg = torch.sum(loss3 * mask12) / mask12.sum()
             loss = (loss1_avg + loss2_avg + loss3_avg) / 3
-
+            t3 = time.time()
             loss.backward()
+            t4 = time.time()
             self.optimizer.step()
 
             train_loss_no_select1 = train_loss_no_select1 + loss1.mean().item()
@@ -109,6 +111,11 @@ class NLLTriNet(SegmentationAgent):
             soft_out1, labels_prob = reshape_prediction_and_ground_truth(soft_out1, labels_prob)  
             dice_list   = get_classwise_dice(soft_out1, labels_prob).detach().cpu().numpy()
             train_dice_list.append(dice_list)
+
+            data_time = data_time + t1 - t0 
+            gpu_time  = gpu_time  + t2 - t1
+            loss_time = loss_time + t3 - t2
+            back_time = back_time + t4 - t3
         train_avg_loss_no_select1 = train_loss_no_select1 / iter_valid
         train_avg_loss_no_select2 = train_loss_no_select2 / iter_valid
         train_avg_loss1 = train_loss1 / iter_valid
@@ -120,7 +127,9 @@ class NLLTriNet(SegmentationAgent):
             'loss1':train_avg_loss1, 'loss2': train_avg_loss2,
             'loss_no_select1':train_avg_loss_no_select1, 
             'loss_no_select2':train_avg_loss_no_select2,
-            'select_ratio':remb_ratio, 'avg_fg_dice':train_avg_dice, 'class_dice': train_cls_dice}
+            'select_ratio':remb_ratio, 'avg_fg_dice':train_avg_dice, 'class_dice': train_cls_dice,
+            'data_time': data_time, 'forward_time':gpu_time, 
+            'loss_time':loss_time, 'backward_time':back_time }
         return train_scalers
     
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
@@ -146,4 +155,7 @@ class NLLTriNet(SegmentationAgent):
             ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
         logging.info('valid loss {0:.4f}, avg foreground dice {1:.4f} '.format(
             valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
-            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]") 
+            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")
+        logging.info("data: {0:.2f}s, forward: {1:.2f}s, loss: {2:.2f}s, backward: {3:.2f}s".format(
+                train_scalars['data_time'], train_scalars['forward_time'], 
+                train_scalars['loss_time'], train_scalars['backward_time'])) 

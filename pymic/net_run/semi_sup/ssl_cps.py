@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 import logging
+import time 
 import numpy as np
 import torch
 from random import random
@@ -44,8 +45,10 @@ class SSLCPS(SSLSegAgent):
         train_loss_sup1,  train_loss_pseudo_sup1 = 0, 0
         train_loss_sup2,  train_loss_pseudo_sup2 = 0, 0
         train_dice_list = []
+        data_time, gpu_time, loss_time, back_time = 0, 0, 0, 0
         self.net.train()
         for it in range(iter_valid):
+            t0 = time.time()
             try:
                 data_lab = next(self.trainIter)
             except StopIteration:
@@ -56,7 +59,7 @@ class SSLCPS(SSLSegAgent):
             except StopIteration:
                 self.trainIter_unlab = iter(self.train_loader_unlab)
                 data_unlab = next(self.trainIter_unlab)
-
+            t1 = time.time()
             # get the inputs
             x0   = self.convert_tensor_type(data_lab['image'])
             y0   = self.convert_tensor_type(data_lab['label_prob'])  
@@ -84,6 +87,7 @@ class SSLCPS(SSLSegAgent):
             outputs1, outputs2 = self.net(inputs) 
             outputs_soft1 = torch.softmax(outputs1, dim=1)
             outputs_soft2 = torch.softmax(outputs2, dim=1)
+            t2 = time.time()
 
             n0 = list(x0.shape)[0] 
             p0 = outputs_soft1[:n0]
@@ -105,8 +109,9 @@ class SSLCPS(SSLSegAgent):
             model1_loss = loss_sup1 + regular_w * pse_sup1
             model2_loss = loss_sup2 + regular_w * pse_sup2
             loss = model1_loss + model2_loss
-
+            t3 = time.time()
             loss.backward()
+            t4 = time.time()
             self.optimizer.step()
 
             train_loss = train_loss + loss.item()
@@ -123,6 +128,11 @@ class SSLCPS(SSLSegAgent):
             p0_soft, y0 = reshape_prediction_and_ground_truth(p0_soft, y0) 
             dice_list   = get_classwise_dice(p0_soft, y0)
             train_dice_list.append(dice_list.cpu().numpy())
+
+            data_time = data_time + t1 - t0 
+            gpu_time  = gpu_time  + t2 - t1
+            loss_time = loss_time + t3 - t2
+            back_time = back_time + t4 - t3
         train_avg_loss = train_loss / iter_valid
         train_avg_loss_sup1 = train_loss_sup1 / iter_valid
         train_avg_loss_sup2 = train_loss_sup2 / iter_valid
@@ -134,7 +144,9 @@ class SSLCPS(SSLSegAgent):
         train_scalers = {'loss': train_avg_loss, 
             'loss_sup1':train_avg_loss_sup1, 'loss_sup2': train_avg_loss_sup2,
             'loss_pse_sup1':train_avg_loss_pse_sup1, 'loss_pse_sup2': train_avg_loss_pse_sup2,
-            'regular_w':regular_w, 'avg_fg_dice':train_avg_dice, 'class_dice': train_cls_dice}
+            'regular_w':regular_w, 'avg_fg_dice':train_avg_dice, 'class_dice': train_cls_dice,
+            'data_time': data_time, 'forward_time':gpu_time, 
+            'loss_time':loss_time, 'backward_time':back_time }
         return train_scalers
   
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
@@ -163,3 +175,6 @@ class SSLCPS(SSLSegAgent):
         logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
             valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]") 
+        logging.info("data: {0:.2f}s, forward: {1:.2f}s, loss: {2:.2f}s, backward: {3:.2f}s".format(
+                train_scalars['data_time'], train_scalars['forward_time'], 
+                train_scalars['loss_time'], train_scalars['backward_time']))

@@ -3,6 +3,7 @@ from __future__ import print_function, division
 import logging
 import numpy as np
 import random
+import time
 import torch
 import torch.nn.functional as F
 from pymic.loss.seg.util import get_soft_label
@@ -54,19 +55,19 @@ class WSLUSTM(WSLSegAgent):
         iter_max     = self.config['training']['iter_max']
         rampup_start = wsl_cfg.get('rampup_start', 0)
         rampup_end   = wsl_cfg.get('rampup_end', iter_max)
-        train_loss  = 0
-        train_loss_sup = 0
-        train_loss_reg = 0
+        train_loss, train_loss_sup, train_loss_reg = 0, 0, 0
         train_dice_list = []
+        data_time, gpu_time, loss_time, back_time = 0, 0, 0, 0
         self.net.train()
         self.net_ema.to(self.device)
         for it in range(iter_valid):
+            t0 = time.time()
             try:
                 data = next(self.trainIter)
             except StopIteration:
                 self.trainIter = iter(self.train_loader)
                 data = next(self.trainIter)
-            
+            t1 = time.time()
             # get the inputs
             inputs = self.convert_tensor_type(data['image'])
             y      = self.convert_tensor_type(data['label_prob'])  
@@ -79,6 +80,7 @@ class WSLUSTM(WSLSegAgent):
             # forward + backward + optimize
             noise   = torch.clamp(torch.randn_like(inputs) * 0.1, -0.2, 0.2)
             outputs = self.net(inputs + noise)
+            t2 = time.time()
             out_prob= F.softmax(outputs, dim=1)
             loss_sup = self.get_loss_value(data, outputs, y)
 
@@ -117,7 +119,7 @@ class WSLUSTM(WSLSegAgent):
 
             regular_w = wsl_cfg.get('regularize_w', 0.1) * rampup_ratio
             loss = loss_sup + regular_w*loss_reg
-
+            t3 = time.time()
             loss.backward()
             self.optimizer.step()
 
@@ -126,6 +128,7 @@ class WSLUSTM(WSLSegAgent):
             alpha = min(1 - 1 / (self.glob_it / iter_valid + 1), alpha)
             for ema_param, param in zip(self.net_ema.parameters(), self.net.parameters()):
                 ema_param.data.mul_(alpha).add(param.data, alpha = 1.0 - alpha)
+            t4 = time.time()
 
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()
@@ -138,6 +141,11 @@ class WSLUSTM(WSLSegAgent):
             p_soft, y = reshape_prediction_and_ground_truth(p_soft, y) 
             dice_list   = get_classwise_dice(p_soft, y)
             train_dice_list.append(dice_list.cpu().numpy())
+
+            data_time = data_time + t1 - t0 
+            gpu_time  = gpu_time  + t2 - t1
+            loss_time = loss_time + t3 - t2
+            back_time = back_time + t4 - t3
         train_avg_loss = train_loss / iter_valid
         train_avg_loss_sup = train_loss_sup / iter_valid
         train_avg_loss_reg = train_loss_reg / iter_valid
@@ -146,5 +154,7 @@ class WSLUSTM(WSLSegAgent):
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
             'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
-            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice}
+            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice,
+            'data_time': data_time, 'forward_time':gpu_time, 
+            'loss_time':loss_time, 'backward_time':back_time }
         return train_scalers

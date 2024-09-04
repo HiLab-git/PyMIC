@@ -24,7 +24,7 @@ class WSLSegAgent(SegmentationAgent):
                       'valid':valid_scalars['loss']}
         loss_sup_scalar  = {'train':train_scalars['loss_sup']}
         loss_upsup_scalar  = {'train':train_scalars['loss_reg']}
-        dice_scalar ={'train':train_scalars['avg_fg_dice'], 'valid':valid_scalars['avg_fg_dice']}
+        dice_scalar ={'valid':valid_scalars['avg_fg_dice']}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars('loss_sup', loss_sup_scalar, glob_it)
         self.summ_writer.add_scalars('loss_reg', loss_upsup_scalar, glob_it)
@@ -36,9 +36,10 @@ class WSLSegAgent(SegmentationAgent):
             cls_dice_scalar = {'train':train_scalars['class_dice'][c], \
                 'valid':valid_scalars['class_dice'][c]}
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
-        logging.info('train loss {0:.4f}, avg foreground dice {1:.4f} '.format(
-            train_scalars['loss'], train_scalars['avg_fg_dice']) + "[" + \
-            ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
+        logging.info('train loss {0:.4f}'.format(train_scalars['loss']))        
         logging.info('valid loss {0:.4f}, avg foreground dice {1:.4f} '.format(
             valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")  
+        logging.info("data: {0:.2f}s, forward: {1:.2f}s, loss: {2:.2f}s, backward: {3:.2f}s".format(
+            train_scalars['data_time'], train_scalars['forward_time'], 
+            train_scalars['loss_time'], train_scalars['backward_time']))

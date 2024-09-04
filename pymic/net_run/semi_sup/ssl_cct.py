@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 import logging
+import time 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -88,13 +89,13 @@ class SSLCCT(SSLSegAgent):
         rampup_end   = ssl_cfg.get('rampup_end', iter_max)
         unsup_loss_name = ssl_cfg.get('unsupervised_loss', "MSE")
         self.unsup_loss_f = unsup_loss_dict[unsup_loss_name]
-        train_loss  = 0
-        train_loss_sup = 0
-        train_loss_reg = 0
+        train_loss, train_loss_sup, train_loss_reg = 0, 0, 0
         train_dice_list = []
+        data_time, gpu_time, loss_time, back_time = 0, 0, 0, 0
         self.net.train()
         
         for it in range(iter_valid):
+            t0 = time.time()
             try:
                 data_lab = next(self.trainIter)
             except StopIteration:
@@ -105,7 +106,7 @@ class SSLCCT(SSLSegAgent):
             except StopIteration:
                 self.trainIter_unlab = iter(self.train_loader_unlab)
                 data_unlab = next(self.trainIter_unlab)
-
+            t1 = time.time()
             # get the inputs
             x0   = self.convert_tensor_type(data_lab['image'])
             y0   = self.convert_tensor_type(data_lab['label_prob'])  
@@ -118,6 +119,7 @@ class SSLCCT(SSLSegAgent):
 
             # forward pass
             output, aux_outputs = self.net(inputs)
+            t2 = time.time()
             n0 = list(x0.shape)[0] 
 
             # get supervised loss
@@ -135,8 +137,9 @@ class SSLCCT(SSLSegAgent):
             rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end, "sigmoid")
             regular_w = ssl_cfg.get('regularize_w', 0.1) * rampup_ratio
             loss = loss_sup + regular_w*loss_reg
-
+            t3 = time.time()
             loss.backward()
+            t4 = time.time()
             self.optimizer.step()
 
             train_loss = train_loss + loss.item()
@@ -150,6 +153,11 @@ class SSLCCT(SSLSegAgent):
             p0_soft, y0 = reshape_prediction_and_ground_truth(p0_soft, y0) 
             dice_list   = get_classwise_dice(p0_soft, y0)
             train_dice_list.append(dice_list.cpu().numpy())
+
+            data_time = data_time + t1 - t0 
+            gpu_time  = gpu_time  + t2 - t1
+            loss_time = loss_time + t3 - t2
+            back_time = back_time + t4 - t3
         train_avg_loss = train_loss / iter_valid
         train_avg_loss_sup = train_loss_sup / iter_valid
         train_avg_loss_reg = train_loss_reg / iter_valid
@@ -158,5 +166,7 @@ class SSLCCT(SSLSegAgent):
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
             'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
-            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice}
+            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice,
+            'data_time': data_time, 'forward_time':gpu_time, 
+            'loss_time':loss_time, 'backward_time':back_time }
         return train_scalers

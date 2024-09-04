@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
+import numpy as np 
 import random
 import torch
-import numpy as np 
+import time
 import torch.nn as nn
 import torchvision.transforms as transforms
 from pymic.io.nifty_dataset import NiftyDataset
@@ -163,15 +164,15 @@ class NLLDAST(SegmentationAgent):
         iter_max     = self.config['training']['iter_max']
         rampup_start = nll_cfg.get('rampup_start', 0)
         rampup_end   = nll_cfg.get('rampup_end', iter_max)
-        train_loss   = 0
-        train_loss_sup = 0
-        train_loss_reg = 0
+        train_loss, train_loss_sup, train_loss_reg  = 0, 0, 0
         train_dice_list = []
+        data_time, gpu_time, loss_time, back_time = 0, 0, 0, 0
         self.net.train()
 
         rank_length = nll_cfg.get("dast_rank_length", 20)
         consist_loss = ConsistLoss()
         for it in range(iter_valid):
+            t0 = time.time()
             try:
                 data_cl = next(self.trainIter)
             except StopIteration:
@@ -182,7 +183,7 @@ class NLLDAST(SegmentationAgent):
             except StopIteration:
                 self.trainIter_noise = iter(self.train_loader_noise)
                 data_no = next(self.trainIter_noise)
-
+            t1 = time.time()
             # get the inputs
             x0 = self.convert_tensor_type(data_cl['image'])  # clean sample
             y0 = self.convert_tensor_type(data_cl['label_prob'])  
@@ -196,6 +197,7 @@ class NLLDAST(SegmentationAgent):
                 
             # forward + backward + optimize
             b0_pred, b1_pred = self.net(inputs) 
+            t2 = time.time()
             n0 = list(x0.shape)[0]  # number of clean samples
             b0_x0_pred = b0_pred[:n0] # predication of clean samples from clean branch
             b0_x1_pred = b0_pred[n0:] # predication of noisy samples from clean branch
@@ -231,8 +233,9 @@ class NLLDAST(SegmentationAgent):
                     b0_x1_prob   = nn.Softmax(dim = 1)(b0_x1_pred)
                     loss_st  = torch.mean(torch.abs(b0_x1_prob - sharpen(pseudo_label, 0.5)))
                     loss = loss + loss_st * w_st
-
+            t3 = time.time()
             loss.backward()
+            t4 = time.time()
             self.optimizer.step()
 
             train_loss = train_loss + loss.item()
@@ -248,6 +251,11 @@ class NLLDAST(SegmentationAgent):
             p0_soft, y0 = reshape_prediction_and_ground_truth(p0_soft, y0) 
             dice_list   = get_classwise_dice(p0_soft, y0)
             train_dice_list.append(dice_list.cpu().numpy())
+
+            data_time = data_time + t1 - t0 
+            gpu_time  = gpu_time  + t2 - t1
+            loss_time = loss_time + t3 - t2
+            back_time = back_time + t4 - t3
         train_avg_loss = train_loss / iter_valid
         train_avg_loss_sup = train_loss_sup / iter_valid
         train_avg_loss_reg = train_loss_reg / iter_valid
@@ -256,7 +264,9 @@ class NLLDAST(SegmentationAgent):
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
             'loss_reg':train_avg_loss_reg, 'regular_w':w_dbc,
-            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice}
+            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice,
+            'data_time': data_time, 'forward_time':gpu_time, 
+            'loss_time':loss_time, 'backward_time':back_time }
         return train_scalers
 
     def train_valid(self):

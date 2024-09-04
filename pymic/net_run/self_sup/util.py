@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 import os 
+import copy 
 import torch
 import random
 import numpy as np 
@@ -136,7 +137,6 @@ def get_human_body_mask_and_crop(input_dir, out_img_dir, out_mask_dir):
         mask_obj.CopyInformation(out_img_obj)
         sitk.WriteImage(mask_obj, mask_name)
 
-
 def volume_fusion(x, fg_num, block_range, size_min, size_max):
     """
     Fuse a subregion of an impage with another one to generate
@@ -145,7 +145,7 @@ def volume_fusion(x, fg_num, block_range, size_min, size_max):
     """
     #n_min, n_max,  
     N, C, D, H, W = list(x.shape)
-    fg_mask = torch.zeros_like(x).to(torch.int32)
+    fg_mask = torch.zeros_like(x[:, :1, :, :, :]).to(torch.int32)
     # generate mask 
     for n in range(N):
         p_num = random.randint(block_range[0], block_range[1])
@@ -163,10 +163,163 @@ def volume_fusion(x, fg_num, block_range, size_min, size_max):
             h1 = min(H, h0 + h)
             w1 = min(W, w0 + w)
             d0, h0, w0 = max(0, d0), max(0, h0), max(0, w0) 
-            temp_m = torch.ones([C, d1 - d0, h1 - h0, w1 - w0]) * random.randint(1, fg_num)
+            temp_m = torch.ones([1, d1 - d0, h1 - h0, w1 - w0]) * random.randint(1, fg_num)
             fg_mask[n, :, d0:d1, h0:h1, w0:w1] = temp_m
     fg_w   = fg_mask * 1.0 / fg_num
     x_roll = torch.roll(x, 1, 0)
     x_fuse = fg_w*x_roll + (1.0 - fg_w)*x     
     # y_prob = get_one_hot_seg(fg_mask.to(torch.int32), fg_num + 1)
     return x_fuse, fg_mask 
+
+def nonlinear_transform(x):
+    v_min = torch.min(x)
+    v_max = torch.max(x)
+    x = (x - v_min)/(v_max - v_min)
+    a = random.random() * 0.7 + 0.15
+    b = random.random() * 0.7 + 0.15
+    alpha = b / a 
+    beta  = (1 - b) / (1 - a)
+    if(alpha < 1.0 ):
+        y = torch.maximum(alpha*x, beta*x + 1 - beta)
+    else:
+        y = torch.minimum(alpha*x, beta*x + 1 - beta)
+    if(random.random() < 0.5):
+        y = 1.0 - y 
+    y = y * (v_max - v_min) + v_min
+    return y 
+
+def nonlienar_volume_fusion(x, block_range, size_min, size_max):
+    """
+    Fuse a subregion of an impage with another one to generate
+    images and labels for self-supervised segmentation.
+    input x should be a batch of tensors
+    """
+    #n_min, n_max,  
+    N, C, D, H, W = list(x.shape)
+    # apply nonlinear transform to x:
+    x_nl1 = torch.zeros_like(x).to(torch.float32)
+    x_nl2 = torch.zeros_like(x).to(torch.float32)
+    for n in range(N):
+        x_nl1[n] = nonlinear_transform(x[n])
+        x_nl2[n] = nonlinear_transform(x[n])
+    x_roll = torch.roll(x_nl2, 1, 0)
+    mask   = torch.zeros_like(x).to(torch.int32)
+    p_num = random.randint(block_range[0], block_range[1])
+    for n in range(N):
+        for i in range(p_num):
+            d = random.randint(size_min[0], size_max[0])
+            h = random.randint(size_min[1], size_max[1])
+            w = random.randint(size_min[2], size_max[2])
+            dc = random.randint(0, D - 1)
+            hc = random.randint(0, H - 1)
+            wc = random.randint(0, W - 1)
+            d0 = dc - d // 2
+            h0 = hc - h // 2
+            w0 = wc - w // 2
+            d1 = min(D, d0 + d)
+            h1 = min(H, h0 + h)
+            w1 = min(W, w0 + w)
+            d0, h0, w0 = max(0, d0), max(0, h0), max(0, w0) 
+            temp_m = torch.ones([C, d1 - d0, h1 - h0, w1 - w0])
+            if(random.random() < 0.5):
+                temp_m = temp_m * 2
+            mask[n, :, d0:d1, h0:h1, w0:w1] = temp_m
+    
+    mask1 = (mask == 1).to(torch.int32)
+    mask2 = (mask == 2).to(torch.int32)
+    y = x_nl1 * (1.0 - mask1) + x_nl2 * mask1
+    y = y * (1.0 - mask2) + x_roll * mask2
+    return y, mask
+    
+def augmented_volume_fusion(x, size_min, size_max):
+    """
+    Fuse a subregion of an impage with another one to generate
+    images and labels for self-supervised segmentation.
+    input x should be a batch of tensors
+    """
+    #n_min, n_max,  
+    N, C, D, H, W = list(x.shape)
+    # apply nonlinear transform to x:
+    x1   = torch.zeros_like(x).to(torch.float32)
+    y    = torch.zeros_like(x).to(torch.float32)
+    mask = torch.zeros_like(x).to(torch.int32)
+    for n in range(N):
+        x1[n] = nonlinear_transform(x[n])
+        y[n]  = nonlinear_transform(x[n])
+    x2 = torch.roll(x1, 1, 0)
+
+    for n in range(N): 
+        block_size = [random.randint(size_min[i], size_max[i]) for i in range(3)]
+        d_start = random.randint(0, block_size[0] // 2)
+        h_start = random.randint(0, block_size[1] // 2)
+        w_stat  = random.randint(0, block_size[2] // 2)
+        for d in range(d_start, D, block_size[0]):
+            if(D - d < block_size[0] // 2):
+                continue
+            d1 = min(d + block_size[0], D)
+            for h in range(h_start, H, block_size[1]):
+                if(H - h < block_size[1] // 2):
+                    continue
+                h1 = min(h + block_size[1], H)
+                for w in range(w_stat, W, block_size[2]):
+                    if(W - w < block_size[2] // 2):
+                        continue
+                    w1 = min(w + block_size[2], W)
+                    p = random.random()
+                    if(p < 0.15): # nonlinear intensity augmentation
+                        mask[n, :, d:d1, h:h1, w:w1] = 1
+                        y[n, :, d:d1, h:h1, w:w1] = x1[n, :, d:d1, h:h1, w:w1]
+                    elif(p < 0.3): # random flip across a certain axis
+                        mask[n, :, d:d1, h:h1, w:w1] = 2
+                        flip_axis = random.randint(-3, -1)
+                        y[n, :, d:d1, h:h1, w:w1] = torch.flip(y[n, :, d:d1, h:h1, w:w1], (flip_axis,))
+                    elif(p < 0.45): # nonlinear intensity augmentation and random flip across a certain axis
+                        mask[n, :, d:d1, h:h1, w:w1] = 3
+                        flip_axis = random.randint(-3, -1)
+                        y[n, :, d:d1, h:h1, w:w1] = torch.flip(x1[n, :, d:d1, h:h1, w:w1], (flip_axis,))
+                    elif(p < 0.6):  # paste from another volume
+                        mask[n, :, d:d1, h:h1, w:w1] = 4
+                        y[n, :, d:d1, h:h1, w:w1] = x2[n, :, d:d1, h:h1, w:w1]
+    return y, mask 
+
+def self_volume_fusion(x, fg_num, fuse_ratio, size_min, size_max):
+    """
+    Fuse a subregion of an impage with another one to generate
+    images and labels for self-supervised segmentation.
+    input x should be a batch of tensors
+    """
+    #n_min, n_max,  
+    N, C, D, H, W = list(x.shape)
+    y = 1.0 * x 
+    fg_mask = torch.zeros_like(x[:, :1, :, :, :]).to(torch.int32)
+ 
+    for n in range(N):
+        db = random.randint(size_min[0], size_max[0])
+        hb = random.randint(size_min[1], size_max[1])
+        wb = random.randint(size_min[2], size_max[2])
+        d0 = random.randint(0, D % db)
+        h0 = random.randint(0, H % hb)
+        w0 = random.randint(0, W % wb)
+        coord_list_source = []
+        for di in range(D // db):
+            for hi in range(H // hb):
+                for wi in range(W // wb):
+                    coord_list_source.append([di, hi, wi])
+        coord_list_target = copy.deepcopy(coord_list_source)
+        random.shuffle(coord_list_source)
+        random.shuffle(coord_list_target)
+        for i in range(int(len(coord_list_source)*fuse_ratio)):
+            ds_l = d0 + db * coord_list_source[i][0]
+            hs_l = h0 + hb * coord_list_source[i][1]    
+            ws_l = w0 + wb * coord_list_source[i][2]    
+            dt_l = d0 + db * coord_list_target[i][0]
+            ht_l = h0 + hb * coord_list_target[i][1]    
+            wt_l = w0 + wb * coord_list_target[i][2]  
+            s_crop = x[n, :, ds_l:ds_l+db, hs_l:hs_l+hb, ws_l:ws_l+wb]
+            t_crop = x[n, :, dt_l:dt_l+db, ht_l:ht_l+hb, wt_l:wt_l+wb]
+            fg_m = random.randint(1, fg_num)
+            fg_w = fg_m / (fg_num + 0.0)
+            y[n, :, dt_l:dt_l+db, ht_l:ht_l+hb, wt_l:wt_l+wb] = t_crop * (1.0 - fg_w) + s_crop * fg_w
+            fg_mask[n, 0, dt_l:dt_l+db, ht_l:ht_l+hb, wt_l:wt_l+wb] = \
+                torch.ones([1, db, hb, wb]) * fg_m
+    return y, fg_mask 

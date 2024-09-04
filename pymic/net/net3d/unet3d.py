@@ -5,6 +5,7 @@ import logging
 import torch
 import torch.nn as nn
 import numpy as np
+from pymic.net.net_init import Initialization_He, Initialization_XavierUniform
 
 
 class ConvBlock(nn.Module):
@@ -16,15 +17,23 @@ class ConvBlock(nn.Module):
     :param out_channels: (int) Output channel number.
     :param dropout_p: (int) Dropout probability.
     """
-    def __init__(self, in_channels, out_channels, dropout_p):
+    def __init__(self, in_channels, out_channels, dropout_p, norm_type = 'batch_norm'):
         super(ConvBlock, self).__init__()
+        if(norm_type == 'batch_norm'):
+            norm1 = nn.BatchNorm3d(out_channels, affine = True)
+            norm2 = nn.BatchNorm3d(out_channels, affine = True)
+        elif(norm_type == 'instance_norm'):
+            norm1 = nn.InstanceNorm3d(out_channels, affine = True)
+            norm2 = nn.InstanceNorm3d(out_channels, affine = True)
+        else:
+            raise ValueError("norm_type {0:} not supported, it should be batch_norm or instance_norm".format(norm_type))
         self.conv_conv = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm3d(out_channels),
+            norm1,
             nn.LeakyReLU(),
             nn.Dropout(dropout_p),
             nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm3d(out_channels),
+            norm2,
             nn.LeakyReLU()
         )
        
@@ -39,11 +48,11 @@ class DownBlock(nn.Module):
     :param out_channels: (int) Output channel number.
     :param dropout_p: (int) Dropout probability.
     """
-    def __init__(self, in_channels, out_channels, dropout_p):
+    def __init__(self, in_channels, out_channels, dropout_p, norm_type = 'batch_norm'):
         super(DownBlock, self).__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool3d(2),
-            ConvBlock(in_channels, out_channels, dropout_p)
+            ConvBlock(in_channels, out_channels, dropout_p, norm_type)
         )
 
     def forward(self, x):
@@ -61,7 +70,8 @@ class UpBlock(nn.Module):
         0 (or `TransConv`), 1 (`Nearest`), 2 (`Trilinear`). The default value
         is 2 (`Trilinear`).
     """
-    def __init__(self, in_channels1, in_channels2, out_channels, dropout_p, up_mode=2):
+    def __init__(self, in_channels1, in_channels2, out_channels, dropout_p, 
+            up_mode=2, norm_type = 'batch_norm'):
         super(UpBlock, self).__init__()
         if(isinstance(up_mode, int)):
             up_mode_values = ["transconv", "nearest", "trilinear"]
@@ -79,7 +89,7 @@ class UpBlock(nn.Module):
                 self.up = nn.Upsample(scale_factor=2, mode=self.up_mode)
             else:
                 self.up = nn.Upsample(scale_factor=2, mode=self.up_mode, align_corners=True)
-        self.conv = ConvBlock(in_channels2 * 2, out_channels, dropout_p)
+        self.conv = ConvBlock(in_channels2 * 2, out_channels, dropout_p, norm_type)
 
     def forward(self, x1, x2):
         if self.up_mode != "transconv":
@@ -104,17 +114,19 @@ class Encoder(nn.Module):
     def __init__(self, params):
         super(Encoder, self).__init__()
         self.params    = params
-        self.in_chns   = self.params['in_chns']
-        self.ft_chns   = self.params['feature_chns']
-        self.dropout   = self.params['dropout']
-        assert(len(self.ft_chns) == 5 or len(self.ft_chns) == 4)
+        in_chns   = self.params['in_chns']
+        ft_chns   = self.params['feature_chns']
+        dropout   = self.params['dropout']
+        norm_type = self.params['norm_type']
+        assert(len(ft_chns) == 5 or len(ft_chns) == 4)
 
-        self.in_conv= ConvBlock(self.in_chns, self.ft_chns[0], self.dropout[0])
-        self.down1  = DownBlock(self.ft_chns[0], self.ft_chns[1], self.dropout[1])
-        self.down2  = DownBlock(self.ft_chns[1], self.ft_chns[2], self.dropout[2])
-        self.down3  = DownBlock(self.ft_chns[2], self.ft_chns[3], self.dropout[3])
-        if(len(self.ft_chns) == 5):
-            self.down4  = DownBlock(self.ft_chns[3], self.ft_chns[4], self.dropout[4])
+        self.ft_chns= ft_chns
+        self.in_conv= ConvBlock(in_chns,    ft_chns[0], dropout[0], norm_type)
+        self.down1  = DownBlock(ft_chns[0], ft_chns[1], dropout[1], norm_type)
+        self.down2  = DownBlock(ft_chns[1], ft_chns[2], dropout[2], norm_type)
+        self.down3  = DownBlock(ft_chns[2], ft_chns[3], dropout[3], norm_type)
+        if(len(ft_chns) == 5):
+            self.down4  = DownBlock(ft_chns[3], ft_chns[4], dropout[4])
 
     def forward(self, x):
         x0 = self.in_conv(x)
@@ -148,25 +160,26 @@ class Decoder(nn.Module):
     def __init__(self, params):
         super(Decoder, self).__init__()
         self.params    = params
-        self.in_chns   = self.params['in_chns']
-        self.ft_chns   = self.params['feature_chns']
-        self.dropout   = self.params['dropout']
-        self.n_class   = self.params['class_num']
-        self.up_mode   = self.params.get('up_mode', 2)
-        self.mul_pred  = self.params.get('multiscale_pred', False)
-        assert(len(self.ft_chns) == 5 or len(self.ft_chns) == 4)
+        ft_chns   = self.params['feature_chns']
+        dropout   = self.params['dropout']
+        n_class   = self.params['class_num']
+        norm_type = self.params['norm_type']
+        up_mode   = self.params.get('up_mode', 2)
+        self.ft_chns  = ft_chns 
+        self.mul_pred = self.params.get('multiscale_pred', False)
+        assert(len(ft_chns) == 5 or len(ft_chns) == 4)
 
-        if(len(self.ft_chns) == 5):
-            self.up1 = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], self.dropout[3], self.up_mode) 
-        self.up2 = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], self.dropout[2], self.up_mode) 
-        self.up3 = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], self.dropout[1], self.up_mode) 
-        self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], self.dropout[0], self.up_mode) 
-        self.out_conv = nn.Conv3d(self.ft_chns[0], self.n_class, kernel_size = 1)
+        if(len(ft_chns) == 5):
+            self.up1 = UpBlock(ft_chns[4], ft_chns[3], ft_chns[3], dropout[3], up_mode, norm_type) 
+        self.up2 = UpBlock(ft_chns[3], ft_chns[2], ft_chns[2], dropout[2], up_mode, norm_type) 
+        self.up3 = UpBlock(ft_chns[2], ft_chns[1], ft_chns[1], dropout[1], up_mode, norm_type) 
+        self.up4 = UpBlock(ft_chns[1], ft_chns[0], ft_chns[0], dropout[0], up_mode, norm_type) 
+        self.out_conv = nn.Conv3d(ft_chns[0], n_class, kernel_size = 1)
 
         if(self.mul_pred):
-            self.out_conv1 = nn.Conv3d(self.ft_chns[1], self.n_class, kernel_size = 1)
-            self.out_conv2 = nn.Conv3d(self.ft_chns[2], self.n_class, kernel_size = 1)
-            self.out_conv3 = nn.Conv3d(self.ft_chns[3], self.n_class, kernel_size = 1)
+            self.out_conv1 = nn.Conv3d(ft_chns[1], n_class, kernel_size = 1)
+            self.out_conv2 = nn.Conv3d(ft_chns[2], n_class, kernel_size = 1)
+            self.out_conv3 = nn.Conv3d(ft_chns[3], n_class, kernel_size = 1)
         self.stage = 'train'
 
     def set_stage(self, stage):
@@ -223,14 +236,21 @@ class UNet3D(nn.Module):
         for p in params:
             print(p, params[p])
         self.stage    = 'train'
+        self.update_mode = params.get("update_mode", "all")
         self.encoder  = Encoder(params)
-        self.decoder  = Decoder(params)    
-      
+        self.decoder  = Decoder(params) 
+
+        init = params['initialization'].lower()
+        weightInitializer =  Initialization_He(1e-2) if init == 'he' else Initialization_XavierUniform()
+        self.apply(weightInitializer)
+
     def get_default_parameters(self, params):
         default_param = {
             'feature_chns': [32, 64, 128, 256, 512],
             'dropout': [0.0, 0.0, 0.2, 0.3, 0.4],
             'up_mode': 2,
+            'initialization': 'he',
+            'norm_type': 'batch_norm',
             'multiscale_pred': False
         }
         for key in default_param:
@@ -242,6 +262,16 @@ class UNet3D(nn.Module):
     def set_stage(self, stage):
         self.stage = stage
         self.decoder.set_stage(stage)
+
+    def get_parameters_to_update(self):
+        if(self.update_mode == "all"):
+            return self.parameters()
+        elif(self.update_mode == "decoder"):
+            print("only update parameters in decoder")
+            params = self.decoder.parameters()
+            return params
+        else:
+            raise(ValueError("update_mode can only be 'all' or 'decoder'."))
 
     def forward(self, x):
         f = self.encoder(x)

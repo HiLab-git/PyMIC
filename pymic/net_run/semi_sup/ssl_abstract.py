@@ -101,6 +101,9 @@ class SSLSegAgent(SegmentationAgent):
         logging.info('valid loss {0:.4f}, avg foreground dice {1:.4f} '.format(
             valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")  
+        logging.info("data: {0:.2f}s, forward: {1:.2f}s, loss: {2:.2f}s, backward: {3:.2f}s".format(
+                train_scalars['data_time'], train_scalars['forward_time'], 
+                train_scalars['loss_time'], train_scalars['backward_time']))
 
     def train_valid(self):
         self.trainIter_unlab = iter(self.train_loader_unlab)   

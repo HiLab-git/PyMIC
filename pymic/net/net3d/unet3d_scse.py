@@ -3,6 +3,7 @@ from __future__ import print_function, division
 import torch
 import torch.nn as nn
 import numpy as np
+from pymic.net.net3d.unet3d import UpBlock, Encoder, Decoder, UNet3D
 from pymic.net.net3d.scse3d import *
 
 class ConvScSEBlock3D(nn.Module):
@@ -48,34 +49,58 @@ class DownBlock(nn.Module):
     def forward(self, x):
         return self.maxpool_conv(x)
 
-class UpBlock(nn.Module):
+class UpBlockScSE(UpBlock):
     """3D Up-sampling followed by `ConvScSEBlock3D` in UNet3D_ScSE.
     
     :param in_channels1: (int) Input channel number for low-resolution feature map.
     :param in_channels2: (int) Input channel number for high-resolution feature map.
     :param out_channels: (int) Output channel number.
     :param dropout_p: (int) Dropout probability.
-    :param trilinear: (bool) Use trilinear for up-sampling or not.
+    :param up_mode: (string or int) The mode for upsampling. The allowed values are:
+        0 (or `TransConv`), 1 (`Nearest`), 2 (`Trilinear`). The default value
+        is 2 (`Trilinear`).
     """
-    def __init__(self, in_channels1, in_channels2, out_channels, dropout_p, 
-                 trilinear=True):
-        super(UpBlock, self).__init__()
-        self.trilinear = trilinear
-        if trilinear:
-            self.conv1x1 = nn.Conv3d(in_channels1, in_channels2, kernel_size = 1)
-            self.up = nn.Upsample(scale_factor=2, mode='trilinear', align_corners=True)
-        else:
-            self.up = nn.ConvTranspose3d(in_channels1, in_channels2, kernel_size=2, stride=2)
+    def __init__(self, in_channels1, in_channels2, out_channels, dropout_p,  up_mode=2):
+        super(UpBlockScSE, self).__init__(in_channels1, in_channels2, 
+            out_channels, dropout_p, up_mode)
         self.conv = ConvScSEBlock3D(in_channels2 * 2, out_channels, dropout_p)
 
-    def forward(self, x1, x2):
-        if self.trilinear:
-            x1 = self.conv1x1(x1)
-        x1 = self.up(x1)
-        x = torch.cat([x2, x1], dim=1)
-        return self.conv(x)
 
-class UNet3D_ScSE(nn.Module):
+class EncoderScSE(Encoder):
+    """
+    A modification of the encoder of 3D UNet by using ConvScSEBlock3D
+
+    Parameters are given in the `params` dictionary.
+    See :mod:`pymic.net.net3d.unet3d.Encoder` for details. 
+    """
+    def __init__(self, params):
+        super(EncoderScSE, self).__init__(params)
+        
+        self.in_conv= ConvScSEBlock3D(self.in_chns, self.ft_chns[0], self.dropout[0])
+        self.down1  = DownBlock(self.ft_chns[0], self.ft_chns[1], self.dropout[1])
+        self.down2  = DownBlock(self.ft_chns[1], self.ft_chns[2], self.dropout[2])
+        self.down3  = DownBlock(self.ft_chns[2], self.ft_chns[3], self.dropout[3])
+        if(len(self.ft_chns) == 5):
+            self.down4  = DownBlock(self.ft_chns[3], self.ft_chns[4], self.dropout[4])
+
+class DecoderScSE(Decoder):
+    """
+    A modification of the decoder of 3D UNet by using ConvScSEBlock3D
+
+    Parameters are given in the `params` dictionary.
+    See :mod:`pymic.net.net3d.unet3d.Decoder` for details. 
+    """
+    def __init__(self, params):
+        super(DecoderScSE, self).__init__(params)
+
+        if(len(self.ft_chns) == 5):
+            self.up1 = UpBlockScSE(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], self.dropout[3], self.up_mode) 
+        self.up2 = UpBlockScSE(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], self.dropout[2], self.up_mode) 
+        self.up3 = UpBlockScSE(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], self.dropout[1], self.up_mode) 
+        self.up4 = UpBlockScSE(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], self.dropout[0], self.up_mode) 
+
+
+class UNet3D_ScSE(UNet3D):
     """
     Combining 3D U-Net with SCSE module.
 
@@ -84,72 +109,10 @@ class UNet3D_ScSE(nn.Module):
       "Squeeze and Excitation" Blocks. 
       `IEEE Trans. Med. Imaging 38(2): 540-549 (2019). <https://ieeexplore.ieee.org/document/8447284>`_
 
-    Parameters are given in the `params` dictionary, and should include the
-    following fields:
-
-    :param in_chns: (int) Input channel number.
-    :param feature_chns: (list) Feature channel for each resolution level. 
-      The length should be 5, such as [16, 32, 64, 128, 256].
-    :param dropout: (list) The dropout ratio for each resolution level. 
-      The length should be the same as that of `feature_chns`.
-    :param class_num: (int) The class number for segmentation task. 
-    :param trilinear: (bool) Using trilinear for up-sampling or not. 
-        If False, deconvolution will be used for up-sampling.
+    Parameters are given in the `params` dictionary.
+    See :mod:`pymic.net.net3d.unet3d.UNet3D` for details. 
     """
     def __init__(self, params):
-        super(UNet3D_ScSE, self).__init__()
-        self.params    = params
-        self.in_chns   = self.params['in_chns']
-        self.ft_chns   = self.params['feature_chns']
-        self.dropout   = self.params['dropout']
-        self.n_class   = self.params['class_num']
-        self.bilinear  = self.params['trilinear']
-        
-        assert(len(self.ft_chns) == 5)
-
-        self.in_conv= ConvScSEBlock3D(self.in_chns, self.ft_chns[0], self.dropout[0])
-        self.down1  = DownBlock(self.ft_chns[0], self.ft_chns[1], self.dropout[1])
-        self.down2  = DownBlock(self.ft_chns[1], self.ft_chns[2], self.dropout[2])
-        self.down3  = DownBlock(self.ft_chns[2], self.ft_chns[3], self.dropout[3])
-        self.down4  = DownBlock(self.ft_chns[3], self.ft_chns[4], self.dropout[4])
-        self.up1 = UpBlock(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], dropout_p = self.dropout[3]) 
-        self.up2 = UpBlock(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], dropout_p = self.dropout[2]) 
-        self.up3 = UpBlock(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], dropout_p = self.dropout[1]) 
-        self.up4 = UpBlock(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], dropout_p = self.dropout[0]) 
-    
-        self.out_conv = nn.Conv3d(self.ft_chns[0], self.n_class,  
-            kernel_size = 3, padding = 1)
-
-    def forward(self, x):
-        
-        x0 = self.in_conv(x)
-        x1 = self.down1(x0)
-        x2 = self.down2(x1)
-        x3 = self.down3(x2)
-        x4 = self.down4(x3)
-        
-        x = self.up1(x4, x3)
-        x = self.up2(x, x2)
-        x = self.up3(x, x1)
-        x = self.up4(x, x0)
-        output = self.out_conv(x)
-
-        return output
-
-if __name__ == "__main__":
-    params = {'in_chns':4,
-              'feature_chns':[2, 8, 32, 48, 64],
-              'dropout':  [0, 0, 0.3, 0.4, 0.5],
-              'class_num': 2,
-              'trilinear': True}
-    Net = UNet3D_ScSE(params)
-    Net = Net.double()
-
-    x  = np.random.rand(4, 4, 96, 96, 96)
-    xt = torch.from_numpy(x)
-    xt = torch.tensor(xt)
-    
-    y = Net(xt)
-    print(len(y.size()))
-    y = y.detach().numpy()
-    print(y.shape)
+        super(UNet3D_ScSE, self).__init__(params)
+        self.encoder  = EncoderScSE(params)
+        self.decoder  = DecoderScSE(params)   

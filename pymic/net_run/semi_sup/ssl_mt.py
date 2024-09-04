@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 import logging
+import time
 import torch
 import numpy as np
 from pymic.loss.seg.util import get_soft_label
@@ -50,13 +51,13 @@ class SSLMeanTeacher(SSLSegAgent):
         iter_max     = self.config['training']['iter_max']
         rampup_start = ssl_cfg.get('rampup_start', 0)
         rampup_end   = ssl_cfg.get('rampup_end', iter_max)
-        train_loss  = 0
-        train_loss_sup = 0
-        train_loss_reg = 0
+        train_loss, train_loss_sup, train_loss_reg  = 0, 0, 0
         train_dice_list = []
+        data_time, gpu_time, loss_time, back_time = 0, 0, 0, 0
         self.net.train()
         self.net_ema.to(self.device)
         for it in range(iter_valid):
+            t0 = time.time()
             try:
                 data_lab = next(self.trainIter)
             except StopIteration:
@@ -67,7 +68,7 @@ class SSLMeanTeacher(SSLSegAgent):
             except StopIteration:
                 self.trainIter_unlab = iter(self.train_loader_unlab)
                 data_unlab = next(self.trainIter_unlab)
-
+            t1 = time.time()
             # get the inputs
             x0   = self.convert_tensor_type(data_lab['image'])
             y0   = self.convert_tensor_type(data_lab['label_prob'])  
@@ -82,6 +83,8 @@ class SSLMeanTeacher(SSLSegAgent):
             self.optimizer.zero_grad()
                 
             outputs = self.net(inputs)
+            t2 = time.time()
+
             n0 = list(x0.shape)[0] 
             p0 = outputs[:n0]
             loss_sup = self.get_loss_value(data_lab, p0, y0)
@@ -98,8 +101,9 @@ class SSLMeanTeacher(SSLSegAgent):
 
             loss_reg = torch.nn.MSELoss()(p1_soft, p1_ema_soft)
             loss = loss_sup + regular_w*loss_reg
-
+            t3 = time.time()
             loss.backward()
+            t4 = time.time()
             self.optimizer.step()
 
             # update EMA
@@ -119,6 +123,11 @@ class SSLMeanTeacher(SSLSegAgent):
             p0_soft, y0 = reshape_prediction_and_ground_truth(p0_soft, y0) 
             dice_list   = get_classwise_dice(p0_soft, y0)
             train_dice_list.append(dice_list.cpu().numpy())
+
+            data_time = data_time + t1 - t0 
+            gpu_time  = gpu_time  + t2 - t1
+            loss_time = loss_time + t3 - t2
+            back_time = back_time + t4 - t3
         train_avg_loss = train_loss / iter_valid
         train_avg_loss_sup = train_loss_sup / iter_valid
         train_avg_loss_reg = train_loss_reg / iter_valid
@@ -127,5 +136,7 @@ class SSLMeanTeacher(SSLSegAgent):
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
             'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
-            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice}
+            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice,
+            'data_time': data_time, 'forward_time':gpu_time, 
+            'loss_time':loss_time, 'backward_time':back_time}
         return train_scalers
