@@ -260,7 +260,7 @@ class RandomCrop(CenterCrop):
         crop_min = [0 if item == 0 else random.randint(0, item) for item in crop_margin]
         crop_max = [crop_min[i] + output_size[i] for i in range(input_dim)]
         
-        label_exist = False if ('label' not in sample or sample['label']) is None else True
+        label_exist = True  if ('label' in sample and sample['label'].sum() > 0) else False
         if(label_exist and self.fg_focus and random.random() < self.fg_ratio):
             label = sample['label'][0]
             if(self.mask_label is None):
@@ -398,6 +398,9 @@ class RandomSlice(AbstractTransform):
     """
     def __init__(self, params):
         self.output_size = params['RandomSlice_output_size'.lower()]
+        self.fg_focus    = params.get('RandomSlice_foreground_focus'.lower(), False)
+        self.fg_ratio    = params.get('RandomSlice_foreground_ratio'.lower(), 0.5)
+        self.mask_label  = params.get('RandomSlice_mask_label'.lower(), None)
         self.shuffle     = params.get('RandomSlice_shuffle'.lower(), False)
         self.inverse     = params.get('RandomSlice_inverse'.lower(), False)
         self.task        = params['Task'.lower()]
@@ -406,12 +409,29 @@ class RandomSlice(AbstractTransform):
         image = sample['image']
         D = image.shape[1]
         assert( D >= self.output_size)
+        out_half = self.output_size // 2
+        
+        label_exist = True  if ('label' in sample and sample['label'].sum() > 0) else False
+        if(label_exist and self.fg_focus and random.random() < self.fg_ratio):
+            label = sample['label'][0]    
+            if(self.mask_label is None):
+                mask_label = np.unique(label)[1:]
+            else:
+                mask_label = self.mask_label
+            random_label = random.choice(mask_label)
+            mask  = label == random_label
+            dc    = random.choice(np.nonzero(mask)[0]) 
+        else:
+            dc    = random.choice(range(out_half, D - out_half))
+        
         slice_idx = list(range(D))
         if(self.shuffle):
             random.shuffle(slice_idx)
-            slice_idx = slice_idx[:self.output_size]
-        else:
             d0 = random.randint(0, D - self.output_size)
+            d1 = d0 + self.output_size
+            slice_idx = slice_idx[d0:d1-1] + [dc]
+        else:
+            d0 = max(0, dc - out_half)
             d1 = d0 + self.output_size
             slice_idx = slice_idx[d0:d1]
         sample['image'] = image[:, slice_idx, :, :]
@@ -448,6 +468,7 @@ class CropHumanRegion(CenterCrop):
     """
     def __init__(self, params):
         self.threshold_i = params.get('CropHumanRegion_intensity_threshold'.lower(), -600)
+        self.threshold_mode = params.get('CropHumanRegion_threshold_mode'.lower(), 'mean')
         self.threshold_z = params.get('CropHumanRegion_zaxis_threshold'.lower(), 0.5)
         self.inverse     = params.get('CropHumanRegion_inverse'.lower(), True)
         self.task = params['task']
@@ -456,20 +477,27 @@ class CropHumanRegion(CenterCrop):
         image = sample['image']
         input_shape = image.shape
         mask    = np.asarray(image[0] > self.threshold_i)
-        mask2d  = np.mean(mask, axis = 0) > self.threshold_z
+        if(self.threshold_mode == "mean"):
+            mask2d  = np.mean(mask, axis = 0) > self.threshold_z
+        else:
+            mask2d  = np.max(mask, axis = 0) 
         se      = np.ones([3,3])
         mask2d  = ndimage.binary_opening(mask2d, se, iterations = 2)
-        mask2d  = get_largest_k_components(mask2d, 1)
-        bbmin, bbmax = get_ND_bounding_box(mask2d, margin = [0, 0])
+        if(mask2d.sum() > 0):
+            mask2d  = get_largest_k_components(mask2d, 1)
+            bbmin, bbmax = get_ND_bounding_box(mask2d, margin = [0, 0])
+        else:
+            bbmin = [0] * (image.ndim - 2) 
+            bbmax = list(input_shape[2:])
         crop_min   = [0, 0] + bbmin
         crop_max   = list(input_shape[:2]) + bbmax
-        sample['CropHumanRegionFromCT_Param'] = json.dumps((input_shape, crop_min, crop_max))   
+        sample['CropHumanRegion_Param'] = json.dumps((input_shape, crop_min, crop_max))   
         return sample, crop_min, crop_max
 
     def _get_param_for_inverse_transform(self, sample):
-        if(isinstance(sample['CropHumanRegionFromCT_Param'], list) or \
-            isinstance(sample['CropHumanRegionFromCT_Param'], tuple)):
-            params = json.loads(sample['CropHumanRegionFromCT_Param'][0]) 
+        if(isinstance(sample['CropHumanRegion_Param'], list) or \
+            isinstance(sample['CropHumanRegion_Param'], tuple)):
+            params = json.loads(sample['CropHumanRegion_Param'][0]) 
         else:
-            params = json.loads(sample['CropHumanRegionFromCT_Param']) 
+            params = json.loads(sample['CropHumanRegion_Param']) 
         return params

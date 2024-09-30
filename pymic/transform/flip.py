@@ -33,8 +33,7 @@ class RandomFlip(AbstractTransform):
 
     def __call__(self, sample):
         image = sample['image']
-        input_shape = image.shape
-        input_dim = len(input_shape) - 1
+        input_dim = image.ndim
         flip_axis = []
         if(self.flip_width):
             if(random.random() > 0.5):

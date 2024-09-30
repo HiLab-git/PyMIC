@@ -154,7 +154,3 @@ class Affine(AbstractTransform):
         
     #     sample['predict'] = output_predict
     #     return sample
- = self._apply_affine_to_ND_volume(predict, aff_out_shape, tform.inverse)
-        
-    #     sample['predict'] = output_predict
-    #     return sample

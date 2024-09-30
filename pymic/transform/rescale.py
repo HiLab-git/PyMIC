@@ -165,11 +165,10 @@ class Resample(Rescale):
     The arguments should be written in the `params` dictionary, and it has the
     following fields:
 
-    :param `Rescale_output_size`: (list/tuple or int) The output size along each spatial axis, 
-        such as [D, H, W] or [H, W].  If D is None, the input image is only reslcaled in 2D.
-        If int, the smallest axis is matched to output_size keeping aspect ratio the same
-        as the input.
-    :param `Rescale_inverse`: (optional, bool) 
+    :param `Resample_output_spacing`: (list/tuple or int) The output spacing along each spatial axis, 
+        such as [Ds, Hs, Ws] or [Hs, Ws].  If Ds is None, the input image is only reslcaled in 2D.
+    :param `Resample_ignore_zspacing_range`: (list/tuple) The range of zspacing that would be ingored. 
+    :param `Resample_inverse`: (optional, bool) 
         Is inverse transform needed for inference. Default is `True`.
     """
     def __init__(self, params):
@@ -177,11 +176,11 @@ class Resample(Rescale):
         self.output_spacing = params["Resample_output_spacing".lower()]
         self.ignore_zspacing= params.get("Resample_ignore_zspacing_range".lower(), None)
         self.inverse        = params.get("Resample_inverse".lower(), True)
-        # assert isinstance(self.output_size, (int, list, tuple))
 
     def __call__(self, sample):
         image = sample['image']
         input_shape = image.shape
+        
         input_dim   = len(input_shape) - 1
         spacing     = sample['spacing']
         out_spacing = [item for item in self.output_spacing] 
