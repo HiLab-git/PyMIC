@@ -181,7 +181,8 @@ class MobileNetV2(BuiltInNet):
     """
     def __init__(self, params):
         super(MobileNetV2, self).__init__(params)
-        self.net = models.mobilenet_v2(pretrained = self.pretrain)
+        weights = 'IMAGENET1K_V1' if self.pretrain else None
+        self.net = models.mobilenet_v2(weights = weights)
         
         # replace the last layer 
         num_ftrs = self.net.last_channel
@@ -201,6 +202,38 @@ class MobileNetV2(BuiltInNet):
                 params = itertools.chain()
                 for pram in [self.net.classifier[-1].parameters(), self.net.features[0][0].parameters()]:
                     params = itertools.chain(params, pram)
+            return  params
+        else:
+            raise(ValueError("update_mode can only be 'all' or 'last'."))
+        
+class ViTB16(BuiltInNet):
+    """
+    ViTB16 for classification.
+    Parameters should be set in the `params` dictionary that contains the 
+    following fields:
+
+    :param input_chns: (int) Input channel number, default is 3.
+    :param pretrain: (bool) Using pretrained model or not, default is True. 
+    :param update_mode: (str) The strategy for updating layers: "`all`" means updating
+        all the layers, and "`last`" (by default) means updating the last layer, 
+        as well as the first layer when `input_chns` is not 3.
+    """
+    def __init__(self, params):
+        super(ViTB16, self).__init__(params)
+        weights = 'IMAGENET1K_V1' if self.pretrain else None
+        self.net = models.vit_b_16(weights = weights)
+        
+        # replace the last layer 
+        num_ftrs = self.net.representation_size
+        if(num_ftrs is None):
+            num_ftrs = self.net.hidden_dim
+        self.net.heads[-1] = nn.Linear(num_ftrs, params['class_num'])
+    
+    def get_parameters_to_update(self):
+        if(self.update_mode == "all"):
+            return self.net.parameters()
+        elif(self.update_mode == "last"):
+            params = self.net.heads[-1].parameters()
             return  params
         else:
             raise(ValueError("update_mode can only be 'all' or 'last'."))

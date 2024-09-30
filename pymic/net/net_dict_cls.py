@@ -13,5 +13,6 @@ from pymic.net.cls.torch_pretrained_net import *
 TorchClsNetDict = {
     'resnet18':   ResNet18,
     'vgg16':      VGG16,
-    'mobilenetv2':MobileNetV2
+    'mobilenetv2':MobileNetV2,
+    'vitb16':     ViTB16
 }
