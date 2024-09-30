@@ -73,7 +73,7 @@ def crop_ND_volume_with_bounding_box(volume, bb_min, bb_max):
         output = volume[bb_min[0]:bb_max[0], bb_min[1]:bb_max[1], bb_min[2]:bb_max[2], bb_min[3]:bb_max[3], bb_min[4]:bb_max[4]]
     else:
         raise ValueError("the dimension number shoud be 2 to 5")
-    return output
+    return output * 1
 
 def set_ND_volume_roi_with_bounding_box_range(volume, bb_min, bb_max, sub_volume, addition = True):
     """

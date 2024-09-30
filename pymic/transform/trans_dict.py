@@ -45,7 +45,6 @@ from pymic.transform.crop import *
 from pymic.transform.crop4dino import Crop4Dino
 from pymic.transform.crop4vox2vec import Crop4Vox2Vec
 from pymic.transform.crop4vf import Crop4VolumeFusion, VolumeFusion, VolumeFusionShuffle
-from pymic.transform.volume_fusion import *
 from pymic.transform.label_convert import *  
 
 TransformDict = {
