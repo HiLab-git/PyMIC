@@ -74,6 +74,7 @@ class SegmentationAgent(NetRunAgent):
             stage_dir = self.config['dataset']['valid_dir']
         if(stage == 'test' and "test_dir" in self.config['dataset']):
             stage_dir = self.config['dataset']['test_dir']
+        logging.info("Creating dataset for {0:}".format(stage))
         dataset  = NiftyDataset(root_dir  = stage_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
@@ -163,14 +164,16 @@ class SegmentationAgent(NetRunAgent):
         mixup_prob  = self.config['training'].get('mixup_probability', 0.0)
         train_loss  = 0
         train_dice_list = []
+        data_time, gpu_time, loss_time, back_time = 0, 0, 0, 0
         self.net.train()
         for it in range(iter_valid):
+            t0 = time.time()
             try:
                 data = next(self.trainIter)
             except StopIteration:
                 self.trainIter = iter(self.train_loader)
                 data = next(self.trainIter)
-            # get the inputs
+            t1 = time.time()
             inputs      = self.convert_tensor_type(data['image'])
             labels_prob = self.convert_tensor_type(data['label_prob'])                 
             if(mixup_prob > 0 and random() < mixup_prob):
@@ -196,14 +199,17 @@ class SegmentationAgent(NetRunAgent):
             
 
             inputs, labels_prob = inputs.to(self.device), labels_prob.to(self.device)
-            
+
             # zero the parameter gradients
             self.optimizer.zero_grad()
                 
             # forward + backward + optimize
             outputs = self.net(inputs)
+            t2 = time.time()
             loss = self.get_loss_value(data, outputs, labels_prob)
+            t3 = time.time()
             loss.backward()
+            t4 = time.time()
             self.optimizer.step()
             train_loss = train_loss + loss.item()
             # get dice evaluation for each class
@@ -214,12 +220,19 @@ class SegmentationAgent(NetRunAgent):
             soft_out, labels_prob = reshape_prediction_and_ground_truth(soft_out, labels_prob) 
             dice_list = get_classwise_dice(soft_out, labels_prob)
             train_dice_list.append(dice_list.cpu().numpy())
+
+            data_time = data_time + t1 - t0 
+            gpu_time  = gpu_time  + t2 - t1
+            loss_time = loss_time + t3 - t2
+            back_time = back_time + t4 - t3
         train_avg_loss = train_loss / iter_valid
         train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
         train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': train_avg_loss, 'avg_fg_dice':train_avg_dice,\
-            'class_dice': train_cls_dice}
+            'class_dice': train_cls_dice, 
+            'data_time': data_time, 'forward_time':gpu_time, 
+            'loss_time':loss_time, 'backward_time':back_time}
         return train_scalers
         
     def validation(self):
@@ -289,7 +302,10 @@ class SegmentationAgent(NetRunAgent):
             ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
         logging.info('valid loss {0:.4f}, avg foreground dice {1:.4f} '.format(
             valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
-            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")        
+            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")      
+        logging.info("data: {0:.2f}s, forward: {1:.2f}s, loss: {2:.2f}s, backward: {3:.2f}s".format(
+                train_scalars['data_time'], train_scalars['forward_time'], 
+                train_scalars['loss_time'], train_scalars['backward_time']))  
 
     def load_pretrained_weights(self, network, pretrained_dict, device_ids):
         if(len(device_ids) > 1):
@@ -607,4 +623,3 @@ class SegmentationAgent(NetRunAgent):
                 if(len(temp_prob.shape) == 2):
                     temp_prob = np.asarray(temp_prob * 255, np.uint8)
                 save_nd_array_as_image(temp_prob, prob_save_name, test_dir + '/' + names[i][0])
-0])

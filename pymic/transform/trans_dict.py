@@ -15,6 +15,7 @@ The built-in transforms in PyMIC are:
     'LabelConvertNonzero': LabelConvertNonzero,
     'LabelToProbability': LabelToProbability,
     'IntensityClip': IntensityClip,
+    'NonLinearTransform': NonLinearTransform,
     'NormalizeWithMeanStd': NormalizeWithMeanStd,
     'NormalizeWithMinMax': NormalizeWithMinMax,
     'NormalizeWithPercentiles': NormalizeWithPercentiles,
@@ -41,20 +42,28 @@ from pymic.transform.transpose import *
 from pymic.transform.threshold import * 
 from pymic.transform.normalize import *
 from pymic.transform.crop import *
-from pymic.transform.mix import *
+from pymic.transform.crop4dino import Crop4Dino
+from pymic.transform.crop4vox2vec import Crop4Vox2Vec
+from pymic.transform.crop4vf import Crop4VolumeFusion, VolumeFusion, VolumeFusionShuffle
+from pymic.transform.volume_fusion import *
 from pymic.transform.label_convert import *  
 
 TransformDict = {
     'Affine': Affine,
+    'AdaptiveContrastAdjust': AdaptiveContrastAdjust,
     'ChannelWiseThreshold': ChannelWiseThreshold,
     'ChannelWiseThresholdWithNormalize': ChannelWiseThresholdWithNormalize,
     'CropWithBoundingBox': CropWithBoundingBox,
     'CropWithForeground': CropWithForeground,
-    'CropHumanRegionFromCT': CropHumanRegionFromCT,
+    'CropHumanRegion': CropHumanRegion,
     'CenterCrop': CenterCrop,
+    'Crop4Dino': Crop4Dino,
+    'Crop4Vox2Vec': Crop4Vox2Vec,
+    'Crop4VolumeFusion': Crop4VolumeFusion,
     'GrayscaleToRGB': GrayscaleToRGB,
     'GammaCorrection': GammaCorrection,
     'GaussianNoise': GaussianNoise,
+    'HistEqual': HistEqual, 
     'InPainting': InPainting,
     'InOutPainting': InOutPainting,
     'LabelConvert': LabelConvert,
@@ -62,6 +71,7 @@ TransformDict = {
     'LabelToProbability': LabelToProbability,
     'LocalShuffling': LocalShuffling,
     'IntensityClip': IntensityClip,
+    'MaskedImageModeling': MaskedImageModeling,
     'NonLinearTransform': NonLinearTransform,
     'NormalizeWithMeanStd': NormalizeWithMeanStd,
     'NormalizeWithMinMax': NormalizeWithMinMax,
@@ -82,5 +92,6 @@ TransformDict = {
     'OutPainting': OutPainting,
     'Pad': Pad,
     'PatchSwaping':PatchSwaping,
-    'PatchMix': PatchMix
+    'VolumeFusion': VolumeFusion,
+    'VolumeFusionShuffle': VolumeFusionShuffle
 }

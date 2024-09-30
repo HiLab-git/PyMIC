@@ -29,6 +29,9 @@ class ReconstructionAgent(SegmentationAgent):
     """
     def __init__(self, config, stage = 'train'):
         super(ReconstructionAgent, self).__init__(config, stage)
+        if (self.config['network']['class_num'] != 1):
+            raise ValueError("For reconstruction tasks, the output channel number should be 1, " + 
+                "but {} was given.".format(self.config['network']['class_num']))
 
     def create_loss_calculator(self):
         if(self.loss_dict is None):
@@ -55,14 +58,17 @@ class ReconstructionAgent(SegmentationAgent):
     def training(self):
         iter_valid  = self.config['training']['iter_valid']
         train_loss  = 0
+        data_time, gpu_time, loss_time, back_time = 0, 0, 0, 0
         self.net.train()
         for it in range(iter_valid):
+            t0 = time.time()
             try:
                 data = next(self.trainIter)
             except StopIteration:
                 self.trainIter = iter(self.train_loader)
                 data = next(self.trainIter)
             # get the inputs
+            t1 = time.time()
             inputs  = self.convert_tensor_type(data['image'])
             label   = self.convert_tensor_type(data['label'])                 
                    
@@ -87,7 +93,7 @@ class ReconstructionAgent(SegmentationAgent):
                 
             # forward + backward + optimize
             outputs = self.net(inputs)
-            
+            t2 = time.time()
             # for debug
             # if it < 5:
             #     outputs = nn.Tanh()(outputs)
@@ -100,15 +106,23 @@ class ReconstructionAgent(SegmentationAgent):
             #     break
 
             loss = self.get_loss_value(data, outputs, label)
+            t3 = time.time()
             loss.backward()
+            t4 = time.time()
             self.optimizer.step()
             train_loss = train_loss + loss.item()
-            # get dice evaluation for each class
+
             if(isinstance(outputs, tuple) or isinstance(outputs, list)):
                 outputs = outputs[0] 
+            data_time = data_time + t1 - t0 
+            gpu_time  = gpu_time  + t2 - t1
+            loss_time = loss_time + t3 - t2
+            back_time = back_time + t4 - t3
 
         train_avg_loss = train_loss / iter_valid
-        train_scalers = {'loss': train_avg_loss}
+        train_scalers = {'loss': train_avg_loss,
+            'data_time': data_time, 'forward_time':gpu_time, 
+            'loss_time':loss_time,  'backward_time':back_time}
         return train_scalers
         
     def validation(self):
@@ -163,6 +177,9 @@ class ReconstructionAgent(SegmentationAgent):
         self.summ_writer.add_scalars('lr', {"lr": lr_value}, glob_it)
         logging.info('train loss {0:.4f}'.format(train_scalars['loss']))        
         logging.info('valid loss {0:.4f}'.format(valid_scalars['loss']))  
+        logging.info("data: {0:.2f}s, forward: {1:.2f}s, loss: {2:.2f}s, backward: {3:.2f}s".format(
+                train_scalars['data_time'], train_scalars['forward_time'], 
+                train_scalars['loss_time'], train_scalars['backward_time']))  
 
     def train_valid(self):
         device_ids = self.config['training']['gpus']
@@ -173,7 +190,7 @@ class ReconstructionAgent(SegmentationAgent):
             self.device = torch.device("cuda:{0:}".format(device_ids[0]))
         self.net.to(self.device)
 
-        ckpt_dir    = self.config['training']['ckpt_save_dir']
+        ckpt_dir    = self.config['training']['ckpt_dir']
         ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
         if(ckpt_prefix is None):
             ckpt_prefix = ckpt_dir.split('/')[-1]
@@ -224,7 +241,7 @@ class ReconstructionAgent(SegmentationAgent):
         self.trainIter  = iter(self.train_loader)
         
         logging.info("{0:} training start".format(str(datetime.now())[:-7]))
-        self.summ_writer = SummaryWriter(self.config['training']['ckpt_save_dir'])
+        self.summ_writer = SummaryWriter(self.config['training']['ckpt_dir'])
         self.glob_it = iter_start
         for it in range(iter_start, iter_max, iter_valid):
             lr_value = self.optimizer.param_groups[0]['lr']
@@ -242,6 +259,9 @@ class ReconstructionAgent(SegmentationAgent):
             logging.info("\n{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
             logging.info('learning rate {0:}'.format(lr_value))
             logging.info("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
+            logging.info("data: {0:.2f}s, forward: {1:.2f}s, loss: {2:.2f}s, backward: {3:.2f}s".format(
+                train_scalars['data_time'], train_scalars['forward_time'], 
+                train_scalars['loss_time'], train_scalars['backward_time']))
             self.write_scalars(train_scalars, valid_scalars, lr_value, self.glob_it)
             if(valid_scalars['loss'] < self.min_val_loss):
                 self.min_val_loss = valid_scalars['loss']
