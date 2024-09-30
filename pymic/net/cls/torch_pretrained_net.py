@@ -2,7 +2,6 @@
 from __future__ import print_function, division
 
 import itertools
-import torch
 import torch.nn as nn
 import torchvision.models as models
 
@@ -61,7 +60,49 @@ class ResNet18(BuiltInNet):
     """
     def __init__(self, params):
         super(ResNet18, self).__init__(params)
-        self.net = models.resnet18(pretrained = self.pretrain)
+        weights = 'IMAGENET1K_V1' if self.pretrain else None
+        self.net = models.resnet18(weights = weights)
+        
+        # replace the last layer 
+        num_ftrs = self.net.fc.in_features
+        self.net.fc = nn.Linear(num_ftrs, params['class_num'])
+
+        # replace the first layer when in_chns is not 3
+        if(self.in_chns != 3):
+            self.net.conv1 = nn.Conv2d(self.in_chns, 64, kernel_size=(7, 7), 
+                stride=(2, 2), padding=(3, 3), bias=False)
+    
+    def get_parameters_to_update(self):
+        if(self.update_mode == "all"):
+            return self.net.parameters()
+        elif(self.update_mode == "last"):
+            params = self.net.fc.parameters()
+            if(self.in_chns !=3):
+                # combining the two iterables into a single one 
+                # see: https://dzone.com/articles/python-joining-multiple
+                params = itertools.chain()
+                for pram in [self.net.fc.parameters(), self.net.conv1.parameters()]:
+                    params = itertools.chain(params, pram)
+            return  params
+        else:
+            raise(ValueError("update_mode can only be 'all' or 'last'."))
+
+class ResNet50(BuiltInNet):
+    """
+    ResNet18 for classification.
+    Parameters should be set in the `params` dictionary that contains the 
+    following fields:
+
+    :param input_chns: (int) Input channel number, default is 3.
+    :param pretrain: (bool) Using pretrained model or not, default is True. 
+    :param update_mode: (str) The strategy for updating layers: "`all`" means updating
+        all the layers, and "`last`" (by default) means updating the last layer, 
+        as well as the first layer when `input_chns` is not 3.
+    """
+    def __init__(self, params):
+        super(ResNet50, self).__init__(params)
+        weights = 'IMAGENET1K_V1' if self.pretrain else None
+        self.net = models.resnet50(weights = weights)
         
         # replace the last layer 
         num_ftrs = self.net.fc.in_features
@@ -101,7 +142,8 @@ class VGG16(BuiltInNet):
     """
     def __init__(self, params):
         super(VGG16, self).__init__(params)
-        self.net = models.vgg16(pretrained = self.pretrain)
+        weights = 'IMAGENET1K_V1' if self.pretrain else None
+        self.net = models.vgg16(weights = weights)
         
         # replace the last layer 
         num_ftrs = self.net.classifier[-1].in_features
