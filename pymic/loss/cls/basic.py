@@ -39,7 +39,7 @@ class CrossEntropyLoss(AbstractClassificationLoss):
 
 class SigmoidCELoss(AbstractClassificationLoss):
     """
-    Sigmoid-based CE loss.
+    Sigmoid-based CE loss, should be used when task_type = cls_coexist
     """
     def __init__(self, params = None):
         super(SigmoidCELoss, self).__init__(params)

@@ -11,9 +11,10 @@ Built-in loss functions for classification.
 """
 from __future__ import print_function, division
 from pymic.loss.cls.basic import *
-
+from pymic.loss.cls.infoNCE import InfoNCELoss
 PyMICClsLossDict = {"CrossEntropyLoss": CrossEntropyLoss,
     "SigmoidCELoss": SigmoidCELoss,
+    'InfoNCELoss': InfoNCELoss,
     "L1Loss":  L1Loss,
     "MSELoss": MSELoss,
     "NLLLoss": NLLLoss}

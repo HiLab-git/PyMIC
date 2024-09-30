@@ -2,6 +2,7 @@
 from __future__ import print_function, division
 
 import torch.nn as nn
+import numpy as np 
 from torch.nn.functional import interpolate
 from pymic.loss.seg.abstract import AbstractSegLoss
 
@@ -69,7 +70,7 @@ class DeepSuperviseLoss(AbstractSegLoss):
                 be a list or a tuple""")
         pred_num = len(pred)
         if(self.deep_sup_weight is None):
-            self.deep_sup_weight = [1.0] * pred_num
+            self.deep_sup_weight = [1.0 / pow(2, i) for i in range(pred_num)]
         else:
             assert(pred_num == len(self.deep_sup_weight))
         loss_sum, weight_sum  = 0.0, 0.0
