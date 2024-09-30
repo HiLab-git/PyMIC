@@ -236,7 +236,8 @@ class UNet3D(nn.Module):
         for p in params:
             print(p, params[p])
         self.stage    = 'train'
-        self.update_mode = params.get("update_mode", "all")
+        self.tune_mode= params.get('finetune_mode', 'all')
+        self.load_mode= params.get('weights_load_mode', 'all')
         self.encoder  = Encoder(params)
         self.decoder  = Decoder(params) 
 
@@ -263,17 +264,24 @@ class UNet3D(nn.Module):
         self.stage = stage
         self.decoder.set_stage(stage)
 
+    
+    def forward(self, x):
+        f = self.encoder(x)
+        output = self.decoder(f)
+        return output
+
     def get_parameters_to_update(self):
-        if(self.update_mode == "all"):
+        if(self.tune_mode == "all"):
             return self.parameters()
-        elif(self.update_mode == "decoder"):
+        elif(self.tune_mode == "decoder"):
             print("only update parameters in decoder")
             params = self.decoder.parameters()
             return params
         else:
             raise(ValueError("update_mode can only be 'all' or 'decoder'."))
 
-    def forward(self, x):
-        f = self.encoder(x)
-        output = self.decoder(f)
-        return output
+    def get_parameters_to_load(self):
+        state_dict = self.state_dict()
+        if(self.load_mode == 'encoder'): 
+            state_dict = {k:v for k, v in state_dict.items() if "encoder" in k }
+        return state_dict

@@ -16,10 +16,10 @@ Built-in networks for segmentation.
 """
 from __future__ import print_function, division
 from pymic.net.net2d.unet2d import UNet2D
-from pymic.net.net2d.unet2d_dual_branch import UNet2D_DualBranch
+from pymic.net.net2d.unet2d_multi_decoder import UNet2D_DualBranch, MCNet2D
 from pymic.net.net2d.unet2d_canet import CANet
 from pymic.net.net2d.unet2d_cct import UNet2D_CCT
-from pymic.net.net2d.unet2d_mcnet import MCNet2D
+from pymic.net.net2d.unet2d_mtnet import MTNet2D
 from pymic.net.net2d.cople_net import COPLENet
 from pymic.net.net2d.unet2d_attention import AttentionUNet2D
 from pymic.net.net2d.unet2d_nest import NestedUNet2D
@@ -28,8 +28,13 @@ from pymic.net.net2d.trans2d.transunet import TransUNet
 from pymic.net.net2d.trans2d.swinunet import SwinUNet
 from pymic.net.net3d.unet2d5 import UNet2D5
 from pymic.net.net3d.unet3d import UNet3D
+from pymic.net.net3d.grunet import GRUNet
+from pymic.net.net3d.fmunetv3 import FMUNetV3
 from pymic.net.net3d.unet3d_scse import UNet3D_ScSE
 from pymic.net.net3d.unet3d_dual_branch import UNet3D_DualBranch
+# from pymic.net.net3d.stunet_wrap import STUNet_wrap
+# from pymic.net.net3d.mystunet import MySTUNet
+
 # from pymic.net.net3d.trans3d.nnFormer_wrap import nnFormer_wrap
 # from pymic.net.net3d.trans3d.unetr import UNETR
 # from pymic.net.net3d.trans3d.unetr_pp import UNETR_PP
@@ -49,6 +54,7 @@ SegNetDict = {
 	'UNet2D_DualBranch': UNet2D_DualBranch,
 	'UNet2D_CCT': UNet2D_CCT,
 	'MCNet2D': MCNet2D,
+	'MTNet2D': MTNet2D,
 	'CANet': CANet,
 	'COPLENet': COPLENet,
 	'AttentionUNet2D': AttentionUNet2D,
@@ -57,20 +63,14 @@ SegNetDict = {
 	'TransUNet': TransUNet,
 	'SwinUNet': SwinUNet,
 	'UNet2D5': UNet2D5,
+	'GRUNet': GRUNet,
+	'FMUNetV3': FMUNetV3,
 	'UNet3D': UNet3D,
 	'UNet3D_ScSE': UNet3D_ScSE,
 	'UNet3D_DualBranch': UNet3D_DualBranch, 
+	# 'STUNet': STUNet_wrap,
+	# 'MySTUNet': MySTUNet,
     # 'nnFormer': nnFormer_wrap,
 	# 'UNETR': UNETR,
 	# 'UNETR_PP': UNETR_PP,
-	# 'MedFormerV1': MedFormerV1,
-	# 'MedFormerV2': MedFormerV2,
-	# 'MedFormerV3': MedFormerV3,
-	# 'MedFormerVA1':MedFormerVA1,
-	# 'HiFormer_v1': HiFormer_v1,
-	# 'HiFormer_v2': HiFormer_v2,
-	# 'HiFormer_v3': HiFormer_v3,
-    # 'HiFormer_v4': HiFormer_v4, 
-    # 'HiFormer_v5': HiFormer_v5
-	# 'SwitchNet': SwitchNet
 	}
