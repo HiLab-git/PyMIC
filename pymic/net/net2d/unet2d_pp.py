@@ -3,9 +3,9 @@ import torch
 import torch.nn as nn
 from pymic.net.net2d.unet2d import *
 
-class NestedUNet2D(nn.Module):
+class UNet2Dpp(nn.Module):
     """
-    An implementation of the Nested U-Net.
+    An implementation of the U-Net++.
 
     * Reference: Zongwei Zhou, et al.: `UNet++: A Nested U-Net Architecture for Medical Image Segmentation.
       <https://link.springer.com/chapter/10.1007/978-3-030-00889-5_1>`_ 
@@ -25,7 +25,7 @@ class NestedUNet2D(nn.Module):
     :param class_num: (int) The class number for segmentation task. 
     """
     def __init__(self, params):
-        super(NestedUNet2D, self).__init__()
+        super(UNet2Dpp, self).__init__()
         self.params  = params
         self.in_chns = self.params['in_chns']
         self.filters = self.params['feature_chns'] 
@@ -96,7 +96,7 @@ if __name__ == "__main__":
               'feature_chns':[2, 8, 32, 48, 64],
               'dropout':  [0, 0, 0.3, 0.4, 0.5],
               'class_num': 2}
-    Net = NestedUNet2D(params)
+    Net = UNet2Dpp(params)
     Net = Net.double()
 
     x  = np.random.rand(4, 4, 10, 96, 96)

@@ -22,7 +22,7 @@ from pymic.net.net2d.unet2d_cct import UNet2D_CCT
 from pymic.net.net2d.unet2d_mtnet import MTNet2D
 from pymic.net.net2d.cople_net import COPLENet
 from pymic.net.net2d.unet2d_attention import AttentionUNet2D
-from pymic.net.net2d.unet2d_nest import NestedUNet2D
+from pymic.net.net2d.unet2d_pp import UNet2Dpp
 from pymic.net.net2d.unet2d_scse import UNet2D_ScSE
 from pymic.net.net2d.trans2d.transunet import TransUNet
 from pymic.net.net2d.trans2d.swinunet import SwinUNet
@@ -50,15 +50,15 @@ from pymic.net.net3d.unet3d_dual_branch import UNet3D_DualBranch
 # from pymic.net.net3d.trans3d.SwitchNet import SwitchNet
 
 SegNetDict = {
+	'AttentionUNet2D': AttentionUNet2D,
+	'CANet': CANet,
+	'COPLENet': COPLENet,
+	'MCNet2D': MCNet2D,
+	'MTNet2D': MTNet2D,
 	'UNet2D': UNet2D,
 	'UNet2D_DualBranch': UNet2D_DualBranch,
 	'UNet2D_CCT': UNet2D_CCT,
-	'MCNet2D': MCNet2D,
-	'MTNet2D': MTNet2D,
-	'CANet': CANet,
-	'COPLENet': COPLENet,
-	'AttentionUNet2D': AttentionUNet2D,
-	'NestedUNet2D': NestedUNet2D,
+	'UNet2Dpp': UNet2Dpp,
 	'UNet2D_ScSE': UNet2D_ScSE,
 	'TransUNet': TransUNet,
 	'SwinUNet': SwinUNet,
