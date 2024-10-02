@@ -1216,7 +1216,7 @@ if __name__ == "__main__":
 
     x  = np.random.rand(4, 3, 224, 224)
     xt = torch.from_numpy(x)
-    xt = torch.tensor(xt)
+    xt = xt.clone().detach()
     
     y = Net(xt)
     print(len(y.size()))
