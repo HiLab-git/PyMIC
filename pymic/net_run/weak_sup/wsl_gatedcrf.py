@@ -73,6 +73,7 @@ class WSLGatedCRF(WSLSegAgent):
                 
             # forward + backward + optimize
             outputs = self.net(inputs)
+            t2 = time.time()
             loss_sup = self.get_loss_value(data, outputs, y)
 
             # for gated CRF loss, the input should be like NCHW
