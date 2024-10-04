@@ -120,20 +120,30 @@ class UpBlock(nn.Module):
     Upssampling followed by ConvBNActBlock.
     """
     def __init__(self, in_channels1, in_channels2, out_channels, 
-                 bilinear=True, dropout_p = 0.5):
+                 up_mode = 2, dropout_p = 0.5):
         super(UpBlock, self).__init__()
-        self.bilinear = bilinear
-        if bilinear:
-            self.conv1x1 = nn.Conv2d(in_channels1, in_channels2, kernel_size = 1)
-            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        if(isinstance(up_mode, int)):
+            up_mode_values = ["transconv", "nearest", "bilinear", "bicubic"]
+            if(up_mode > 3):
+                raise ValueError("The upsample mode should be 0-3, but {0:} is given.".format(up_mode))
+            self.up_mode = up_mode_values[up_mode]
         else:
+            self.up_mode = up_mode.lower()
+
+        if (self.up_mode == "transconv"):
             self.up = nn.ConvTranspose2d(in_channels1, in_channels2, kernel_size=2, stride=2)
+        else:
+            self.conv1x1 = nn.Conv2d(in_channels1, in_channels2, kernel_size = 1)
+            if(self.up_mode == "nearest"):
+                self.up = nn.Upsample(scale_factor=2, mode=self.up_mode)
+            else:
+                self.up = nn.Upsample(scale_factor=2, mode=self.up_mode, align_corners=True)
         self.conv = ConvBNActBlock(in_channels2 * 2, out_channels, dropout_p)
 
     def forward(self, x1, x2):
-        if self.bilinear:
+        if self.up_mode != "transconv":
             x1 = self.conv1x1(x1)
-        x1    = self.up(x1)
+        x1 = self.up(x1)
         x_cat = torch.cat([x2, x1], dim=1)
         y     = self.conv(x_cat)
         return y + x_cat
@@ -165,7 +175,7 @@ class COPLENet(nn.Module):
         self.ft_chns   = self.params['feature_chns']
         self.dropout   = self.params['dropout']
         self.n_class   = self.params['class_num']
-        self.bilinear  = self.params['bilinear']
+        self.up_mode   = self.params.get('up_mode', 2)
         assert(len(self.ft_chns) == 5)
 
         f0_half = int(self.ft_chns[0] / 2)
@@ -183,10 +193,10 @@ class COPLENet(nn.Module):
         self.bridge2= ConvLayer(self.ft_chns[2], f2_half)
         self.bridge3= ConvLayer(self.ft_chns[3], f3_half)
 
-        self.up1    = UpBlock(self.ft_chns[4], f3_half, self.ft_chns[3], dropout_p = self.dropout[3])
-        self.up2    = UpBlock(self.ft_chns[3], f2_half, self.ft_chns[2], dropout_p = self.dropout[2])
-        self.up3    = UpBlock(self.ft_chns[2], f1_half, self.ft_chns[1], dropout_p = self.dropout[1])
-        self.up4    = UpBlock(self.ft_chns[1], f0_half, self.ft_chns[0], dropout_p = self.dropout[0])
+        self.up1    = UpBlock(self.ft_chns[4], f3_half, self.ft_chns[3], self.up_mode, dropout_p = self.dropout[3])
+        self.up2    = UpBlock(self.ft_chns[3], f2_half, self.ft_chns[2], self.up_mode, dropout_p = self.dropout[2])
+        self.up3    = UpBlock(self.ft_chns[2], f1_half, self.ft_chns[1], self.up_mode, dropout_p = self.dropout[1])
+        self.up4    = UpBlock(self.ft_chns[1], f0_half, self.ft_chns[0], self.up_mode, dropout_p = self.dropout[0])
 
         f4 = self.ft_chns[4]
         aspp_chns = [int(f4 / 4), int(f4 / 4), int(f4 / 4), int(f4 / 4)]

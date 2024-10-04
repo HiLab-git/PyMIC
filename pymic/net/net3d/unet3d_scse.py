@@ -76,12 +76,14 @@ class EncoderScSE(Encoder):
     def __init__(self, params):
         super(EncoderScSE, self).__init__(params)
         
-        self.in_conv= ConvScSEBlock3D(self.in_chns, self.ft_chns[0], self.dropout[0])
-        self.down1  = DownBlock(self.ft_chns[0], self.ft_chns[1], self.dropout[1])
-        self.down2  = DownBlock(self.ft_chns[1], self.ft_chns[2], self.dropout[2])
-        self.down3  = DownBlock(self.ft_chns[2], self.ft_chns[3], self.dropout[3])
+        in_chns   = self.params['in_chns']
+        dropout   = self.params['dropout']
+        self.in_conv= ConvScSEBlock3D(in_chns, self.ft_chns[0], dropout[0])
+        self.down1  = DownBlock(self.ft_chns[0], self.ft_chns[1], dropout[1])
+        self.down2  = DownBlock(self.ft_chns[1], self.ft_chns[2], dropout[2])
+        self.down3  = DownBlock(self.ft_chns[2], self.ft_chns[3], dropout[3])
         if(len(self.ft_chns) == 5):
-            self.down4  = DownBlock(self.ft_chns[3], self.ft_chns[4], self.dropout[4])
+            self.down4  = DownBlock(self.ft_chns[3], self.ft_chns[4], dropout[4])
 
 class DecoderScSE(Decoder):
     """
@@ -92,12 +94,13 @@ class DecoderScSE(Decoder):
     """
     def __init__(self, params):
         super(DecoderScSE, self).__init__(params)
-
+        dropout   = self.params['dropout']
+        up_mode   = self.params.get('up_mode', 2)
         if(len(self.ft_chns) == 5):
-            self.up1 = UpBlockScSE(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], self.dropout[3], self.up_mode) 
-        self.up2 = UpBlockScSE(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], self.dropout[2], self.up_mode) 
-        self.up3 = UpBlockScSE(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], self.dropout[1], self.up_mode) 
-        self.up4 = UpBlockScSE(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], self.dropout[0], self.up_mode) 
+            self.up1 = UpBlockScSE(self.ft_chns[4], self.ft_chns[3], self.ft_chns[3], dropout[3], up_mode) 
+        self.up2 = UpBlockScSE(self.ft_chns[3], self.ft_chns[2], self.ft_chns[2], dropout[2], up_mode) 
+        self.up3 = UpBlockScSE(self.ft_chns[2], self.ft_chns[1], self.ft_chns[1], dropout[1], up_mode) 
+        self.up4 = UpBlockScSE(self.ft_chns[1], self.ft_chns[0], self.ft_chns[0], dropout[0], up_mode) 
 
 
 class UNet3D_ScSE(UNet3D):
