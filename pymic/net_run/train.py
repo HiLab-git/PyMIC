@@ -60,6 +60,8 @@ def main():
                     required=False, default=None)
     parser.add_argument("-ckpt_dir", help="the output dir for trained model", 
                     required=False, default=None)
+    parser.add_argument("-iter_max", help="the maximal iteration number for training", 
+                    required=False, default=None)
     parser.add_argument("-gpus", help="the gpus for runing, e.g., [0]", 
                     required=False, default=None)
     args = parser.parse_args()

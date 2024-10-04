@@ -19,7 +19,7 @@ from pymic.loss.loss_dict_cls import PyMICClsLossDict
 from pymic.net.net_dict_cls import TorchClsNetDict
 from pymic.transform.trans_dict import TransformDict
 from pymic.net_run.agent_abstract import NetRunAgent
-from pymic.util.general import mixup
+from pymic.util.general import mixup, tensor_shape_match
 import warnings
 warnings.filterwarnings('ignore', '.*output shape of zoom.*')
 
@@ -212,6 +212,27 @@ class ClassificationAgent(NetRunAgent):
         logging.info('valid loss {0:.4f}, avg {1:} {2:.4f}'.format(
             valid_scalars['loss'], metrics, valid_scalars[metrics])) 
 
+    def load_pretrained_weights(self, network, pretrained_dict, device_ids):
+        if(len(device_ids) > 1):
+            if(hasattr(network.module, "get_parameters_to_load")):
+                model_dict = network.module.get_parameters_to_load()
+            else:
+                model_dict = network.module.state_dict()
+        else:
+            if(hasattr(network, "get_parameters_to_load")):
+                model_dict = network.get_parameters_to_load()
+            else:
+                model_dict = network.state_dict()
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if \
+            k in model_dict and tensor_shape_match(pretrained_dict[k], model_dict[k])}
+        logging.info("Initializing the following parameters with pre-trained model")
+        for k in pretrained_dict:
+            logging.info(k)
+        if (len(device_ids) > 1):
+            network.module.load_state_dict(pretrained_dict, strict = False)
+        else:
+            network.load_state_dict(pretrained_dict, strict = False) 
+
     def train_valid(self):
         device_ids = self.config['training']['gpus']
         if(len(device_ids) > 1):
@@ -227,7 +248,7 @@ class ClassificationAgent(NetRunAgent):
         ckpt_prefix = self.config['training'].get('ckpt_prefix', None)
         if(ckpt_prefix is None):
             ckpt_prefix = ckpt_dir.split('/')[-1]
-        iter_start  = self.config['training']['iter_start']
+        iter_start  = 0
         iter_max    = self.config['training']['iter_max']
         iter_valid  = self.config['training']['iter_valid']
         iter_save   = self.config['training']['iter_save']
@@ -243,18 +264,18 @@ class ClassificationAgent(NetRunAgent):
         self.max_val_score  = 0.0
         self.max_val_it     = 0
         self.best_model_wts = None 
-        self.checkpoint = None
-        if(iter_start > 0):
-            checkpoint_file = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, iter_start)
-            self.checkpoint = torch.load(checkpoint_file, map_location = self.device)
-            assert(self.checkpoint['iteration'] == iter_start)
-            if(len(device_ids) > 1):
-                self.net.module.load_state_dict(self.checkpoint['model_state_dict'])
-            else:
-                self.net.load_state_dict(self.checkpoint['model_state_dict'])
-            self.max_val_score  = self.checkpoint.get('valid_pred', 0)
-            self.max_val_it     = self.checkpoint['iteration']
-            self.best_model_wts = self.checkpoint['model_state_dict']
+        ckpt_init_name = self.config['training'].get('ckpt_init_name', None)
+        ckpt_init_mode = self.config['training'].get('ckpt_init_mode', 0)
+
+        if(ckpt_init_name is not None):
+            checkpoint = torch.load(ckpt_dir + "/" + ckpt_init_name, map_location = self.device)
+            pretrained_dict = checkpoint['model_state_dict']
+            self.load_pretrained_weights(self.net, pretrained_dict, device_ids)
+            if(ckpt_init_mode > 0): # Load  other information
+                iter_start = checkpoint['iteration']
+                self.max_val_score  = checkpoint.get('valid_pred', 0)
+                self.max_val_it     = checkpoint['iteration']
+                self.best_model_wts = checkpoint['model_state_dict']
         
         self.create_optimizer(self.get_parameters_to_update())
         self.create_loss_calculator()
