@@ -19,7 +19,7 @@ from pymic.net.net2d.unet2d import UNet2D
 from pymic.net.net2d.unet2d_multi_decoder import UNet2D_DualBranch, MCNet2D
 from pymic.net.net2d.unet2d_canet import CANet
 from pymic.net.net2d.unet2d_cct import UNet2D_CCT
-from pymic.net.net2d.unet2d_mtnet import MTNet2D
+# from pymic.net.net2d.unet2d_mtnet import MTNet2D
 from pymic.net.net2d.cople_net import COPLENet
 from pymic.net.net2d.unet2d_attention import AttentionUNet2D
 from pymic.net.net2d.unet2d_pp import UNet2Dpp
@@ -55,7 +55,7 @@ SegNetDict = {
 	'CANet': CANet,
 	'COPLENet': COPLENet,
 	'MCNet2D': MCNet2D,
-	'MTNet2D': MTNet2D,
+	# 'MTNet2D': MTNet2D,
 	'UNet2D': UNet2D,
 	'UNet2D_DualBranch': UNet2D_DualBranch,
 	'UNet2D_CCT': UNet2D_CCT,
