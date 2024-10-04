@@ -50,7 +50,8 @@ class NLLCoTeaching(SegmentationAgent):
         rampup_end   = nll_cfg.get('rampup_end', iter_max)
 
         train_loss_no_select1, train_loss_no_select2  = 0, 0
-        train_loss1, train_avg_loss2 = 0, 0
+        train_loss1, train_avg_loss1 = 0, 0
+        train_loss2, train_avg_loss2 = 0, 0
         train_dice_list = []
         data_time, gpu_time, loss_time, back_time = 0, 0, 0, 0
         self.net.train()
