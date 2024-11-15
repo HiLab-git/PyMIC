@@ -47,10 +47,10 @@ Run the following command to install the latest released version of PyMIC:
 ```bash
 pip install PYMIC
 ```
-To install a specific version of PYMIC such as 0.4.1, run:
+To install a specific version of PYMIC such as 0.5.0, run:
 
 ```bash
-pip install PYMIC==0.4.1
+pip install PYMIC==0.5.0
 ```
 Alternatively, you can download the source code for the latest version. Run the following command to compile and install:
 
