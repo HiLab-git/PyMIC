@@ -3,7 +3,7 @@
 Evaluation module for classification tasks.
 """
 from __future__ import absolute_import, print_function
-
+import argparse
 import os
 import csv 
 import sys
@@ -75,15 +75,15 @@ def binary_evaluation(config):
     The arguments are given in the `config` dictionary. 
     It should have the following fields:
 
-    :param metric_list: (list) A list of evaluation metrics.
+    :param metric: (list) A list of evaluation metrics.
         The supported metrics are {`accuracy`, `recall`, `sensitivity`, `specificity`,
         `precision`, `auc`}.
-    :param ground_truth_csv: (str) The csv file for ground truth.
-    :param predict_prob_csv: (str) The csv file for prediction probability.
+    :param gt_csv: (str) The csv file for ground truth.
+    :param pred_prob_csv: (str) The csv file for prediction probability.
     """
-    metric_list = config['metric_list']
-    gt_csv  = config['ground_truth_csv']
-    prob_csv= config['predict_prob_csv']
+    metric_list = config['metric']
+    gt_csv  = config['gt_csv']
+    prob_csv= config['pred_prob_csv']
     gt_items  = pd.read_csv(gt_csv)
     prob_items = pd.read_csv(prob_csv)
     assert(len(gt_items) == len(prob_items))
@@ -111,15 +111,15 @@ def nexcl_evaluation(config):
     The arguments are given in the `config` dictionary. 
     It should have the following fields:
 
-    :param metric_list: (list) A list of evaluation metrics.
+    :param metric: (list) A list of evaluation metrics.
         The supported metrics are {`accuracy`, `recall`, `sensitivity`, `specificity`,
         `precision`, `auc`}.
-    :param ground_truth_csv: (str) The csv file for ground truth.
-    :param predict_prob_csv: (str) The csv file for prediction probability.
+    :param gt_csv: (str) The csv file for ground truth.
+    :param pred_prob_csv: (str) The csv file for prediction probability.
     """
-    metric_list = config['metric_list']
-    gt_csv    = config['ground_truth_csv']
-    prob_csv  = config['predict_prob_csv']
+    metric_list = config['metric']
+    gt_csv    = config['gt_csv']
+    prob_csv  = config['pred_prob_csv']
     gt_items  = pd.read_csv(gt_csv)
     prob_items= pd.read_csv(prob_csv)
     assert(len(gt_items) == len(prob_items))
@@ -163,25 +163,35 @@ def main():
     
     .. code-block:: none
 
-        pymic_evaluate_cls config.cfg
+        pymic_evaluate_cls -cfg config.cfg
 
     The configuration file should have an `evaluation` section with
     the following fields:
 
     :param task_type: (str) `cls` or `cls_nexcl`.
-    :param metric_list: (list) A list of evaluation metrics.
+    :param metric: (list) A list of evaluation metrics.
         The supported metrics are {`accuracy`, `recall`, `sensitivity`, `specificity`,
         `precision`, `auc`}.
-    :param ground_truth_csv: (str) The csv file for ground truth.
-    :param predict_prob_csv: (str) The csv file for prediction probability.
+    :param gt_csv: (str) The csv file for ground truth.
+    :param pred_prob_csv: (str) The csv file for prediction probability.
     """
-    if(len(sys.argv) < 2):
-        print('Number of arguments should be 2. e.g.')
-        print('    pymic_evaluate_cls config.cfg')
-        exit()
-    config_file = str(sys.argv[1])
-    assert(os.path.isfile(config_file))
-    config = parse_config(config_file)['evaluation']
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-cfg", help="configuration file for evaluation", 
+                        required=False, default=None)
+    parser.add_argument("-metric", help="evaluation metrics, e.g., accuracy, or [accuracy, auc]", 
+                        required=False, default=None)
+    parser.add_argument("-gt_csv", help="csv file for ground truth", 
+                        required=False, default=None)
+    parser.add_argument("-pred_prob_csv", help="csv file for probability prediction", 
+                        required=False, default=None)
+    args = parser.parse_args()
+    print(args)
+    if(args.cfg is not None):
+        config = parse_config(args)['evaluation']
+
+    # config_file = str(sys.argv[1])
+    # assert(os.path.isfile(config_file))
+    # config = parse_config(config_file)['evaluation']
     task_type = config.get('task_type', "cls")
     if(task_type == "cls"):  # default exclusive classification
         binary_evaluation(config)
