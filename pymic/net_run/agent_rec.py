@@ -108,8 +108,8 @@ class ReconstructionAgent(SegmentationAgent):
             loss = self.get_loss_value(data, outputs, label)
             t3 = time.time()
             loss.backward()
-            t4 = time.time()
             self.optimizer.step()
+            t4 = time.time()
             train_loss = train_loss + loss.item()
 
             if(isinstance(outputs, tuple) or isinstance(outputs, list)):
@@ -175,8 +175,7 @@ class ReconstructionAgent(SegmentationAgent):
                       'valid':valid_scalars['loss']}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars('lr', {"lr": lr_value}, glob_it)
-        logging.info('train loss {0:.4f}'.format(train_scalars['loss']))        
-        logging.info('valid loss {0:.4f}'.format(valid_scalars['loss']))  
+        logging.info('train/valid loss {0:.4f}/{1:.4f}'.format(train_scalars['loss'],valid_scalars['loss']))        
         logging.info("data: {0:.2f}s, forward: {1:.2f}s, loss: {2:.2f}s, backward: {3:.2f}s".format(
                 train_scalars['data_time'], train_scalars['forward_time'], 
                 train_scalars['loss_time'], train_scalars['backward_time']))  
@@ -259,9 +258,6 @@ class ReconstructionAgent(SegmentationAgent):
             logging.info("\n{0:} it {1:}".format(str(datetime.now())[:-7], self.glob_it))
             logging.info('learning rate {0:}'.format(lr_value))
             logging.info("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
-            logging.info("data: {0:.2f}s, forward: {1:.2f}s, loss: {2:.2f}s, backward: {3:.2f}s".format(
-                train_scalars['data_time'], train_scalars['forward_time'], 
-                train_scalars['loss_time'], train_scalars['backward_time']))
             self.write_scalars(train_scalars, valid_scalars, lr_value, self.glob_it)
             if(valid_scalars['loss'] < self.min_val_loss):
                 self.min_val_loss = valid_scalars['loss']
@@ -320,19 +316,21 @@ class ReconstructionAgent(SegmentationAgent):
         if(isinstance(pred, (list, tuple))):
             pred =  pred[0]
         pred = np.tanh(pred)
+        if(self.postprocessor is not None):
+            pred = self.postprocessor(pred)
         # pred = scipy.special.expit(pred)
         # save the output predictions
         test_dir = self.config['dataset'].get('test_dir', None)
         if(test_dir is None):
             test_dir = self.config['dataset']['train_dir']
 
-        for i in range(len(names)):
+        for i in range(pred.shape[1]):
             save_name = names[i][0].split('/')[-1] if ignore_dir else \
                 names[i][0].replace('/', '_')
             if((filename_replace_source is  not None) and (filename_replace_target is not None)):
                 save_name = save_name.replace(filename_replace_source, filename_replace_target)
             print(save_name)
             save_name = "{0:}/{1:}".format(output_dir, save_name)
-            save_nd_array_as_image(pred[i][i], save_name, test_dir + '/' + names[i][0])
+            save_nd_array_as_image(pred[i][0], save_name, test_dir + '/' + names[i][0])
 
             

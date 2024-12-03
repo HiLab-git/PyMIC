@@ -56,6 +56,8 @@ class NetRunAgent(object):
         self.loss_dict = None 
         self.transform_dict  = None
         self.inferer   = None
+        self.postprocess_dict = None
+        self.postprocessor    = None
         self.tensor_type   = config['dataset']['tensor_type']
         self.task_type     = config['dataset']['task_type'] 
         self.deterministic = config['training'].get('deterministic', True)
@@ -101,6 +103,14 @@ class NetRunAgent(object):
         :param net_dict: (dictionary) A dictionary of available networks.
         """
         self.net_dict = net_dict
+
+    def set_postprocess_dict(self, postprocess_dict):
+        """
+        Set the available methods for postprocess, including customized postprocess methods.
+
+        :param postprocess_dict: (dictionary) A dictionary of available postprocess methods.
+        """
+        self.postprocess_dict = postprocess_dict
 
     def set_loss_dict(self, loss_dict):
         """
@@ -258,7 +268,11 @@ class NetRunAgent(object):
             if(self.train_set is None):
                 self.train_set = self.get_stage_dataset_from_config('train')
             if(self.valid_set is None):
-                self.valid_set = self.get_stage_dataset_from_config('valid')
+                valid_csv = self.config['dataset'].get('valid_csv', None)
+                if valid_csv is not None:
+                    self.valid_set = self.get_stage_dataset_from_config('valid')
+                else:
+                    logging.warning("Dataset for validation is not created, as valid_dir is not provided.")
             if(self.deterministic):
                 def worker_init_fn(worker_id):
                     # workder_seed = self.random_seed+worker_id 
@@ -269,18 +283,20 @@ class NetRunAgent(object):
             else:
                 worker_init = None
 
-            bn_train = self.config['dataset']['train_batch_size']
-            bn_valid = self.config['dataset'].get('valid_batch_size', 1)
             num_worker = self.config['dataset'].get('num_worker', 8)
-            g_train, g_valid = torch.Generator(), torch.Generator()
+            bn_train   = self.config['dataset']['train_batch_size']
+            g_train    = torch.Generator()
             g_train.manual_seed(self.random_seed)
-            g_valid.manual_seed(self.random_seed)
             self.train_loader = torch.utils.data.DataLoader(self.train_set, 
                 batch_size = bn_train, shuffle=True, num_workers= num_worker,
                 worker_init_fn=worker_init, generator = g_train, drop_last = True)
-            self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
-                batch_size = bn_valid, shuffle=False, num_workers= num_worker,
-                worker_init_fn=worker_init, generator = g_valid)
+            if(self.valid_set is not None):
+                bn_valid = self.config['dataset'].get('valid_batch_size', 1)
+                g_valid = torch.Generator()
+                g_valid.manual_seed(self.random_seed)
+                self.valid_loader = torch.utils.data.DataLoader(self.valid_set, 
+                    batch_size = bn_valid, shuffle=False, num_workers= num_worker,
+                    worker_init_fn=worker_init, generator = g_valid)
         else:
             bn_test = self.config['dataset'].get('test_batch_size', 1)
             if(self.test_set  is None):
@@ -326,6 +342,4 @@ class NetRunAgent(object):
             self.train_valid()
         else:
             self.infer()
-
-
 

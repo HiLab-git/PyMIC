@@ -150,15 +150,6 @@ class SegmentationAgent(NetRunAgent):
             loss_input_dict['class_weight'] = class_weight.to(device)
         loss_value = self.loss_calculator(loss_input_dict)
         return loss_value
-    
-    def set_postprocessor(self, postprocessor):
-        """
-        Set post processor after prediction. 
-
-        :param postprocessor: post processor, such as an instance of 
-            `pymic.util.post_process.PostProcess`.
-        """
-        self.postprocessor = postprocessor
 
     def training(self):
         class_num   = self.config['network']['class_num']
@@ -476,7 +467,7 @@ class SegmentationAgent(NetRunAgent):
             self.inferer = Inferer(infer_cfg)
         postpro_name = self.config['testing'].get('post_process', None)
         if(self.postprocessor is None and postpro_name is not None):
-            self.postprocessor = PostProcessDict[postpro_name](self.config['testing'])
+            self.postprocessor = self.postprocess_dict[postpro_name](self.config['testing'])
         infer_time_list = []
         with torch.no_grad():
             for data in self.test_loader:
