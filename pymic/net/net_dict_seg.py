@@ -30,6 +30,7 @@ from pymic.net.net3d.unet2d5 import UNet2D5
 from pymic.net.net3d.unet3d import UNet3D
 from pymic.net.net3d.grunet import GRUNet
 from pymic.net.net3d.fmunetv3 import FMUNetV3
+from pymic.net.net3d.fmunet import FMUNet
 from pymic.net.net3d.lcovnet import LCOVNet
 from pymic.net.net3d.unet3d_scse import UNet3D_ScSE
 from pymic.net.net3d.unet3d_dual_branch import UNet3D_DualBranch
@@ -66,6 +67,7 @@ SegNetDict = {
 	'UNet2D5': UNet2D5,
 	'GRUNet': GRUNet,
     'LCOVNet': LCOVNet,
+    'FMUNet': FMUNet,
 	'FMUNetV3': FMUNetV3,
 	'UNet3D': UNet3D,
 	'UNet3D_ScSE': UNet3D_ScSE,

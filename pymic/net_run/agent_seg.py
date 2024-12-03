@@ -68,8 +68,9 @@ class SegmentationAgent(NetRunAgent):
             self.test_transforms = transform_list
         else:
             with_label = self.config['dataset'].get(stage + '_label', True)
-        modal_num = self.config['dataset'].get('modal_num', 1)
-        stage_dir = self.config['dataset'].get('train_dir', None)
+        modal_num  = self.config['dataset'].get('modal_num', 1)
+        allow_miss = self.config['dataset'].get('allow_missing_modal', False)
+        stage_dir  = self.config['dataset'].get('train_dir', None)
         if(stage == 'valid' and "valid_dir" in self.config['dataset']):
             stage_dir = self.config['dataset']['valid_dir']
         if(stage == 'test' and "test_dir" in self.config['dataset']):
@@ -78,6 +79,7 @@ class SegmentationAgent(NetRunAgent):
         dataset  = NiftyDataset(root_dir  = stage_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
+                                allow_missing_modal = allow_miss,
                                 with_label= with_label,
                                 transform = data_transform, 
                                 task = self.task_type)

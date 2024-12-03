@@ -22,11 +22,13 @@ class NiftyDataset(Dataset):
     :param transform:  (list) List of transforms to be applied on a sample.
         The built-in transforms can listed in :mod:`pymic.transform.trans_dict`.
     """
-    def __init__(self, root_dir, csv_file, modal_num = 1, 
+    # def __init__(self, root_dir, csv_file, modal_num = 1, 
+    def __init__(self, root_dir, csv_file, modal_num = 1, allow_missing_modal = False,
             with_label = False, transform=None, task = TaskType.SEGMENTATION):
         self.root_dir   = root_dir
         self.csv_items  = pd.read_csv(csv_file)
         self.modal_num  = modal_num
+        self.allow_emtpy= allow_missing_modal
         self.with_label = with_label
         self.transform  = transform
         self.task       = task
@@ -89,11 +91,19 @@ class NiftyDataset(Dataset):
 
     def __getitem__(self, idx):
         names_list, image_list = [], []
+        image_shape = None 
         for i in range (self.modal_num):
             image_name = self.csv_items.iloc[idx, i]
             image_full_name = "{0:}/{1:}".format(self.root_dir, image_name)
-            image_dict = load_image_as_nd_array(image_full_name)
-            image_data = image_dict['data_array']
+            if(os.path.exists(image_full_name)):
+                image_dict = load_image_as_nd_array(image_full_name)
+                image_data = image_dict['data_array']
+            elif(self.allow_emtpy and image_shape is not None):
+                image_data = np.zeros(image_shape)
+            else:
+                raise KeyError("File not found: {0:}".format(image_full_name))
+            if(i == 0):
+                image_shape = image_data.shape
             names_list.append(image_name)
             image_list.append(image_data)
         image = np.concatenate(image_list, axis = 0)
