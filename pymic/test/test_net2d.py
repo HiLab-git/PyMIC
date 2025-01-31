@@ -5,7 +5,7 @@ import torch
 import numpy as np 
 from pymic.net.net2d.unet2d import UNet2D
 from pymic.net.net2d.unet2d_scse import UNet2D_ScSE
-
+from pymic.net.net2d.umamba_bot import UMambaBot
 def test_unet2d():
     params = {'in_chns':4,
               'feature_chns':[16, 32, 64, 128, 256],
@@ -52,6 +52,17 @@ def test_unet2d_scse():
     else:
         print(out.shape)
 
+def test_umamba():
+    x  = np.random.rand(4, 4, 10, 256, 256)
+    xt = torch.from_numpy(x)
+    xt = torch.tensor(xt)
+    
+    Net = UMambaBot()
+    out = Net(xt)
+    y = out.detach().numpy()
+    print(y.shape)
+
 if __name__ == "__main__":
     # test_unet2d()
-    test_unet2d_scse()
+    # test_unet2d_scse()
+    test_umamba()

@@ -26,6 +26,7 @@ from pymic.net.net2d.unet2d_pp import UNet2Dpp
 from pymic.net.net2d.unet2d_scse import UNet2D_ScSE
 from pymic.net.net2d.trans2d.transunet import TransUNet
 from pymic.net.net2d.trans2d.swinunet import SwinUNet
+from pymic.net.net2d.umamba import UMambaBot, UMambaEnc
 from pymic.net.net3d.unet2d5 import UNet2D5
 from pymic.net.net3d.unet3d import UNet3D
 from pymic.net.net3d.grunet import GRUNet
@@ -62,6 +63,8 @@ SegNetDict = {
 	'UNet2D_CCT': UNet2D_CCT,
 	'UNet2Dpp': UNet2Dpp,
 	'UNet2D_ScSE': UNet2D_ScSE,
+    'UMambaBot': UMambaBot,
+    'UMambaEnc': UMambaEnc,
 	'TransUNet': TransUNet,
 	'SwinUNet': SwinUNet,
 	'UNet2D5': UNet2D5,
