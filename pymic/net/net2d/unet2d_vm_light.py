@@ -150,7 +150,7 @@ class UltraLight_VM_UNet(nn.Module):
         :param class_num: (int) The class number for segmentation task. 
         :param feature_chns: (list) Feature channel for each resolution level. 
         The length should be 6, by default it is [8, 16, 24, 32, 48, 64].
-        :param bridge: (int) If the bridge based on spatial and channel attentions is used or not. 
+        :param bridge: (bool) If the bridge based on spatial and channel attentions is used or not. 
         By default it is True.
         """
         super(UltraLight_VM_UNet, self).__init__()
