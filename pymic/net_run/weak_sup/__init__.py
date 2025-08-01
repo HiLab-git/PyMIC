@@ -6,10 +6,12 @@ from pymic.net_run.weak_sup.wsl_mumford_shah import WSLMumfordShah
 from pymic.net_run.weak_sup.wsl_tv import WSLTotalVariation
 from pymic.net_run.weak_sup.wsl_ustm import WSLUSTM
 from pymic.net_run.weak_sup.wsl_dmpls import WSLDMPLS
+from pymic.net_run.weak_sup.wsl_dmsps import WSLDMSPS
 
 WSLMethodDict = {'EntropyMinimization': WSLEntropyMinimization,
     'GatedCRF': WSLGatedCRF,
     'MumfordShah': WSLMumfordShah,
     'TotalVariation': WSLTotalVariation,
     'USTM': WSLUSTM,
-    'DMPLS': WSLDMPLS}
+    'DMPLS': WSLDMPLS,
+    'DMSPS': WSLDMSPS}

@@ -13,14 +13,14 @@ from pymic.loss.seg.ce   import CrossEntropyLoss
 from pymic.net_run.weak_sup import WSLSegAgent
 from pymic.util.ramps import get_rampup_ratio
 
-class WSLDMPLS(WSLSegAgent):
+class WSLDMSPS(WSLSegAgent):
     """
     Weakly supervised segmentation based on Dynamically Mixed Pseudo Labels Supervision.
 
-    * Reference: Xiangde Luo, Minhao Hu, Wenjun Liao, Shuwei Zhai, Tao Song, Guotai Wang,
-      Shaoting Zhang. ScribblScribble-Supervised Medical Image Segmentation via 
-      Dual-Branch Network and Dynamically Mixed Pseudo Labels Supervision.
-      `MICCAI 2022. <https://arxiv.org/abs/2203.02106>`_ 
+    * Reference: Meng Han, Xiangde Luo, Xiangjiang Xie, Wenjun Liao, Shichuan Zhang, Tao Song,
+      Guotai Wang, Shaoting Zhang. DMSPS: Dynamically mixed soft pseudo-label supervision for 
+      scribble-supervised medical image segmentation.
+      `Medical Image Analysis 2024. <https://www.sciencedirect.com/science/article/pii/S1361841524001993>`_ 
     
     :param config: (dict) A dictionary containing the configuration.
     :param stage: (str) One of the stage in `train` (default), `inference` or `test`. 
@@ -36,16 +36,16 @@ class WSLDMPLS(WSLSegAgent):
         if net_type not in ['UNet2D_DualBranch', 'UNet3D_DualBranch']:
             raise ValueError("""For WSL_DMPLS, a dual branch network is expected. \
                 It only supports UNet2D_DualBranch and UNet3D_DualBranch currently.""")
-        super(WSLDMPLS, self).__init__(config, stage)
+        super(WSLDMSPS, self).__init__(config, stage)
 
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
         wsl_cfg     = self.config['weakly_supervised_learning']
-        iter_max    = self.config['training']['iter_max']
+        iter_max     = self.config['training']['iter_max']
         rampup_start = wsl_cfg.get('rampup_start', 0)
         rampup_end   = wsl_cfg.get('rampup_end', iter_max)
-        pseudo_loss_type = wsl_cfg.get('pseudo_sup_loss', 'dice_loss')
+        pseudo_loss_type = wsl_cfg.get('pseudo_sup_loss', 'ce_loss')
         if (pseudo_loss_type not in ('dice_loss', 'ce_loss')):
             raise ValueError("""For pseudo supervision loss, only dice_loss and ce_loss \
                 are supported.""")
@@ -83,8 +83,8 @@ class WSLDMPLS(WSLSegAgent):
             outputs_soft2 = torch.softmax(outputs2, dim=1)
             beta = random.random()
             pseudo_lab = beta*outputs_soft1.detach() + (1.0-beta)*outputs_soft2.detach()
-            pseudo_lab = torch.argmax(pseudo_lab, dim = 1, keepdim = True)
-            pseudo_lab = get_soft_label(pseudo_lab, class_num, self.tensor_type)
+            # pseudo_lab = torch.argmax(pseudo_lab, dim = 1, keepdim = True)
+            # pseudo_lab = get_soft_label(pseudo_lab, class_num, self.tensor_type)
             
             # calculate the pseudo label supervision loss
             loss_calculator = DiceLoss() if pseudo_loss_type == 'dice_loss' else CrossEntropyLoss()
