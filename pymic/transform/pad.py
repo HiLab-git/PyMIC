@@ -38,6 +38,11 @@ class Pad(AbstractTransform):
         image = sample['image']
         input_shape = image.shape
         input_dim = len(input_shape) - 1
+        
+        if(input_dim == 3):
+            if(len(self.output_size) == 2):
+                # for 3D images, igore the z-axis
+                self.output_size = [input_shape[1]] + list(self.output_size)
         assert(len(self.output_size) == input_dim)
         if(self.ceil_mode):
             multiple = [int(math.ceil(float(input_shape[1+i])/self.output_size[i]))\

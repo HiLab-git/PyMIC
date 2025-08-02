@@ -19,13 +19,19 @@ class RandomRotate(AbstractTransform):
 
     :param `RandomRotate_angle_range_d`: (list/tuple or None) 
         Rotation angle (degree) range along depth axis (x-y plane), e.g., (-90, 90).
+        The length of the list/tuple can be larger than 2, when `RandomRotate_discrete_mode` is True.
         If None, no rotation along this axis. 
     :param `RandomRotate_angle_range_h`: (list/tuple or None) 
         Rotation angle (degree) range along height axis (x-z plane), e.g., (-90, 90).
+        The length of the list/tuple can be larger than 2, when `RandomRotate_discrete_mode` is True.
         If None, no rotation along this axis. Only used for 3D images. 
     :param `RandomRotate_angle_range_w`: (list/tuple or None) 
         Rotation angle (degree) range along width axis (y-z plane), e.g., (-90, 90).
+        The length of the list/tuple can be larger than 2, when `RandomRotate_discrete_mode` is True.
         If None, no rotation along this axis. Only used for 3D images. 
+    :param `RandomRotate_discrete_mode`: (optional, bool) Whether the rotate angles
+        are discrete values in rangle range. For example, if you only want to rotate 
+        the images with a fixed set of angles like (90, 180, 270), then set discrete_mode mode as True.
     :param `RandomRotate_probability`: (optional, float) 
         The probability of applying RandomRotate. Default is 0.5.
     :param `RandomRotate_inverse`: (optional, bool) 
@@ -36,8 +42,11 @@ class RandomRotate(AbstractTransform):
         self.angle_range_d  = params['RandomRotate_angle_range_d'.lower()]
         self.angle_range_h  = params.get('RandomRotate_angle_range_h'.lower(), None)
         self.angle_range_w  = params.get('RandomRotate_angle_range_w'.lower(), None)
+        self.discrete_mode  = params.get('RandomRotate_discrete_mode'.lower(), False)
         self.prob = params.get('RandomRotate_probability'.lower(), 0.5)
         self.inverse = params.get('RandomRotate_inverse'.lower(), True)
+        if(len(self.angle_range_d) > 2):
+            assert(self.discrete_mode)
 
     def __apply_transformation(self, image, transform_param_list, order = 1):
         """
@@ -63,15 +72,27 @@ class RandomRotate(AbstractTransform):
         
         transform_param_list = []
         if(self.angle_range_d is not None):
-            angle_d = np.random.uniform(self.angle_range_d[0], self.angle_range_d[1])
+            if(self.discrete_mode):
+                idx = random.randint(0, len(self.angle_range_d) - 1)
+                angle_d = self.angle_range_d[idx]
+            else:
+                angle_d = np.random.uniform(self.angle_range_d[0], self.angle_range_d[1])
             transform_param_list.append([angle_d, (-1, -2)])
         if(input_dim == 3):
             if(self.angle_range_h is not None):
-                angle_h = np.random.uniform(self.angle_range_h[0], self.angle_range_h[1])
-                transform_param_list.append([angle_h, (-1, -3)])
+                if(self.discrete_mode):
+                    idx = random.randint(0, len(self.angle_range_h) - 1)
+                    angle_h = self.angle_range_h[idx]
+                else:
+                    angle_h = np.random.uniform(self.angle_range_h[0], self.angle_range_h[1])
+                    transform_param_list.append([angle_h, (-1, -3)])
             if(self.angle_range_w is not None):
-                angle_w = np.random.uniform(self.angle_range_w[0], self.angle_range_w[1])
-                transform_param_list.append([angle_w, (-2, -3)])
+                if(self.discrete_mode):
+                    idx = random.randint(0, len(self.angle_range_w) - 1)
+                    angle_w = self.angle_range_w[idx]
+                else:
+                    angle_w = np.random.uniform(self.angle_range_w[0], self.angle_range_w[1])
+                    transform_param_list.append([angle_w, (-2, -3)])
         assert(len(transform_param_list) > 0)
         # select a random transform from the possible list rather than 
         # use a combination for higher efficiency

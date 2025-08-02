@@ -17,9 +17,9 @@ class Rescale(AbstractTransform):
     following fields:
 
     :param `Rescale_output_size`: (list/tuple or int) The output size along each spatial axis, 
-        such as [D, H, W] or [H, W].  If D is None, the input image is only reslcaled in 2D.
-        If int, the smallest axis is matched to output_size keeping aspect ratio the same
-        as the input.
+        such as [D, H, W] or [H, W]. For 3D images, if D is None, or the lenght of tuple/list is 2,
+        the input image is only reslcaled in 2D. If int, the smallest axis is matched to output_size 
+        keeping aspect ratio the same as the input.
     :param `Rescale_inverse`: (optional, bool) 
         Is inverse transform needed for inference. Default is `True`.
     """
@@ -38,6 +38,8 @@ class Rescale(AbstractTransform):
             output_size = self.output_size
             if(output_size[0] is None):
                 output_size[0] = input_shape[1]
+            if(input_dim == 3 and len(self.output_size) == 2):
+                output_size = [input_shape[1]] + list(output_size)
             assert(len(output_size) == input_dim)
         else:
             min_edge = min(input_shape[1:])

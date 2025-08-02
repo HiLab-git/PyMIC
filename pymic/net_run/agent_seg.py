@@ -71,14 +71,18 @@ class SegmentationAgent(NetRunAgent):
         modal_num  = self.config['dataset'].get('modal_num', 1)
         allow_miss = self.config['dataset'].get('allow_missing_modal', False)
         stage_dir  = self.config['dataset'].get('train_dir', None)
-        if(stage == 'valid' and "valid_dir" in self.config['dataset']):
-            stage_dir = self.config['dataset']['valid_dir']
-        if(stage == 'test' and "test_dir" in self.config['dataset']):
-            stage_dir = self.config['dataset']['test_dir']
+        stage_dim  = self.config['dataset'].get('train_dim', 3)
+        if(stage == 'valid'): # and "valid_dir" in self.config['dataset']):
+            stage_dir = self.config['dataset'].get('valid_dir', stage_dir)
+            stage_dim = self.config['dataset'].get('valid_dim', stage_dim)
+        if(stage == 'test'): # and "test_dir" in self.config['dataset']):
+            stage_dir = self.config['dataset'].get('test_dir', stage_dir)
+            stage_dim = self.config['dataset'].get('test_dim', stage_dim)
         logging.info("Creating dataset for {0:}".format(stage))
         dataset  = NiftyDataset(root_dir  = stage_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
+                                image_dim = stage_dim,
                                 allow_missing_modal = allow_miss,
                                 with_label= with_label,
                                 transform = data_transform, 

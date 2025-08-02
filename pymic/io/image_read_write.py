@@ -81,8 +81,8 @@ def load_image_as_nd_array(image_name):
     if (image_name.endswith(".nii.gz") or image_name.endswith(".nii") or
         image_name.endswith(".mha")):
         image_dict = load_nifty_volume_as_4d_array(image_name)
-    elif(image_name.endswith(".jpg") or image_name.endswith(".jpeg") or
-         image_name.endswith(".tif") or image_name.endswith(".png")):
+    elif(image_name.lower().endswith(".jpg") or image_name.lower().endswith(".jpeg") or
+         image_name.lower().endswith(".tif") or image_name.lower().endswith(".png")):
         image_dict = load_rgb_image_as_3d_array(image_name)
     else:
         raise ValueError("unsupported image format: {0:}".format(image_name))
