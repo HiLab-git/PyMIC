@@ -41,8 +41,9 @@ class NiftyDataset(Dataset):
     :param transform:  (list) List of transforms to be applied on a sample.
         The built-in transforms can listed in :mod:`pymic.transform.trans_dict`.
     """
-    def __init__(self, root_dir, csv_file, modal_num = 1, image_dim = 3, allow_missing_modal = False,
-            with_label = True, transform=None, task = TaskType.SEGMENTATION):
+    def __init__(self, root_dir, csv_file, modal_num = 1, image_dim = 3, 
+            allow_missing_modal = False, label_key = "label",
+            transform=None, task = TaskType.SEGMENTATION):
         self.root_dir   = root_dir
         if(csv_file is not None):
             self.csv_items  = pd.read_csv(csv_file)
@@ -56,10 +57,11 @@ class NiftyDataset(Dataset):
         self.modal_num  = modal_num
         self.image_dim  = image_dim
         self.allow_emtpy= allow_missing_modal
-        self.with_label = with_label
+        self.label_key  = label_key
         self.transform  = transform
         self.task       = task
         self.h5files    = False
+        self.with_label = True
         assert self.task in  [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]
        
         # check if the files are h5 images, and if the labels are provided.
@@ -69,11 +71,11 @@ class NiftyDataset(Dataset):
             self.h5files = True
             temp_full_name = "{0:}/{1:}".format(self.root_dir, temp_name)
             h5f = h5py.File(temp_full_name, 'r')
-            if('label' not in h5f):
+            if(self.label_key not in h5f):
                 self.with_label = False
         else:
             csv_keys = list(self.csv_items.keys())
-            if('label' not in csv_keys):
+            if(self.label_key not in csv_keys):
                 self.with_label = False
             
             self.image_weight_idx = None
@@ -84,7 +86,7 @@ class NiftyDataset(Dataset):
                 self.pixel_weight_idx = csv_keys.index('pixel_weight')
         if(not self.with_label):
             logging.warning("`label` section is not found in the csv file {0:}".format(
-                csv_file) + "or the corresponding h5 file." + 
+                csv_file) + " or the corresponding h5 file." + 
                 "\n -- This is only allowed for self-supervised learning" + 
                 "\n -- when `SelfSuperviseLabel` is used in the transform, or when" + 
                 "\n -- loading the unlabeled data for preprocessing.")
@@ -94,7 +96,7 @@ class NiftyDataset(Dataset):
 
     def __getlabel__(self, idx):
         csv_keys = list(self.csv_items.keys())        
-        label_idx  = csv_keys.index('label')
+        label_idx  = csv_keys.index(self.label_key)
         label_name = self.csv_items.iloc[idx, label_idx]
         label_name_full = "{0:}/{1:}".format(self.root_dir, label_name)
         label = load_image_as_nd_array(label_name_full)['data_array']
@@ -139,8 +141,8 @@ class NiftyDataset(Dataset):
             img = check_and_expand_dim(h5f['image'][:], self.image_dim)
             sample = {'image':img}
             if(self.with_label):
-                lab = check_and_expand_dim(h5f['label'][:], self.image_dim)
-                sample['label'] = lab
+                lab = check_and_expand_dim(h5f[self.label_key][:], self.image_dim)
+                sample['label'] = np.asarray(lab, np.float32)
             sample['names'] = [sample_name]
         else:            
             for i in range (self.modal_num):

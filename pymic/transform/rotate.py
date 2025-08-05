@@ -19,19 +19,13 @@ class RandomRotate(AbstractTransform):
 
     :param `RandomRotate_angle_range_d`: (list/tuple or None) 
         Rotation angle (degree) range along depth axis (x-y plane), e.g., (-90, 90).
-        The length of the list/tuple can be larger than 2, when `RandomRotate_discrete_mode` is True.
         If None, no rotation along this axis. 
     :param `RandomRotate_angle_range_h`: (list/tuple or None) 
         Rotation angle (degree) range along height axis (x-z plane), e.g., (-90, 90).
-        The length of the list/tuple can be larger than 2, when `RandomRotate_discrete_mode` is True.
         If None, no rotation along this axis. Only used for 3D images. 
     :param `RandomRotate_angle_range_w`: (list/tuple or None) 
         Rotation angle (degree) range along width axis (y-z plane), e.g., (-90, 90).
-        The length of the list/tuple can be larger than 2, when `RandomRotate_discrete_mode` is True.
         If None, no rotation along this axis. Only used for 3D images. 
-    :param `RandomRotate_discrete_mode`: (optional, bool) Whether the rotate angles
-        are discrete values in rangle range. For example, if you only want to rotate 
-        the images with a fixed set of angles like (90, 180, 270), then set discrete_mode mode as True.
     :param `RandomRotate_probability`: (optional, float) 
         The probability of applying RandomRotate. Default is 0.5.
     :param `RandomRotate_inverse`: (optional, bool) 
@@ -42,11 +36,8 @@ class RandomRotate(AbstractTransform):
         self.angle_range_d  = params['RandomRotate_angle_range_d'.lower()]
         self.angle_range_h  = params.get('RandomRotate_angle_range_h'.lower(), None)
         self.angle_range_w  = params.get('RandomRotate_angle_range_w'.lower(), None)
-        self.discrete_mode  = params.get('RandomRotate_discrete_mode'.lower(), False)
         self.prob = params.get('RandomRotate_probability'.lower(), 0.5)
         self.inverse = params.get('RandomRotate_inverse'.lower(), True)
-        if(len(self.angle_range_d) > 2):
-            assert(self.discrete_mode)
 
     def __apply_transformation(self, image, transform_param_list, order = 1):
         """
@@ -61,38 +52,21 @@ class RandomRotate(AbstractTransform):
         return image
 
     def __call__(self, sample):
-        # if(random.random() > self.prob):
-        #     sample['RandomRotate_triggered'] = False
-        #     return sample
-        # else:
-        #     sample['RandomRotate_triggered'] = True
         image = sample['image']
         input_shape = image.shape
         input_dim = len(input_shape) - 1
         
         transform_param_list = []
         if(self.angle_range_d is not None):
-            if(self.discrete_mode):
-                idx = random.randint(0, len(self.angle_range_d) - 1)
-                angle_d = self.angle_range_d[idx]
-            else:
-                angle_d = np.random.uniform(self.angle_range_d[0], self.angle_range_d[1])
+            angle_d = np.random.uniform(self.angle_range_d[0], self.angle_range_d[1])
             transform_param_list.append([angle_d, (-1, -2)])
         if(input_dim == 3):
             if(self.angle_range_h is not None):
-                if(self.discrete_mode):
-                    idx = random.randint(0, len(self.angle_range_h) - 1)
-                    angle_h = self.angle_range_h[idx]
-                else:
-                    angle_h = np.random.uniform(self.angle_range_h[0], self.angle_range_h[1])
-                    transform_param_list.append([angle_h, (-1, -3)])
+                angle_h = np.random.uniform(self.angle_range_h[0], self.angle_range_h[1])
+                transform_param_list.append([angle_h, (-1, -3)])
             if(self.angle_range_w is not None):
-                if(self.discrete_mode):
-                    idx = random.randint(0, len(self.angle_range_w) - 1)
-                    angle_w = self.angle_range_w[idx]
-                else:
-                    angle_w = np.random.uniform(self.angle_range_w[0], self.angle_range_w[1])
-                    transform_param_list.append([angle_w, (-2, -3)])
+                angle_w = np.random.uniform(self.angle_range_w[0], self.angle_range_w[1])
+                transform_param_list.append([angle_w, (-2, -3)])
         assert(len(transform_param_list) > 0)
         # select a random transform from the possible list rather than 
         # use a combination for higher efficiency
@@ -123,4 +97,49 @@ class RandomRotate(AbstractTransform):
             transform_param_list[i][0] = - transform_param_list[i][0]
         sample['predict'] = self.__apply_transformation(sample['predict'] , 
                                 transform_param_list, 1)
+        return sample
+
+class RandomRot90(AbstractTransform):
+    """
+    Random rotate an image in x-y plane with angles in [90, 180, 270].
+
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `RandomRot90_probability`: (optional, float) 
+        The probability of applying RandomRot90. Default is 0.75.
+    :param `RandomRot90_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `True`.
+    """
+    def __init__(self, params): 
+        super(RandomRot90, self).__init__(params)
+        self.prob = params.get('RandomRot90_probability'.lower(), 0.75)
+        self.inverse = params.get('RandomRot90_inverse'.lower(), True)
+
+    def __call__(self, sample):
+        if(random.random() > self.prob):
+            sample['RandomRot90_triggered'] = False
+            sample['RandomRot90_Param'] = 0
+            return sample
+        else:
+            sample['RandomRot90_triggered'] = True
+        image = sample['image']      
+        rote_k = random.randint(1, 3)
+        sample['RandomRot90_Param'] = rote_k
+        image_t = np.rot90(image, rote_k, (-2, -1))
+        sample['image'] = image_t
+        if('label' in sample and \
+        self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
+            sample['label'] = np.rot90(sample['label'], rote_k, (-2, -1))
+        if('pixel_weight' in sample and \
+        self.task in [TaskType.SEGMENTATION, TaskType.RECONSTRUCTION]):
+            sample['pixel_weight'] = np.rot90(sample['pixel_weight'], rote_k, (-2, -1))
+        return sample
+
+    def inverse_transform_for_prediction(self, sample):
+        if(not sample['RandomRot90_triggered']):
+            return sample
+        rote_k = sample['RandomRot90_Param']
+        rote_i = 4 - rote_k
+        sample['predict'] = np.rot90(sample['predict'], rote_i, (-2, -1))
         return sample

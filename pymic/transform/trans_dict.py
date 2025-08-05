@@ -25,6 +25,7 @@ The built-in transforms in PyMIC are:
     'RandomRescale': RandomRescale,
     'RandomFlip': RandomFlip,
     'RandomRotate': RandomRotate,
+    'RandomRot90': RandomRot90,
     'ReduceLabelDim': ReduceLabelDim,
     'Rescale': Rescale,
     'SelfSuperviseLabel': SelfSuperviseLabel,
@@ -43,6 +44,7 @@ from pymic.transform.threshold import *
 from pymic.transform.normalize import *
 from pymic.transform.crop import *
 from pymic.transform.crop4dino import Crop4Dino
+from pymic.transform.crop4voco import Crop4VoCo
 from pymic.transform.crop4vox2vec import Crop4Vox2Vec
 from pymic.transform.crop4vf import Crop4VolumeFusion, VolumeFusion, VolumeFusionShuffle
 from pymic.transform.label_convert import *  
@@ -57,6 +59,7 @@ TransformDict = {
     'CropHumanRegion': CropHumanRegion,
     'CenterCrop': CenterCrop,
     'Crop4Dino': Crop4Dino,
+    'Crop4VoCo': Crop4VoCo,
     'Crop4Vox2Vec': Crop4Vox2Vec,
     'Crop4VolumeFusion': Crop4VolumeFusion,
     'GrayscaleToRGB': GrayscaleToRGB,
@@ -83,6 +86,7 @@ TransformDict = {
     'RandomTranspose': RandomTranspose,
     'RandomFlip': RandomFlip,
     'RandomRotate': RandomRotate,
+    'RandomRot90': RandomRot90,
     'ReduceLabelDim': ReduceLabelDim,
     'Rescale': Rescale,
     'Resample': Resample,

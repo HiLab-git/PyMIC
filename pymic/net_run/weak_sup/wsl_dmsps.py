@@ -5,11 +5,13 @@ import numpy as np
 import random
 import time
 import torch
+from PIL import Image
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
 from pymic.loss.seg.dice import DiceLoss
 from pymic.loss.seg.ce   import CrossEntropyLoss
+# from torch.nn.modules.loss import CrossEntropyLoss as TorchCELoss
 from pymic.net_run.weak_sup import WSLSegAgent
 from pymic.util.ramps import get_rampup_ratio
 
@@ -33,11 +35,11 @@ class WSLDMSPS(WSLSegAgent):
     """
     def __init__(self, config, stage = 'train'):
         net_type = config['network']['net_type']
-        if net_type not in ['UNet2D_DualBranch', 'UNet3D_DualBranch']:
-            raise ValueError("""For WSL_DMPLS, a dual branch network is expected. \
-                It only supports UNet2D_DualBranch and UNet3D_DualBranch currently.""")
+        # if net_type not in ['UNet2D_DualBranch', 'UNet3D_DualBranch']:
+        #     raise ValueError("""For WSL_DMPLS, a dual branch network is expected. \
+        #         It only supports UNet2D_DualBranch and UNet3D_DualBranch currently.""")
         super(WSLDMSPS, self).__init__(config, stage)
-
+  
     def training(self):
         class_num   = self.config['network']['class_num']
         iter_valid  = self.config['training']['iter_valid']
@@ -49,10 +51,12 @@ class WSLDMSPS(WSLSegAgent):
         if (pseudo_loss_type not in ('dice_loss', 'ce_loss')):
             raise ValueError("""For pseudo supervision loss, only dice_loss and ce_loss \
                 are supported.""")
+        pseudo_loss_func = CrossEntropyLoss() if pseudo_loss_type == 'ce_loss' else DiceLoss()
         train_loss, train_loss_sup, train_loss_reg = 0, 0, 0
         train_dice_list = []
         data_time, gpu_time, loss_time, back_time = 0, 0, 0, 0
         self.net.train()
+        # ce_loss  = CrossEntropyLoss()
         for it in range(iter_valid):
             t0 = time.time()
             try:
@@ -66,7 +70,6 @@ class WSLDMSPS(WSLSegAgent):
             y      = self.convert_tensor_type(data['label_prob'])  
                          
             inputs, y = inputs.to(self.device), y.to(self.device)
-            
             # zero the parameter gradients
             self.optimizer.zero_grad()
                 
@@ -78,23 +81,26 @@ class WSLDMSPS(WSLSegAgent):
             loss_sup2 = self.get_loss_value(data, outputs2, y) 
             loss_sup  = 0.5 * (loss_sup1 + loss_sup2)
 
-            # get pseudo label with dynamical mix
+            # torch_ce_loss  = TorchCELoss(ignore_index=class_num)
+            # torch_ce_loss2 = TorchCELoss()
+            # loss_ce1 = torch_ce_loss(outputs1, label[:].long())
+            # loss_ce2 = torch_ce_loss(outputs2, label[:].long())
+            # loss_sup = 0.5 * (loss_ce1 + loss_ce2)
+
+            # get pseudo label with dynamic mixture
             outputs_soft1 = torch.softmax(outputs1, dim=1)
             outputs_soft2 = torch.softmax(outputs2, dim=1)
-            beta = random.random()
-            pseudo_lab = beta*outputs_soft1.detach() + (1.0-beta)*outputs_soft2.detach()
-            # pseudo_lab = torch.argmax(pseudo_lab, dim = 1, keepdim = True)
-            # pseudo_lab = get_soft_label(pseudo_lab, class_num, self.tensor_type)
+            alpha = random.random() 
+            soft_pseudo_label = alpha * outputs_soft1.detach() + (1.0-alpha) * outputs_soft2.detach()
+            # loss_reg = 0.5*(torch_ce_loss2(outputs_soft1, soft_pseudo_label) +torch_ce_loss2(outputs_soft2, soft_pseudo_label) )
             
-            # calculate the pseudo label supervision loss
-            loss_calculator = DiceLoss() if pseudo_loss_type == 'dice_loss' else CrossEntropyLoss()
-            loss_dict1 = {"prediction":outputs1, 'ground_truth':pseudo_lab}
-            loss_dict2 = {"prediction":outputs2, 'ground_truth':pseudo_lab}
-            loss_reg   = 0.5 * (loss_calculator(loss_dict1) + loss_calculator(loss_dict2))
-            
+            loss_dict1 = {"prediction":outputs_soft1, 'ground_truth':soft_pseudo_label}
+            loss_dict2 = {"prediction":outputs_soft2, 'ground_truth':soft_pseudo_label}
+            loss_reg   = 0.5 * (pseudo_loss_func(loss_dict1) + pseudo_loss_func(loss_dict2))
+
             rampup_ratio = get_rampup_ratio(self.glob_it, rampup_start, rampup_end, "sigmoid")
-            regular_w = wsl_cfg.get('regularize_w', 0.1) * rampup_ratio
-            loss = loss_sup + regular_w*loss_reg
+            regular_w    = wsl_cfg.get('regularize_w', 8.0) * rampup_ratio
+            loss         = loss_sup + regular_w*loss_reg
             t3 = time.time()
             loss.backward()
             t4 = time.time()
@@ -128,4 +134,3 @@ class WSLDMSPS(WSLSegAgent):
             'data_time': data_time, 'forward_time':gpu_time, 
             'loss_time':loss_time, 'backward_time':back_time}
         return train_scalers
-        
