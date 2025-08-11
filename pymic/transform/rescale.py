@@ -72,12 +72,22 @@ class Rescale(AbstractTransform):
             origin_shape = json.loads(sample['Rescale_origin_shape'])
         origin_dim   = len(origin_shape) - 1
         predict = sample['predict']
-        input_shape = predict.shape
-        scale = [(origin_shape[1:][i] + 0.0)/input_shape[2:][i] for \
-                i in range(origin_dim)]
-        scale = [1.0, 1.0] + scale
 
-        output_predict = ndimage.interpolation.zoom(predict, scale, order = 1)
+        if(isinstance(predict, tuple) or isinstance(predict, list)):
+            output_predict = []
+            for predict_i in predict:
+                input_shape = predict_i.shape
+                scale = [(origin_shape[1:][i] + 0.0)/input_shape[2:][i] for \
+                        i in range(origin_dim)]
+                scale = [1.0, 1.0] + scale
+                output_predict_i = ndimage.interpolation.zoom(predict_i, scale, order = 1)
+                output_predict.append(output_predict_i)                
+        else:
+            input_shape = predict.shape
+            scale = [(origin_shape[1:][i] + 0.0)/input_shape[2:][i] for \
+                    i in range(origin_dim)]
+            scale = [1.0, 1.0] + scale
+            output_predict = ndimage.interpolation.zoom(predict, scale, order = 1)
         sample['predict'] = output_predict
         return sample
 

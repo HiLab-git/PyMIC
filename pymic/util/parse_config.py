@@ -96,12 +96,22 @@ def parse_config(args):
                 args_key = getattr(args, key)
                 if(args_key is not None):
                     val_str = args_key
+            print(section, key, val_str)
             if(len(val_str)>0):
                 val = parse_value_from_string(val_str)
                 output[section][key] = val
             else:
                 val = None
-            print(section, key, val)
+            
+    for key in ["train_dir", "train_csv", "valid_csv", "test_dir", "test_csv"]:
+        if key in args and getattr(args, key) is not None:
+            output["dataset"][key] = parse_value_from_string(getattr(args, key))
+    for key in ["ckpt_dir", "iter_max", "gpus"]:
+        if key in args and getattr(args, key) is not None:
+            output["training"][key] = parse_value_from_string(getattr(args, key))
+    for key in ["output_dir", "ckpt_mode", "ckpt_name"]:
+        if key in args and getattr(args, key) is not None:
+            output["testing"][key] = parse_value_from_string(getattr(args, key))
     return output
             
 def synchronize_config(config):
@@ -133,6 +143,17 @@ def synchronize_config(config):
         if('RandomResizedCrop' in transform and \
             'RandomResizedCrop_output_size'.lower() not in data_cfg):
             data_cfg['RandomResizedCrop_output_size'.lower()] = patch_size
+        if('testing' in config):
+            test_cfg  = config['testing']
+            sliding_window_enable = test_cfg.get("sliding_window_enable", False)
+            if(sliding_window_enable):
+                sliding_window_size = test_cfg.get("sliding_window_size", None)
+                if(sliding_window_size is None):
+                    test_cfg["sliding_window_size"] = patch_size
+                sliding_window_stride = test_cfg.get("sliding_window_stride", None)
+                if(sliding_window_stride is None):
+                    test_cfg["sliding_window_stride"] = [item // 2 for item in patch_size]
+            config['testing'] = test_cfg
     config['dataset'] = data_cfg
     # config['network'] = net_cfg
     return config 

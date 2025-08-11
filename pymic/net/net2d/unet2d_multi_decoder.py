@@ -63,15 +63,16 @@ class UNet2D_DualBranch(nn.Module):
             output2 = torch.reshape(output2, new_shape)
             output2 = torch.transpose(output2, 1, 2)
 
-        if(self.training):
-          return output1, output2
-        else:
-          if(self.output_mode == "average"):
-            return (output1 + output2)/2
-          elif(self.output_mode == "first"):
-            return output1
-          else:
-            return output2
+        return output1, output2
+        # if(self.training):
+        #   return output1, output2
+        # else:
+        #   if(self.output_mode == "average"):
+        #     return (output1 + output2)/2
+        #   elif(self.output_mode == "first"):
+        #     return output1
+        #   else:
+        #     return output2
 
 class UNet2D_TriBranch(nn.Module):
     """

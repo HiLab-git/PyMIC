@@ -36,7 +36,7 @@ class CrossEntropyLoss(AbstractSegLoss):
         soft_y  = reshape_tensor_to_2D(soft_y)
 
         # for numeric stability
-        predict = predict * 0.999 + 5e-4
+        # predict = predict  * (1-1e-10) + 0.5e-10
         ce = - soft_y* torch.log(predict)
         if(cls_w is not None):
             ce = torch.sum(ce*cls_w, dim = 1)
@@ -46,7 +46,7 @@ class CrossEntropyLoss(AbstractSegLoss):
             ce = torch.mean(ce)  
         else:
             pix_w = torch.squeeze(reshape_tensor_to_2D(pix_w))
-            ce = torch.sum(pix_w * ce) / (pix_w.sum() + 1e-5) 
+            ce = torch.sum(pix_w * ce) / (pix_w.sum() + 1e-10) 
         return ce
 
 class GeneralizedCELoss(AbstractSegLoss):

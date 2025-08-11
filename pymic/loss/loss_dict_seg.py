@@ -26,6 +26,7 @@ from pymic.loss.seg.ce import CrossEntropyLoss, GeneralizedCELoss
 from pymic.loss.seg.dice import DiceLoss, FocalDiceLoss, \
      NoiseRobustDiceLoss, BinaryDiceLoss, GroupDiceLoss
 from pymic.loss.seg.exp_log import ExpLogLoss
+from pymic.loss.seg.ars_tversky import ARSTverskyLoss
 from pymic.loss.seg.mse import MSELoss, MAELoss
 from pymic.loss.seg.slsr import SLSRLoss
 
@@ -35,6 +36,7 @@ SegLossDict = {
     'DiceLoss': DiceLoss,
     'BinaryDiceLoss': BinaryDiceLoss,
     'FocalDiceLoss': FocalDiceLoss,
+    'ARSTverskyLoss': ARSTverskyLoss,
     'NoiseRobustDiceLoss': NoiseRobustDiceLoss,
     'GroupDiceLoss': GroupDiceLoss,
     'ExpLogLoss': ExpLogLoss,

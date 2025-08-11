@@ -99,7 +99,7 @@ def save_array_as_nifty_volume(data, image_name, reference_name = None, spacing 
     :param spacing: (list or tuple) the spacing of a volume data when `reference_name` is not provided.  
     """
     img = sitk.GetImageFromArray(data)
-    if(reference_name is not None):
+    if((reference_name is not None) and (not reference_name.endswith(".h5"))):
         img_ref = sitk.ReadImage(reference_name)
         #img.CopyInformation(img_ref)
         img.SetSpacing(img_ref.GetSpacing())
@@ -141,11 +141,15 @@ def save_nd_array_as_image(data, image_name, reference_name = None, spacing = [1
     """
     data_dim = len(data.shape)
     assert(data_dim == 2 or data_dim == 3)
+    if(image_name.endswith(".h5")):
+        if(data_dim == 3):
+            image_name = image_name.replace(".h5", ".nii.gz")
+        else:
+            image_name = image_name.replace(".h5", ".png")
     if (image_name.endswith(".nii.gz") or image_name.endswith(".nii") or
         image_name.endswith(".mha")):
         assert(data_dim == 3)
         save_array_as_nifty_volume(data, image_name, reference_name, spacing)
-
     elif(image_name.endswith(".jpg") or image_name.endswith(".jpeg") or
          image_name.endswith(".tif") or image_name.endswith(".png")):
          assert(data_dim == 2)

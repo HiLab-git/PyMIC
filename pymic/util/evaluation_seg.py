@@ -212,8 +212,10 @@ def get_binary_evaluation_score(s_volume, g_volume, spacing, metric):
         score = binary_iou(s_volume,g_volume)
     elif(metric_lower == 'assd'):
         score = binary_assd(s_volume, g_volume, spacing)
+        score = min(score, 20) # to reject outliers
     elif(metric_lower == "hd95"):
         score = binary_hd95(s_volume, g_volume, spacing)
+        score = min(score, 50) # to reject outliers
     elif(metric_lower == "rve"):
         score = binary_relative_volume_error(s_volume, g_volume)
     elif(metric_lower == "volume"):
@@ -269,8 +271,8 @@ def evaluation(config):
     :param label_fuse: (option, bool) If true, fuse the labels in the `label_list`
         as the foreground, and other labels as the background. Default is False. 
     :param organ_name: (str) The name of the organ for segmentation.
-    :param ground_truth_folder_root: (str) The root dir of ground truth images. 
-    :param segmentation_folder_root: (str or list) The root dir of segmentation images. 
+    :param ground_truth_folder: (str) The root dir of ground truth images. 
+    :param segmentation_folder: (str or list) The root dir of segmentation images. 
         When a list is given, each list element should be the root dir of the results of one method. 
     :param evaluation_image_pair: (str) The csv file that provide the segmentation 
         images and the corresponding ground truth images. 
@@ -366,23 +368,23 @@ def main():
 
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("-cfg", help="configuration file for evaluation", 
+    parser.add_argument("--cfg", help="configuration file for evaluation", 
                         required=False, default=None)
-    parser.add_argument("-metric", help="evaluation metrics, e.g., dice, or [dice, assd]", 
+    parser.add_argument("--metric", help="evaluation metrics, e.g., dice, or [dice, assd]", 
                         required=False, default=None)
-    parser.add_argument("-cls_num", help="number of classes", 
+    parser.add_argument("--cls_num", help="number of classes", 
                         required=False, default=None)
-    parser.add_argument("-cls_index", help="The class index for evaluation, e.g., 255, [1, 2]", 
+    parser.add_argument("--cls_index", help="The class index for evaluation, e.g., 255, [1, 2]", 
                         required=False, default=None)
-    parser.add_argument("-gt_dir", help="path of folder for ground truth", 
+    parser.add_argument("--gt_dir", help="path of folder for ground truth", 
                         required=False, default=None)
-    parser.add_argument("-seg_dir", help="path of folder for segmentation", 
+    parser.add_argument("--seg_dir", help="path of folder for segmentation", 
                         required=False, default=None)
-    parser.add_argument("-name_pair", help="the .csv file for name mapping in case"
+    parser.add_argument("--name_pair", help="the .csv file for name mapping in case"
                         " the names of one case are different in the gt_dir "
                         " and seg_dir", 
                         required=False, default=None)
-    parser.add_argument("-out", help="the output .csv file name", 
+    parser.add_argument("--out", help="the output .csv file name", 
                         required=False, default=None)
     args = parser.parse_args()
     print(args)
@@ -401,6 +403,4 @@ def main():
     evaluation(config)
 
 if __name__ == '__main__':
-    main()
-
     main()

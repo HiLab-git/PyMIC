@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division
 import logging
+import os
 import numpy as np
 import random
 import time
 import torch
-from PIL import Image
+import scipy
+from pymic.io.image_read_write import save_nd_array_as_image
 from pymic.loss.seg.util import get_soft_label
 from pymic.loss.seg.util import reshape_prediction_and_ground_truth
 from pymic.loss.seg.util import get_classwise_dice
@@ -134,3 +136,67 @@ class WSLDMSPS(WSLSegAgent):
             'data_time': data_time, 'forward_time':gpu_time, 
             'loss_time':loss_time, 'backward_time':back_time}
         return train_scalers
+    
+    def save_outputs(self, data):
+        """
+        Save prediction output. 
+
+        :param data: (dictionary) A data dictionary with prediciton result and other 
+            information such as input image name. 
+        """
+        output_dir = self.config['testing']['output_dir']
+        test_mode  = self.config['testing'].get('dmsps_test_mode', 0)
+        uct_threshold = self.config['testing'].get('dmsps_uncertainty_threshold', 0.1)
+        # DMSPS_test_mode == 0: only save the segmentation label for the main decoder
+        # DMSPS_test_mode == 1: save all the results, including the the probability map of each decoder,
+        # the uncertainty map, and the confident predictions
+        if(not os.path.exists(output_dir)):
+            os.makedirs(output_dir, exist_ok=True)
+
+        names, pred  = data['names'], data['predict']
+        pred0, pred1 = pred
+        prob0   = scipy.special.softmax(pred0, axis = 1) 
+        prob1   = scipy.special.softmax(pred1, axis = 1) 
+        prob_mean = (prob0 + prob1) / 2
+        lab0     = np.asarray(np.argmax(prob0,  axis = 1), np.uint8)
+        lab1     = np.asarray(np.argmax(prob1,  axis = 1), np.uint8)
+        lab_mean = np.asarray(np.argmax(prob_mean,  axis = 1), np.uint8)
+
+        # save the output and (optionally) probability predictions
+        test_dir = self.config['dataset'].get('test_dir', None)
+        if(test_dir is None):
+            test_dir = self.config['dataset']['train_dir']
+        img_name  = names[0][0].split('/')[-1]
+        print(img_name)
+        lab0_name = img_name
+        if(".h5" in lab0_name):
+            lab0_name = lab0_name.replace(".h5", ".nii.gz")
+        save_nd_array_as_image(lab0[0], output_dir + "/" + lab0_name, test_dir + '/' + names[0][0])
+        if(test_mode == 1):
+            lab1_name = lab0_name.replace(".nii.gz", "_predaux.nii.gz")
+            save_nd_array_as_image(lab1[0], output_dir + "/" + lab1_name, test_dir + '/' + names[0][0])
+            C = pred0.shape[1]
+            uct = -1.0 * np.sum(prob_mean * np.log(prob_mean), axis=1, keepdims=False)/ np.log(C)
+            uct_name = lab0_name.replace(".nii.gz", "_uncertainty.nii.gz")
+            save_nd_array_as_image(uct[0], output_dir + "/" + uct_name, test_dir + '/' + names[0][0])
+            conf_mask = uct < uct_threshold
+            conf_lab  = conf_mask * lab_mean + (1 - conf_mask)*4
+            conf_lab_name = lab0_name.replace(".nii.gz", "_seeds_expand.nii.gz")
+            
+            # get the largest connected component in each slice for each class
+            D, H, W = conf_lab[0].shape
+            from pymic.util.image_process import get_largest_k_components
+            for d in range(D):
+                lab2d = conf_lab[0][d]
+                for c in range(C):
+                    lab2d_c = lab2d == c 
+                    mask_c  = get_largest_k_components(lab2d_c, k = 1)
+                    diff = lab2d_c != mask_c
+                    if(np.sum(diff) > 0):
+                        lab2d[diff] = C 
+                conf_lab[0][d] = lab2d
+            save_nd_array_as_image(conf_lab[0], output_dir + "/" + conf_lab_name, test_dir + '/' + img_name)
+            
+            
+            
+            
