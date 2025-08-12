@@ -11,7 +11,7 @@ with open('README.md', encoding='utf-8') as f:
 
 setuptools.setup(
     name    = 'PYMIC',
-    version = "0.5.1",
+    version = "0.5.4",
     author  ='PyMIC Consortium',
     author_email = 'wguotai@gmail.com',
     description  = description,
