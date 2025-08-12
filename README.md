@@ -21,6 +21,16 @@ BibTeX entry:
     pages = {107398},
     }
 
+# News
+* 2025/08 PyMIC has contained the implementation of [`DMSPS`][dmsps_paper], a state-of-the-art weakly supervised segmentation method by learning from scribble annotations. 
+* 2025/05 Several self-supervised learning methods have been provided in PyMIC, including [`VolF`][volf_paper], [`VoCo`][voco_paper] and [`Vox2Vec`][vox2vec_paper].
+* 2025/01 Novel architectures are available now, such as `UMamba`, `VMUNet`, `SwinUNet`, `TransUNet` and `UNETR++`.
+
+[dmsps_paper]: https://www.sciencedirect.com/science/article/pii/S1361841524001993
+[volf_paper]: https://arxiv.org/abs/2306.16925
+[voco_paper]: https://arxiv.org/abs/2402.17300
+[vox2vec_paper]:https://conferences.miccai.org/2023/papers/712-Paper3421.html
+
 # Features
 PyMIC provides flixible modules for medical image computing tasks including classification and segmentation. It currently provides the following functions:
 * Support for annotation-efficient image segmentation, especially for semi-supervised, self-supervised, self-supervised, weakly-supervised and noisy-label learning.
@@ -33,9 +43,10 @@ PyMIC provides flixible modules for medical image computing tasks including clas
 
 # Usage
 ## Requirement
-* [Pytorch][torch_link] version >=1.0.1
+* [Pytorch][torch_link] version >=1.13.1
 * [TensorboardX][tbx_link] to visualize training performance
 * Some common python packages such as Numpy, Pandas, SimpleITK
+* causal-conv1d>=1.5.0 and mamba-ssm>=2.2.4 are required if you want to use Mamba in PyMIC.
 * See `requirements.txt` for details.
 
 [torch_link]:https://pytorch.org/
@@ -47,10 +58,10 @@ Run the following command to install the latest released version of PyMIC:
 ```bash
 pip install PYMIC
 ```
-To install a specific version of PYMIC such as 0.5.0, run:
+To install a specific version of PYMIC such as 0.5.4, run:
 
 ```bash
-pip install PYMIC==0.5.0
+pip install PYMIC==0.5.4
 ```
 Alternatively, you can download the source code for the latest version. Run the following command to compile and install:
 
@@ -76,8 +87,11 @@ Using PyMIC, it becomes easy to develop deep learning models for different proje
 
 4, [UGIR][ugir] (MICCAI 2020) Uncertainty-guided interactive refinement for medical image segmentation. 
 
+5, [DMSPS][dmsps] (MedIA 2024) Weakly supervised segmentation by learning from scribbles.
+
 [myops]: https://github.com/HiLab-git/MyoPS2020
 [coplenet]:https://github.com/HiLab-git/COPLE-Net
 [hn_gtv]: https://github.com/HiLab-git/Head-Neck-GTV
 [ugir]: https://github.com/HiLab-git/UGIR
+[dmsps]: https://github.com/HiLab-git/DMSPS
 
