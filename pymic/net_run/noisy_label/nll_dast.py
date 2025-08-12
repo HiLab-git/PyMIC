@@ -129,13 +129,17 @@ class NLLDAST(SegmentationAgent):
         data_transform = transforms.Compose(transform_list)
 
         modal_num = self.config['dataset'].get('modal_num', 1)
-        csv_file = self.config['dataset'].get('train_csv_noise', None)
+        stage_dim = self.config['dataset'].get('train_dim', 3)
+        lab_key   = self.config['dataset'].get('train_label_key', 'label')
+        csv_file  = self.config['dataset'].get('train_csv_noise', None)
         dataset  = NiftyDataset(root_dir  = self.config['dataset']['train_dir'],
-                                csv_file  = csv_file,
-                                modal_num = modal_num,
-                                with_label= True,
-                                transform = data_transform , 
-                                task = self.task_type)
+                        csv_file  = csv_file,
+                        modal_num = modal_num,
+                        image_dim = stage_dim,
+                        allow_missing_modal = False,
+                        label_key = lab_key,
+                        transform = data_transform, 
+                        task = self.task_type)
         return dataset
 
 

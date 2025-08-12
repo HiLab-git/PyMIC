@@ -176,13 +176,13 @@ def main():
     :param pred_prob_csv: (str) The csv file for prediction probability.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("-cfg", help="configuration file for evaluation", 
+    parser.add_argument("--cfg", help="configuration file for evaluation", 
                         required=False, default=None)
-    parser.add_argument("-metric", help="evaluation metrics, e.g., accuracy, or [accuracy, auc]", 
+    parser.add_argument("--metric", help="evaluation metrics, e.g., accuracy, or [accuracy, auc]", 
                         required=False, default=None)
-    parser.add_argument("-gt_csv", help="csv file for ground truth", 
+    parser.add_argument("--gt_csv", help="csv file for ground truth", 
                         required=False, default=None)
-    parser.add_argument("-pred_prob_csv", help="csv file for probability prediction", 
+    parser.add_argument("--pred_prob_csv", help="csv file for probability prediction", 
                         required=False, default=None)
     args = parser.parse_args()
     print(args)

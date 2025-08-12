@@ -52,12 +52,16 @@ class SSLSegAgent(SegmentationAgent):
                 self.transform_list.append(one_transform)
             data_transform = transforms.Compose(self.transform_list)
 
-        csv_file = self.config['dataset'].get('train_csv_unlab', None)
+        csv_file   = self.config['dataset'].get('train_csv_unlab', None)
+        stage_dim  = self.config['dataset'].get('train_dim', 3)
         dataset  = NiftyDataset(root_dir  = train_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
-                                with_label= False,
-                                transform = data_transform )
+                                image_dim = stage_dim,
+                                allow_missing_modal = False,
+                                label_key = None,
+                                transform = data_transform, 
+                                task = self.task_type)
         return dataset
 
     def create_dataset(self):

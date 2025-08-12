@@ -54,15 +54,15 @@ def main():
         exit()
     parser = argparse.ArgumentParser()
     parser.add_argument("cfg", help="configuration file for training")
-    parser.add_argument("-train_csv", help="the csv file for training images", 
+    parser.add_argument("--train_csv", help="the csv file for training images", 
                         required=False, default=None)
-    parser.add_argument("-valid_csv", help="the csv file for validation images", 
+    parser.add_argument("--valid_csv", help="the csv file for validation images", 
                     required=False, default=None)
-    parser.add_argument("-ckpt_dir", help="the output dir for trained model", 
+    parser.add_argument("--ckpt_dir", help="the output dir for trained model", 
                     required=False, default=None)
-    parser.add_argument("-iter_max", help="the maximal iteration number for training", 
+    parser.add_argument("--iter_max", help="the maximal iteration number for training", 
                     required=False, default=None)
-    parser.add_argument("-gpus", help="the gpus for runing, e.g., [0]", 
+    parser.add_argument("--gpus", help="the gpus for runing, e.g., [0]", 
                     required=False, default=None)
     args = parser.parse_args()
     if(not os.path.isfile(args.cfg)):

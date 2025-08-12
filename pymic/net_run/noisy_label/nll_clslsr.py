@@ -165,15 +165,20 @@ def get_confidence_map(cfg_file):
             transform_list.append(one_transform)
     data_transform = transforms.Compose(transform_list)
 
+    stage_dir = config['dataset']['train_dir']
     csv_file  = config['dataset']['train_csv']
     modal_num = config['dataset'].get('modal_num', 1)
-    stage_dir = config['dataset']['train_dir']
+    stage_dim = config['dataset'].get('train_dim', 3)
+    lab_key   = config['dataset'].get('train_label_key', 'label')
+
     dataset  = NiftyDataset(root_dir  = stage_dir,
-                            csv_file  = csv_file,
-                            modal_num = modal_num,
-                            with_label= True,
-                            transform = data_transform, 
-                            task = agent.task_type)
+                        csv_file  = csv_file,
+                        modal_num = modal_num,
+                        image_dim = stage_dim,
+                        allow_missing_modal = False,
+                        label_key = lab_key,
+                        transform = data_transform, 
+                        task = agent.task_type)
 
     agent.set_datasets(None, None, dataset)
     agent.transform_list = transform_list

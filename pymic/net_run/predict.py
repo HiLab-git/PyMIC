@@ -21,23 +21,26 @@ def main():
         exit()
     parser = argparse.ArgumentParser()
     parser.add_argument("cfg", help="configuration file for testing")
-    parser.add_argument("-test_csv", help="the csv file for testing images", 
-                        required=False, default=None)
-    parser.add_argument("-output_dir", help="the output dir for inference results", 
+    parser.add_argument("--test_csv", help="the csv file for testing images", 
                     required=False, default=None)
-    parser.add_argument("-ckpt_dir", help="the dir for trained model", 
+    parser.add_argument("--test_dir", help="the dir for testing images", 
                     required=False, default=None)
-    parser.add_argument("-ckpt_mode", help="the mode for chekpoint: 0-latest, 1-best, 2-customized", 
+    parser.add_argument("--output_dir", help="the output dir for inference results", 
                     required=False, default=None)
-    parser.add_argument("-ckpt_name", help="the name chekpoint if ckpt_mode = 2", 
+    parser.add_argument("--ckpt_dir", help="the dir for trained model", 
                     required=False, default=None)
-    parser.add_argument("-gpus", help="the gpus for runing, e.g., [0]", 
+    parser.add_argument("--ckpt_mode", help="the mode for chekpoint: 0-latest, 1-best, 2-customized", 
+                    required=False, default=None)
+    parser.add_argument("--ckpt_name", help="the name chekpoint if ckpt_mode = 2", 
+                    required=False, default=None)
+    parser.add_argument("--gpus", help="the gpus for runing, e.g., [0]", 
                     required=False, default=None)
     args = parser.parse_args()
     if(not os.path.isfile(args.cfg)):
         raise ValueError("The config file does not exist: " + args.cfg)
     config   = parse_config(args)
     config   = synchronize_config(config)
+    print(config)
     log_dir  = config['testing']['output_dir']
     if(not os.path.exists(log_dir)):
         os.makedirs(log_dir, exist_ok=True)
