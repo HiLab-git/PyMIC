@@ -16,4 +16,4 @@ WSLMethodDict = {'EntropyMinimization': WSLEntropyMinimization,
     'USTM': WSLUSTM,
     'DMPLS': WSLDMPLS,
     'DMSPS': WSLDMSPS,
-    'PSSEG': WSLPSSEG}
+    'PSSeg': WSLPSSEG}
