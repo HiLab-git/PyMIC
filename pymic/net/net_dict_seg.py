@@ -26,11 +26,12 @@ from pymic.net.net2d.unet2d_pp import UNet2Dpp
 from pymic.net.net2d.unet2d_scse import UNet2D_ScSE
 from pymic.net.net2d.trans2d.transunet import TransUNet
 from pymic.net.net2d.trans2d.swinunet import SwinUNet
-from pymic.net.net2d.umamba import UMambaBot, UMambaEnc
-from pymic.net.net2d.unet2d_vm import VMUNet
-from pymic.net.net2d.unet2d_vm_light import UltraLight_VM_UNet
-from pymic.net.net3d.unet2d5 import UNet2D5
+# from pymic.net.net2d.umamba import UMambaBot, UMambaEnc
+# from pymic.net.net2d.unet2d_vm import VMUNet
+# from pymic.net.net2d.unet2d_vm_light import UltraLight_VM_UNet
+from pymic.net.cnn.unet2d5 import UNet2D5
 from pymic.net.net3d.unet3d import UNet3D
+
 from pymic.net.net3d.grunet import GRUNet
 from pymic.net.net3d.fmunetv3 import FMUNetV3
 from pymic.net.net3d.fmunet import FMUNet
@@ -42,7 +43,9 @@ from pymic.net.net3d.unet3d_dual_branch import UNet3D_DualBranch
 
 # from pymic.net.net3d.trans3d.nnFormer_wrap import nnFormer_wrap
 # from pymic.net.net3d.trans3d.unetr import UNETR
-# from pymic.net.net3d.trans3d.unetr_pp import UNETR_PP
+from pymic.net.net3d.trans3d.unetr_pp import UNETR_PP
+from pymic.net.cnn.unet import UNet
+from pymic.net.cnn.unet_scse import UNet_ScSE
 # from pymic.net.net3d.trans3d.MedFormer_v1 import MedFormerV1
 # from pymic.net.net3d.trans3d.MedFormer_v2 import MedFormerV2
 # from pymic.net.net3d.trans3d.MedFormer_v3 import MedFormerV3
@@ -54,7 +57,14 @@ from pymic.net.net3d.unet3d_dual_branch import UNet3D_DualBranch
 # from pymic.net.net3d.trans3d.HiFormer_v5 import HiFormer_v5
 # from pymic.net.net3d.trans3d.SwitchNet import SwitchNet
 
+from pymic.net.specific.dbnet import DBNet
+from pymic.net.specific.tdnet import TDNet
+from pymic.net.specific.tdnet3d import TDNet3D
+
+
 SegNetDict = {
+	'UNet': UNet,
+	'UNet_ScSE': UNet_ScSE,
 	'AttentionUNet2D': AttentionUNet2D,
 	'CANet': CANet,
 	'COPLENet': COPLENet,
@@ -65,10 +75,10 @@ SegNetDict = {
 	'UNet2D_CCT': UNet2D_CCT,
 	'UNet2Dpp': UNet2Dpp,
 	'UNet2D_ScSE': UNet2D_ScSE,
-    'UMambaBot': UMambaBot,
-    'UMambaEnc': UMambaEnc,
-	'VMUNet':VMUNet,
-    'UltraLight_VM_UNet': UltraLight_VM_UNet,
+    # 'UMambaBot': UMambaBot,
+    # 'UMambaEnc': UMambaEnc,
+	# 'VMUNet':VMUNet,
+    # 'UltraLight_VM_UNet': UltraLight_VM_UNet,
 	'TransUNet': TransUNet,
 	'SwinUNet': SwinUNet,
 	'UNet2D5': UNet2D5,
@@ -77,11 +87,14 @@ SegNetDict = {
     'FMUNet': FMUNet,
 	'FMUNetV3': FMUNetV3,
 	'UNet3D': UNet3D,
+	'TDNet3D': TDNet3D,
 	'UNet3D_ScSE': UNet3D_ScSE,
 	'UNet3D_DualBranch': UNet3D_DualBranch, 
 	# 'STUNet': STUNet_wrap,
 	# 'MySTUNet': MySTUNet,
     # 'nnFormer': nnFormer_wrap,
 	# 'UNETR': UNETR,
-	# 'UNETR_PP': UNETR_PP,
+	'UNETR_PP': UNETR_PP,
+	'DBNet': DBNet,
+	'TDNet': TDNet,
 	}

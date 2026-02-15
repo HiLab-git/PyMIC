@@ -150,31 +150,11 @@ class SSLCPS(SSLSegAgent):
         return train_scalers
   
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
-        loss_scalar ={'train':train_scalars['loss'], 
-                      'valid':valid_scalars['loss']}
-        loss_sup_scalar  = {'net1':train_scalars['loss_sup1'],
-                            'net2':train_scalars['loss_sup2']}
-        loss_pse_sup_scalar = {'net1':train_scalars['loss_pse_sup1'],
-                               'net2':train_scalars['loss_pse_sup2']}
-        dice_scalar ={'train':train_scalars['avg_fg_dice'], 'valid':valid_scalars['avg_fg_dice']}
-        self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
+        super(SSLCPS, self).write_scalars(train_scalars, valid_scalars, lr_value, glob_it)
+        loss_sup_scalar  = {'train_net1':train_scalars['loss_sup1'],
+                            'train_net2':train_scalars['loss_sup2'],
+                            'valid':valid_scalars['loss']}
+        loss_pse_sup_scalar = {'train_net1':train_scalars['loss_pse_sup1'],
+                               'train_net2':train_scalars['loss_pse_sup2']}
         self.summ_writer.add_scalars('loss_sup', loss_sup_scalar, glob_it)
         self.summ_writer.add_scalars('loss_pseudo_sup', loss_pse_sup_scalar, glob_it)
-        self.summ_writer.add_scalars('regular_w', {'regular_w':train_scalars['regular_w']}, glob_it)
-        self.summ_writer.add_scalars('lr', {"lr": lr_value}, glob_it)
-        self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
-        class_num = self.config['network']['class_num']
-        for c in range(class_num):
-            cls_dice_scalar = {'train':train_scalars['class_dice'][c], \
-                'valid':valid_scalars['class_dice'][c]}
-            self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
-
-        logging.info('train loss {0:.4f}, avg dice {1:.4f} '.format(
-            train_scalars['loss'], train_scalars['avg_fg_dice']) + "[" + \
-            ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
-        logging.info('valid loss {0:.4f}, avg dice {1:.4f} '.format(
-            valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
-            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]") 
-        logging.info("data: {0:.2f}s, forward: {1:.2f}s, loss: {2:.2f}s, backward: {3:.2f}s".format(
-                train_scalars['data_time'], train_scalars['forward_time'], 
-                train_scalars['loss_time'], train_scalars['backward_time']))

@@ -51,8 +51,7 @@ class SegmentationAgent(NetRunAgent):
         trans_params['task'] = self.task_type
         return trans_names, trans_params
 
-    def get_stage_dataset_from_config(self, stage):
-        trans_names, trans_params = self.get_transform_names_and_parameters(stage)
+    def get_data_transform_list(self, trans_names, trans_params):
         transform_list  = []
         if(trans_names is not None and len(trans_names) > 0):
             for name in trans_names:
@@ -60,6 +59,11 @@ class SegmentationAgent(NetRunAgent):
                     raise(ValueError("Undefined transform {0:}".format(name))) 
                 one_transform = self.transform_dict[name](trans_params)
                 transform_list.append(one_transform)
+        return transform_list
+        
+    def get_stage_dataset_from_config(self, stage):
+        trans_names, trans_params = self.get_transform_names_and_parameters(stage)
+        transform_list = self.get_data_transform_list(trans_names, trans_params)
         data_transform = transforms.Compose(transform_list)
 
         csv_file  = self.config['dataset'].get(stage + '_csv', None)
@@ -236,6 +240,8 @@ class SegmentationAgent(NetRunAgent):
         return train_scalers
         
     def validation(self):
+        if(self.valid_loader is None):
+            return None
         class_num = self.config['network']['class_num']
         if(self.inferer is None):
             infer_cfg = {}
@@ -286,23 +292,28 @@ class SegmentationAgent(NetRunAgent):
         return valid_scalers
 
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
-        loss_scalar ={'train':train_scalars['loss'], 'valid':valid_scalars['loss']}
-        dice_scalar ={'train':train_scalars['avg_fg_dice'], 'valid':valid_scalars['avg_fg_dice']}
+        loss_scalar ={'train':train_scalars['loss']}
+        dice_scalar ={'train':train_scalars['avg_fg_dice']}
+        if(valid_scalars is not None):
+            loss_scalar['valid'] = valid_scalars['loss']
+            dice_scalar['valid'] = valid_scalars['avg_fg_dice']
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
         self.summ_writer.add_scalars('dice', dice_scalar, glob_it)
         self.summ_writer.add_scalars('lr', {"lr": lr_value}, glob_it)
         class_num = self.config['network']['class_num']
         for c in range(class_num):
-            cls_dice_scalar = {'train':train_scalars['class_dice'][c], \
-                'valid':valid_scalars['class_dice'][c]}
+            cls_dice_scalar = {'train':train_scalars['class_dice'][c]}
+            if(valid_scalars is not None):
+                cls_dice_scalar['valid'] = valid_scalars['class_dice'][c]
             self.summ_writer.add_scalars('class_{0:}_dice'.format(c), cls_dice_scalar, glob_it)
        
         logging.info('train loss {0:.4f}, avg foreground dice {1:.4f} '.format(
             train_scalars['loss'], train_scalars['avg_fg_dice']) + "[" + \
             ' '.join("{0:.4f}".format(x) for x in train_scalars['class_dice']) + "]")        
-        logging.info('valid loss {0:.4f}, avg foreground dice {1:.4f} '.format(
-            valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
-            ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")      
+        if(valid_scalars is not None):
+            logging.info('valid loss {0:.4f}, avg foreground dice {1:.4f} '.format(
+                valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
+                ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")      
         logging.info("data: {0:.2f}s, forward: {1:.2f}s, loss: {2:.2f}s, backward: {3:.2f}s".format(
                 train_scalars['data_time'], train_scalars['forward_time'], 
                 train_scalars['loss_time'], train_scalars['backward_time']))  
@@ -401,31 +412,35 @@ class SegmentationAgent(NetRunAgent):
             logging.info("training/validation time: {0:.2f}s/{1:.2f}s".format(t1-t0, t2-t1))
             self.write_scalars(train_scalars, valid_scalars, lr_value, self.glob_it)
 
-            if(valid_scalars['avg_fg_dice'] > self.max_val_dice):
-                self.max_val_dice = valid_scalars['avg_fg_dice']
-                self.max_val_it   = self.glob_it
-                if(len(device_ids) > 1):
-                    self.best_model_wts = copy.deepcopy(self.net.module.state_dict())
+            if(valid_scalars is not None): 
+                if(valid_scalars['avg_fg_dice'] > self.max_val_dice):
+                    self.max_val_dice = valid_scalars['avg_fg_dice']
+                    self.max_val_it   = self.glob_it
+                    if(len(device_ids) > 1):
+                        self.best_model_wts = copy.deepcopy(self.net.module.state_dict())
+                    else:
+                        self.best_model_wts = copy.deepcopy(self.net.state_dict())
+                    save_dict = {'iteration': self.max_val_it,
+                        'valid_pred': self.max_val_dice,
+                        'model_state_dict': self.best_model_wts,
+                        'optimizer_state_dict': self.optimizer.state_dict()}
+                    save_name = "{0:}/{1:}_best.pt".format(ckpt_dir, ckpt_prefix)
+                    torch.save(save_dict, save_name) 
+                    txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefix), 'wt')
+                    txt_file.write(str(self.max_val_it))
+                    txt_file.close()
                 else:
-                    self.best_model_wts = copy.deepcopy(self.net.state_dict())
-                save_dict = {'iteration': self.max_val_it,
-                    'valid_pred': self.max_val_dice,
-                    'model_state_dict': self.best_model_wts,
-                    'optimizer_state_dict': self.optimizer.state_dict()}
-                save_name = "{0:}/{1:}_best.pt".format(ckpt_dir, ckpt_prefix)
-                torch.save(save_dict, save_name) 
-                txt_file = open("{0:}/{1:}_best.txt".format(ckpt_dir, ckpt_prefix), 'wt')
-                txt_file.write(str(self.max_val_it))
-                txt_file.close()
+                    self.max_val_it   = self.glob_it
 
             stop_now = True if (early_stop_it is not None and \
                 self.glob_it - self.max_val_it > early_stop_it) else False
             if ((self.glob_it in iter_save_list) or stop_now):
                 save_dict = {'iteration': self.glob_it,
-                             'valid_pred': valid_scalars['avg_fg_dice'],
                              'model_state_dict': self.net.module.state_dict() \
                                  if len(device_ids) > 1 else self.net.state_dict(),
                              'optimizer_state_dict': self.optimizer.state_dict()}
+                if(valid_scalars is not None):
+                    save_dict['valid_pred']  = valid_scalars['avg_fg_dice']
                 save_name = "{0:}/{1:}_{2:}.pt".format(ckpt_dir, ckpt_prefix, self.glob_it)
                 torch.save(save_dict, save_name) 
                 txt_file = open("{0:}/{1:}_latest.txt".format(ckpt_dir, ckpt_prefix), 'wt')
@@ -435,8 +450,9 @@ class SegmentationAgent(NetRunAgent):
                 logging.info("The training is early stopped")
                 break
         # save the best performing checkpoint
-        logging.info('The best performing iter is {0:}, valid dice {1:}'.format(\
-            self.max_val_it, self.max_val_dice))
+        if(valid_scalars is not None):
+            logging.info('The best performing iter is {0:}, valid dice {1:}'.format(\
+                self.max_val_it, self.max_val_dice))
         self.summ_writer.close()
     
     def infer(self):
@@ -590,7 +606,7 @@ class SegmentationAgent(NetRunAgent):
         if((label_source is not None) and (label_target is not None)):
             output = convert_label(output, label_source, label_target)
         if(self.postprocessor is not None):
-            for i in range(len(names)):
+            for i in range(output.shape[0]):
                 output[i] = self.postprocessor(output[i])
         # save the output and (optionally) probability predictions
         test_dir = self.config['dataset'].get('test_dir', None)

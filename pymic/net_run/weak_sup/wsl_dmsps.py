@@ -8,16 +8,12 @@ import time
 import torch
 import scipy
 from pymic.io.image_read_write import save_nd_array_as_image
-from pymic.loss.seg.util import get_soft_label
-from pymic.loss.seg.util import reshape_prediction_and_ground_truth
-from pymic.loss.seg.util import get_classwise_dice
 from pymic.loss.seg.dice import DiceLoss
 from pymic.loss.seg.ce   import CrossEntropyLoss
-# from torch.nn.modules.loss import CrossEntropyLoss as TorchCELoss
-from pymic.net_run.weak_sup import WSLSegAgent
+from pymic.net_run.weak_sup import WSLDMPLS
 from pymic.util.ramps import get_rampup_ratio
 
-class WSLDMSPS(WSLSegAgent):
+class WSLDMSPS(WSLDMPLS):
     """
     Weakly supervised segmentation based on Dynamically Mixed Pseudo Labels Supervision.
 
@@ -36,10 +32,6 @@ class WSLDMSPS(WSLSegAgent):
         extra section `weakly_supervised_learning` is needed. See :doc:`usage.wsl` for details.
     """
     def __init__(self, config, stage = 'train'):
-        net_type = config['network']['net_type']
-        # if net_type not in ['UNet2D_DualBranch', 'UNet3D_DualBranch']:
-        #     raise ValueError("""For WSL_DMPLS, a dual branch network is expected. \
-        #         It only supports UNet2D_DualBranch and UNet3D_DualBranch currently.""")
         super(WSLDMSPS, self).__init__(config, stage)
   
     def training(self):
@@ -55,10 +47,9 @@ class WSLDMSPS(WSLSegAgent):
                 are supported.""")
         pseudo_loss_func = CrossEntropyLoss() if pseudo_loss_type == 'ce_loss' else DiceLoss()
         train_loss, train_loss_sup, train_loss_reg = 0, 0, 0
-        train_dice_list = []
         data_time, gpu_time, loss_time, back_time = 0, 0, 0, 0
+
         self.net.train()
-        # ce_loss  = CrossEntropyLoss()
         for it in range(iter_valid):
             t0 = time.time()
             try:
@@ -83,18 +74,11 @@ class WSLDMSPS(WSLSegAgent):
             loss_sup2 = self.get_loss_value(data, outputs2, y) 
             loss_sup  = 0.5 * (loss_sup1 + loss_sup2)
 
-            # torch_ce_loss  = TorchCELoss(ignore_index=class_num)
-            # torch_ce_loss2 = TorchCELoss()
-            # loss_ce1 = torch_ce_loss(outputs1, label[:].long())
-            # loss_ce2 = torch_ce_loss(outputs2, label[:].long())
-            # loss_sup = 0.5 * (loss_ce1 + loss_ce2)
-
             # get pseudo label with dynamic mixture
             outputs_soft1 = torch.softmax(outputs1, dim=1)
             outputs_soft2 = torch.softmax(outputs2, dim=1)
             alpha = random.random() 
             soft_pseudo_label = alpha * outputs_soft1.detach() + (1.0-alpha) * outputs_soft2.detach()
-            # loss_reg = 0.5*(torch_ce_loss2(outputs_soft1, soft_pseudo_label) +torch_ce_loss2(outputs_soft2, soft_pseudo_label) )
             
             loss_dict1 = {"prediction":outputs_soft1, 'ground_truth':soft_pseudo_label}
             loss_dict2 = {"prediction":outputs_soft2, 'ground_truth':soft_pseudo_label}
@@ -111,15 +95,7 @@ class WSLDMSPS(WSLSegAgent):
             train_loss = train_loss + loss.item()
             train_loss_sup = train_loss_sup + loss_sup.item()
             train_loss_reg = train_loss_reg + loss_reg.item() 
-            # get dice evaluation for each class in annotated images
-            if(isinstance(outputs1, tuple) or isinstance(outputs1, list)):
-                outputs1 = outputs1[0] 
-            p_argmax = torch.argmax(outputs1, dim = 1, keepdim = True)
-            p_soft   = get_soft_label(p_argmax, class_num, self.tensor_type)
-            p_soft, y = reshape_prediction_and_ground_truth(p_soft, y) 
-            dice_list   = get_classwise_dice(p_soft, y)
-            train_dice_list.append(dice_list.cpu().numpy())
-
+            
             data_time = data_time + t1 - t0 
             gpu_time  = gpu_time  + t2 - t1
             loss_time = loss_time + t3 - t2
@@ -127,12 +103,9 @@ class WSLDMSPS(WSLSegAgent):
         train_avg_loss = train_loss / iter_valid
         train_avg_loss_sup = train_loss_sup / iter_valid
         train_avg_loss_reg = train_loss_reg / iter_valid
-        train_cls_dice = np.asarray(train_dice_list).mean(axis = 0)
-        train_avg_dice = train_cls_dice[1:].mean()
 
         train_scalers = {'loss': train_avg_loss, 'loss_sup':train_avg_loss_sup,
-            'loss_reg':train_avg_loss_reg, 'regular_w':regular_w,
-            'avg_fg_dice':train_avg_dice,     'class_dice': train_cls_dice,
+            'loss_reg': train_avg_loss_reg, 'regular_w':regular_w,
             'data_time': data_time, 'forward_time':gpu_time, 
             'loss_time':loss_time, 'backward_time':back_time}
         return train_scalers
@@ -196,7 +169,6 @@ class WSLDMSPS(WSLSegAgent):
                         lab2d[diff] = C 
                 conf_lab[0][d] = lab2d
             save_nd_array_as_image(conf_lab[0], output_dir + "/" + conf_lab_name, test_dir + '/' + img_name)
-            
             
             
             

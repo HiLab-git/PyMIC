@@ -52,12 +52,16 @@ class SSLSegAgent(SegmentationAgent):
                 self.transform_list.append(one_transform)
             data_transform = transforms.Compose(self.transform_list)
 
-        csv_file = self.config['dataset'].get('train_csv_unlab', None)
+        csv_file   = self.config['dataset'].get('train_csv_unlab', None)
+        stage_dim  = self.config['dataset'].get('train_dim', 3)
         dataset  = NiftyDataset(root_dir  = train_dir,
                                 csv_file  = csv_file,
                                 modal_num = modal_num,
-                                with_label= False,
-                                transform = data_transform )
+                                image_dim = stage_dim,
+                                allow_missing_modal = False,
+                                label_key = None,
+                                transform = data_transform, 
+                                task = self.task_type)
         return dataset
 
     def create_dataset(self):
@@ -79,9 +83,9 @@ class SSLSegAgent(SegmentationAgent):
                 worker_init_fn=worker_init, drop_last = True)
 
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
-        loss_scalar ={'train':train_scalars['loss'], 
-                      'valid':valid_scalars['loss']}
-        loss_sup_scalar  = {'train':train_scalars['loss_sup']}
+        loss_scalar ={'train':train_scalars['loss']}
+        loss_sup_scalar  = {'train':train_scalars['loss_sup'],
+                            'valid':valid_scalars['loss']}
         loss_upsup_scalar  = {'train':train_scalars['loss_reg']}
         dice_scalar ={'train':train_scalars['avg_fg_dice'], 'valid':valid_scalars['avg_fg_dice']}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)
