@@ -12,6 +12,7 @@ The built-in transforms in PyMIC are:
     'GammaCorrection': GammaCorrection,
     'GaussianNoise': GaussianNoise,
     'LabelConvert': LabelConvert,
+    'LabelSelect': LabelSelect,
     'LabelConvertNonzero': LabelConvertNonzero,
     'LabelToProbability': LabelToProbability,
     'IntensityClip': IntensityClip,
@@ -46,12 +47,15 @@ from pymic.transform.crop import *
 from pymic.transform.crop4dino import Crop4Dino
 from pymic.transform.crop4voco import Crop4VoCo
 from pymic.transform.crop4vox2vec import Crop4Vox2Vec
+from pymic.transform.crop4voxMMSD import Crop4VoxMMSD
 from pymic.transform.crop4vf import Crop4VolumeFusion, VolumeFusion, VolumeFusionShuffle
 from pymic.transform.label_convert import *  
 
 TransformDict = {
     'Affine': Affine,
     'AdaptiveContrastAdjust': AdaptiveContrastAdjust,
+    'BrightnessAdditive': BrightnessAdditive,
+    'BrightnessMultiplicative': BrightnessMultiplicative,
     'ChannelWiseThreshold': ChannelWiseThreshold,
     'ChannelWiseThresholdWithNormalize': ChannelWiseThresholdWithNormalize,
     'CropWithBoundingBox': CropWithBoundingBox,
@@ -61,14 +65,17 @@ TransformDict = {
     'Crop4Dino': Crop4Dino,
     'Crop4VoCo': Crop4VoCo,
     'Crop4Vox2Vec': Crop4Vox2Vec,
+    'Crop4VoxMMSD': Crop4VoxMMSD,
     'Crop4VolumeFusion': Crop4VolumeFusion,
     'GrayscaleToRGB': GrayscaleToRGB,
     'GammaCorrection': GammaCorrection,
     'GaussianNoise': GaussianNoise,
+    'GaussianBlur': GaussianBlur,
     'HistEqual': HistEqual, 
     'InPainting': InPainting,
     'InOutPainting': InOutPainting,
     'LabelConvert': LabelConvert,
+    'LabelSelect': LabelSelect,
     'LabelConvertNonzero': LabelConvertNonzero,
     'LabelToProbability': LabelToProbability,
     'LocalShuffling': LocalShuffling,
