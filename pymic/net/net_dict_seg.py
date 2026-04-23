@@ -15,86 +15,82 @@ Built-in networks for segmentation.
 * UNet3D_ScSE :mod:`pymic.net.net3d.unet3d_scse.UNet3D_ScSE`
 """
 from __future__ import print_function, division
-from pymic.net.net2d.unet2d import UNet2D
-from pymic.net.net2d.unet2d_multi_decoder import UNet2D_DualBranch, MCNet2D
-from pymic.net.net2d.unet2d_canet import CANet
-from pymic.net.net2d.unet2d_cct import UNet2D_CCT
+# from pymic.net.net2d.unet2d import UNet2D
+# from pymic.net.net2d.unet2d_multi_decoder import UNet2D_DualBranch, MCNet2D
 # from pymic.net.net2d.unet2d_mtnet import MTNet2D
-from pymic.net.net2d.cople_net import COPLENet
-from pymic.net.net2d.unet2d_attention import AttentionUNet2D
-from pymic.net.net2d.unet2d_pp import UNet2Dpp
-from pymic.net.net2d.unet2d_scse import UNet2D_ScSE
-from pymic.net.net2d.trans2d.transunet import TransUNet
-from pymic.net.net2d.trans2d.swinunet import SwinUNet
+from pymic.net.cnn.unet import UNet
+from pymic.net.cnn.unet2d_canet import CANet
+from pymic.net.cnn.unet_scse import UNet_ScSE
+from pymic.net.cnn.coplenet2d import COPLENet
+from pymic.net.cnn.unet_attention import AttentionUNet
+from pymic.net.cnn.unet_pp import UNetpp
+from pymic.net.cnn.unet2d5 import UNet2D5
+
+# from pymic.net.net2d.unet2d_scse import UNet2D_ScSE
+from pymic.net.transformer.transunet import TransUNet
+from pymic.net.transformer.swinunet import SwinUNet
 # from pymic.net.net2d.umamba import UMambaBot, UMambaEnc
 # from pymic.net.net2d.unet2d_vm import VMUNet
 # from pymic.net.net2d.unet2d_vm_light import UltraLight_VM_UNet
-from pymic.net.cnn.unet2d5 import UNet2D5
-from pymic.net.net3d.unet3d import UNet3D
 
-from pymic.net.net3d.grunet import GRUNet
 from pymic.net.net3d.fmunetv3 import FMUNetV3
 from pymic.net.net3d.fmunet import FMUNet
-from pymic.net.net3d.lcovnet import LCOVNet
-from pymic.net.net3d.unet3d_scse import UNet3D_ScSE
+from pymic.net.cnn.lcovnet3d import LCOVNet
 from pymic.net.net3d.unet3d_dual_branch import UNet3D_DualBranch
-# from pymic.net.net3d.stunet_wrap import STUNet_wrap
+
 # from pymic.net.net3d.mystunet import MySTUNet
+from pymic.net.transformer.unetr import UNETR
+from pymic.net.transformer.unetr_pp import UNETR_PP
 
-# from pymic.net.net3d.trans3d.nnFormer_wrap import nnFormer_wrap
-# from pymic.net.net3d.trans3d.unetr import UNETR
-from pymic.net.net3d.trans3d.unetr_pp import UNETR_PP
-from pymic.net.cnn.unet import UNet
-from pymic.net.cnn.unet_scse import UNet_ScSE
-# from pymic.net.net3d.trans3d.MedFormer_v1 import MedFormerV1
-# from pymic.net.net3d.trans3d.MedFormer_v2 import MedFormerV2
-# from pymic.net.net3d.trans3d.MedFormer_v3 import MedFormerV3
-# from pymic.net.net3d.trans3d.MedFormer_va1 import MedFormerVA1
-# from pymic.net.net3d.trans3d.HiFormer_v1 import HiFormer_v1
-# from pymic.net.net3d.trans3d.HiFormer_v2 import HiFormer_v2
-# from pymic.net.net3d.trans3d.HiFormer_v3 import HiFormer_v3
-# from pymic.net.net3d.trans3d.HiFormer_v4 import HiFormer_v4
-# from pymic.net.net3d.trans3d.HiFormer_v5 import HiFormer_v5
-# from pymic.net.net3d.trans3d.SwitchNet import SwitchNet
-
+from pymic.net.specific.cctnet import CCTNet
 from pymic.net.specific.dbnet import DBNet
 from pymic.net.specific.tdnet import TDNet
 from pymic.net.specific.tdnet3d import TDNet3D
 
+# from pymic.net.third_party.nnFormer_wrap import nnFormer_wrap
+# from pymic.net.third_party.stunet_wrap import STUNet_wrap
+# from pymic.net.third_party.cotr_wrap import CoTr_wrap
+
 
 SegNetDict = {
+	#
+	# ---- networks for both 2D and 3D ---- #
 	'UNet': UNet,
 	'UNet_ScSE': UNet_ScSE,
-	'AttentionUNet2D': AttentionUNet2D,
+	'AttentionUNet': AttentionUNet,
+	'UNetpp': UNetpp,
 	'CANet': CANet,
+	#
+	# ---- networks for  2D ---- #
 	'COPLENet': COPLENet,
-	'MCNet2D': MCNet2D,
+	'TransUNet': TransUNet,
+	'SwinUNet': SwinUNet,
+	# 'MCNet2D': MCNet2D,
 	# 'MTNet2D': MTNet2D,
-	'UNet2D': UNet2D,
-	'UNet2D_DualBranch': UNet2D_DualBranch,
-	'UNet2D_CCT': UNet2D_CCT,
-	'UNet2Dpp': UNet2Dpp,
-	'UNet2D_ScSE': UNet2D_ScSE,
+	# 'UNet2D_DualBranch': UNet2D_DualBranch,
     # 'UMambaBot': UMambaBot,
     # 'UMambaEnc': UMambaEnc,
 	# 'VMUNet':VMUNet,
     # 'UltraLight_VM_UNet': UltraLight_VM_UNet,
-	'TransUNet': TransUNet,
-	'SwinUNet': SwinUNet,
+	#
+	# ---- networks for 3D ---- #
 	'UNet2D5': UNet2D5,
-	'GRUNet': GRUNet,
     'LCOVNet': LCOVNet,
     'FMUNet': FMUNet,
 	'FMUNetV3': FMUNetV3,
-	'UNet3D': UNet3D,
-	'TDNet3D': TDNet3D,
-	'UNet3D_ScSE': UNet3D_ScSE,
-	'UNet3D_DualBranch': UNet3D_DualBranch, 
-	# 'STUNet': STUNet_wrap,
-	# 'MySTUNet': MySTUNet,
-    # 'nnFormer': nnFormer_wrap,
-	# 'UNETR': UNETR,
+	'UNETR': UNETR,
 	'UNETR_PP': UNETR_PP,
+	# 'UNet3D_ScSE': UNet3D_ScSE,
+	# 'UNet3D_DualBranch': UNet3D_DualBranch, 
+	# 'MySTUNet': MySTUNet,
+	#
+	# ---- special networks for weakly/semi-supervised segmentation ---- #
+	'CCTNet': CCTNet,
 	'DBNet': DBNet,
 	'TDNet': TDNet,
+	#
+	# ---- thirdy part networks ---- #
+	# 'nnFormer': nnFormer_wrap,
+	# 'STUNet': STUNet_wrap,
+	# 'CoTr': CoTr_wrap
 	}

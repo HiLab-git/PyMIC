@@ -1,0 +1,128 @@
+# -*- coding: utf-8 -*-
+import torch
+import torch.nn as nn
+from pymic.net.cnn.unet import *
+
+class UNetpp(nn.Module):
+    """
+    An implementation of the U-Net++.
+
+    * Reference: Zongwei Zhou, et al.: `UNet++: A Nested U-Net Architecture for Medical Image Segmentation.
+      <https://link.springer.com/chapter/10.1007/978-3-030-00889-5_1>`_ 
+      MICCAI DLMIA workshop, 2018: 3-11.
+    
+    Note that there are some modifications from the original paper, such as
+    the use of dropout and leaky relu here.
+
+    Parameters are given in the `params` dictionary, and should include the
+    following fields:
+
+    :param in_chns: (int) Input channel number.
+    :param feature_chns: (list) Feature channel for each resolution level. 
+      The length should be 4 or 5, such as [16, 32, 64, 128, 256].
+    :param dropout: (list) The dropout ratio for each resolution level. 
+      The length should be the same as that of `feature_chns`.
+    :param class_num: (int) The class number for segmentation task. 
+    """
+    def __init__(self, params):
+        super(UNetpp, self).__init__()
+        params = self.get_default_parameters(params)
+        self.params  = params
+        self.dim     = params['dimension']
+        self.in_chns = params['in_chns']
+        self.filters = params['feature_chns'] 
+        self.dropout = params['dropout']
+        self.n_class = params['class_num']
+
+        maxpool_nd = get_maxpool_class(self.dim)
+        up_mode    = 'bilinear' if self.dim == 2 else 'trilinear'
+        self.pool = maxpool_nd(kernel_size=2, stride=2)
+        self.Up   = nn.Upsample(scale_factor=2, mode=up_mode, align_corners=True)
+
+        self.conv0_0 = ConvBlock(self.dim, self.in_chns, self.filters[0], self.dropout[0])
+        self.conv1_0 = ConvBlock(self.dim, self.filters[0], self.filters[1], self.dropout[1])
+        self.conv2_0 = ConvBlock(self.dim, self.filters[1], self.filters[2], self.dropout[2])
+        self.conv3_0 = ConvBlock(self.dim, self.filters[2], self.filters[3], self.dropout[3])
+        self.conv4_0 = ConvBlock(self.dim, self.filters[3], self.filters[4], self.dropout[4])
+
+        self.conv0_1 = ConvBlock(self.dim, self.filters[0] + self.filters[1], self.filters[0], 0)
+        self.conv1_1 = ConvBlock(self.dim, self.filters[1] + self.filters[2], self.filters[1], 0)
+        self.conv2_1 = ConvBlock(self.dim, self.filters[2] + self.filters[3], self.filters[2], 0)
+        self.conv3_1 = ConvBlock(self.dim, self.filters[3] + self.filters[4], self.filters[3], 0)
+
+        self.conv0_2 = ConvBlock(self.dim, self.filters[0] * 2 + self.filters[1], self.filters[0], 0)
+        self.conv1_2 = ConvBlock(self.dim, self.filters[1] * 2 + self.filters[2], self.filters[1], 0)
+        self.conv2_2 = ConvBlock(self.dim, self.filters[2] * 2 + self.filters[3], self.filters[2], 0)
+
+        self.conv0_3 = ConvBlock(self.dim, self.filters[0] * 3 + self.filters[1], self.filters[0], 0)
+        self.conv1_3 = ConvBlock(self.dim, self.filters[1] * 3 + self.filters[2], self.filters[1], 0)
+
+        self.conv0_4 = ConvBlock(self.dim, self.filters[0] * 4 + self.filters[1], self.filters[0], 0)
+
+        conv_nd = get_conv_class(self.dim)
+        self.final = conv_nd(self.filters[0], self.n_class, kernel_size=1)
+
+    def get_default_parameters(self, params):
+        default_param = {
+            'dimension': 2,
+            'feature_chns': [32, 64, 128, 256, 512],
+            'dropout': [0.0, 0.0, 0.2, 0.3, 0.4],
+            'up_mode': 2,
+            'norm_type': 'batch_norm'
+        }
+        for key in default_param:
+            params[key] = params.get(key, default_param[key])
+        for key in params:
+                logging.info("{0:}  = {1:}".format(key, params[key]))
+        return params
+
+    def forward(self, x):
+        x_shape = list(x.shape)
+        if(len(x_shape) == 5 and self.dim == 2):
+          [N, C, D, H, W] = x_shape
+          new_shape = [N*D, C, H, W]
+          x = torch.transpose(x, 1, 2)
+          x = torch.reshape(x, new_shape)
+        x0_0 = self.conv0_0(x)
+        x1_0 = self.conv1_0(self.pool(x0_0))
+        x0_1 = self.conv0_1(torch.cat([x0_0, self.Up(x1_0)], 1))
+
+        x2_0 = self.conv2_0(self.pool(x1_0))
+        x1_1 = self.conv1_1(torch.cat([x1_0, self.Up(x2_0)], 1))
+        x0_2 = self.conv0_2(torch.cat([x0_0, x0_1, self.Up(x1_1)], 1))
+
+        x3_0 = self.conv3_0(self.pool(x2_0))
+        x2_1 = self.conv2_1(torch.cat([x2_0, self.Up(x3_0)], 1))
+        x1_2 = self.conv1_2(torch.cat([x1_0, x1_1, self.Up(x2_1)], 1))
+        x0_3 = self.conv0_3(torch.cat([x0_0, x0_1, x0_2, self.Up(x1_2)], 1))
+
+        x4_0 = self.conv4_0(self.pool(x3_0))
+        x3_1 = self.conv3_1(torch.cat([x3_0, self.Up(x4_0)], 1))
+        x2_2 = self.conv2_2(torch.cat([x2_0, x2_1, self.Up(x3_1)], 1))
+        x1_3 = self.conv1_3(torch.cat([x1_0, x1_1, x1_2, self.Up(x2_2)], 1))
+        x0_4 = self.conv0_4(torch.cat([x0_0, x0_1, x0_2, x0_3, self.Up(x1_3)], 1))
+
+        output = self.final(x0_4)
+        if(len(x_shape) == 5 and self.dim == 2):
+            new_shape = [N, D] + list(output.shape)[1:]
+            output = torch.reshape(output, new_shape)
+            output = torch.transpose(output, 1, 2)
+        return output
+
+
+if __name__ == "__main__":
+    params = {'in_chns':4,
+              'feature_chns':[2, 8, 32, 48, 64],
+              'dropout':  [0, 0, 0.3, 0.4, 0.5],
+              'class_num': 2}
+    Net = UNetpp(params)
+    Net = Net.double()
+
+    x  = np.random.rand(4, 4, 10, 96, 96)
+    xt = torch.from_numpy(x)
+    xt = torch.tensor(xt)
+    
+    y = Net(xt)
+    print(len(y.size()))
+    y = y.detach().numpy()
+    print(y.shape)
