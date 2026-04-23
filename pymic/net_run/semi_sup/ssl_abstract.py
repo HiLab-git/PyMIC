@@ -83,9 +83,9 @@ class SSLSegAgent(SegmentationAgent):
                 worker_init_fn=worker_init, drop_last = True)
 
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
-        loss_scalar ={'train':train_scalars['loss'], 
-                      'valid':valid_scalars['loss']}
-        loss_sup_scalar  = {'train':train_scalars['loss_sup']}
+        loss_scalar ={'train':train_scalars['loss']}
+        loss_sup_scalar  = {'train':train_scalars['loss_sup'],
+                            'valid':valid_scalars['loss']}
         loss_upsup_scalar  = {'train':train_scalars['loss_reg']}
         dice_scalar ={'train':train_scalars['avg_fg_dice'], 'valid':valid_scalars['avg_fg_dice']}
         self.summ_writer.add_scalars('loss', loss_scalar, glob_it)

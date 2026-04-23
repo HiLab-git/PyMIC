@@ -228,37 +228,33 @@ def get_binary_evaluation_score(s_volume, g_volume, spacing, metric):
 
     return score
 
-def get_multi_class_evaluation_score(s_volume, g_volume, label_list, fuse_label, spacing, metric):
+def get_class_evaluation_score(s_volume, g_volume, label, spacing, metric):
     """
     Evaluate the segmentation performance  using a specified metric for a list of labels. 
     The metric options are {`dice`, `iou`, `assd`, `hd95`, `rve`, `volume`}. 
-    If `fuse_label` is `True`, the labels in `label_list` will be merged as foreground
-    and other labels will be merged as background as a binary segmentation result. 
+    If `label` is a list, the labels in that list will be merged as a foreground. 
 
     :param s_volume: (numpy.array) A 2D or 3D image for segmentation.
     :param g_volume: (numpy.array) A 2D or 2D image for ground truth.
-    :param label_list: (list) A list of target labels. 
+    :param label: (list/int) A list of target labels or an int for a single class. 
     :param fuse_label: (bool) Fuse the labels in `label_list` or not.
     :param spacing: (list) A list for image spacing, length should be 2 or 3.
     :param metric: (str) The metric name. 
 
     :return: The metric value list.
     """
-    if(fuse_label):
+    if(isinstance(label, list)):
         s_volume_sub = np.zeros_like(s_volume)
         g_volume_sub = np.zeros_like(g_volume)
-        for lab in label_list:
+        for lab in label:
             s_volume_sub = s_volume_sub + np.asarray(s_volume == lab, np.uint8)
             g_volume_sub = g_volume_sub + np.asarray(g_volume == lab, np.uint8)
-        label_list = [1]
         s_volume = np.asarray(s_volume_sub > 0, np.uint8)
         g_volume = np.asarray(g_volume_sub > 0, np.uint8)
-    score_list = []
-    for label in label_list:
-        temp_score = get_binary_evaluation_score(s_volume == label, g_volume == label,
-                    spacing, metric)
-        score_list.append(temp_score)
-    return score_list
+        label = 1
+    score = get_binary_evaluation_score(s_volume == label, g_volume == label,
+                    spacing, metric)    
+    return score
 
 def evaluation(config):
     """
@@ -270,7 +266,7 @@ def evaluation(config):
     :param label_list: (list) The list of labels for evaluation. 
     :param label_fuse: (option, bool) If true, fuse the labels in the `label_list`
         as the foreground, and other labels as the background. Default is False. 
-    :param organ_name: (str) The name of the organ for segmentation.
+    :param class_name_list: (str) The list of class names.
     :param ground_truth_folder: (str) The root dir of ground truth images. 
     :param segmentation_folder: (str or list) The root dir of segmentation images. 
         When a list is given, each list element should be the root dir of the results of one method. 
@@ -279,14 +275,25 @@ def evaluation(config):
     """
     
     metric_list = config['metric_list']
+    label_list    = config.get('label_list', None)
+    cls_name_list = config.get('class_name_list', None)
     if(not isinstance(metric_list, list)):
         metric_list = [metric_list]
-    label_list  = config.get('label_list', None)
+    
     if(label_list is None):
         label_list = range(1, config["class_number"])
     elif(not isinstance(label_list, list)):
         label_list = [label_list]
-    label_fuse  = config.get('label_fuse', False)
+
+    if(cls_name_list is None):
+        cls_name_list = []
+        for lab in label_list:
+            if(isinstance(lab, list)):
+                class_name = "class_" + "_".join([str(item) for item in lab])
+            else:
+                class_name = str(lab)
+            cls_name_list.append(class_name)
+
     output_name = config.get('output_name', None)
     gt_dir      = config['ground_truth_folder']
     seg_dirs    = config['segmentation_folder']
@@ -317,13 +324,14 @@ def evaluation(config):
                 # for dim in range(len(s_spacing)):
                 #     assert(s_spacing[dim] == g_spacing[dim])
 
-                score_vector = get_multi_class_evaluation_score(s_volume, g_volume, label_list, 
-                    label_fuse, s_spacing, metric )
+                score_vector = [get_class_evaluation_score(s_volume, g_volume, label_list[idx], s_spacing, metric) \
+                    for idx in range(len(label_list))]
                 if(len(label_list) > 1):
                     score_vector.append(np.asarray(score_vector).mean())
                 score_all_data.append(score_vector)
                 name_score_list.append([seg_names[i]] + score_vector)
-                print(seg_names[i], score_vector)
+                score_vector_str = [float(item) for item in score_vector]
+                print(seg_names[i], score_vector_str)
             score_all_data = np.asarray(score_all_data)
             score_mean = score_all_data.mean(axis = 0)
             score_std  = score_all_data.std(axis = 0)
@@ -338,7 +346,7 @@ def evaluation(config):
             with open(metric_output_name, mode='w') as csv_file:
                 csv_writer = csv.writer(csv_file, delimiter=',', 
                                 quotechar='"',quoting=csv.QUOTE_MINIMAL)
-                head = ['image'] + ["class_{0:}".format(i) for i in label_list]
+                head = ['image'] + cls_name_list
                 if(len(label_list) > 1):
                     head = head + ["average"]
                 csv_writer.writerow(head)

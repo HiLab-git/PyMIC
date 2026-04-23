@@ -139,28 +139,32 @@ class GammaCorrection(AbstractTransform):
         self.gamma_max = params.get('GammaCorrection_gamma_max'.lower(), 1.5)
         self.flip_prob = params.get('GammaCorrection_intensity_flip_probability'.lower(), 0.0)
         self.prob      = params.get('GammaCorrection_probability'.lower(), 0.5)
+        self.prob_per_channel = params.get('GammaCorrection_probability_per_channel'.lower(), 0.5)
         self.inverse   = params.get('GammaCorrection_inverse'.lower(), False)
     
     def __call__(self, sample):
-        image= sample['image']
-        if(self.channels is None):
-            self.channels = range(image.shape[0])
-        for chn in self.channels:
-            if(np.random.uniform() > self.prob):
-                continue
-            gamma_c = random.random() * (self.gamma_max - self.gamma_min) + self.gamma_min
-            img_c = image[chn]
-            v_min = img_c.min()
-            v_max = img_c.max()
-            if(v_min < v_max):
-                img_c = (img_c - v_min)/(v_max - v_min)
-                if(np.random.uniform() < self.flip_prob):
-                    img_c = 1.0 - img_c
-                img_c = np.power(img_c, gamma_c)*(v_max - v_min) + v_min
-            image[chn] = img_c
+        if(np.random.uniform() > self.prob):
+            return sample
+        else:
+            image= sample['image']
+            if(self.channels is None):
+                self.channels = range(image.shape[0])
+            for chn in self.channels:
+                if(np.random.uniform() > self.prob_per_channel):
+                    continue
+                gamma_c = random.random() * (self.gamma_max - self.gamma_min) + self.gamma_min
+                img_c = image[chn]
+                v_min = img_c.min()
+                v_max = img_c.max()
+                if(v_min < v_max):
+                    img_c = (img_c - v_min)/(v_max - v_min)
+                    if(np.random.uniform() < self.flip_prob):
+                        img_c = 1.0 - img_c
+                    img_c = np.power(img_c, gamma_c)*(v_max - v_min) + v_min
+                image[chn] = img_c
 
-        sample['image'] = image
-        return sample
+            sample['image'] = image
+            return sample
 
 def gaussian_noise(image, std_min, std_max,):
     """
@@ -184,6 +188,17 @@ def gaussian_blur(image, sigma_min, sigma_max):
 def gaussian_sharpen(image, sigma_min, sigma_max, alpha = 10.0):
     blurred = gaussian_blur(image, sigma_min, sigma_max)
     out = image + (image - blurred) * alpha
+    return out
+
+def augment_contrast(image, factor_min, factor_max, preserve_range = True):
+    mn = image.mean()
+    factor = np.random.uniform(factor_min, factor_max)
+    if preserve_range:
+        minm = image.min()
+        maxm = image.max()
+        out = (image - mn) * factor + mn
+        if preserve_range:
+            out = np.clip(out, minm, maxm)
     return out
 
 def window_level_augment(image, offset = 0.1):
@@ -225,17 +240,119 @@ class GaussianNoise(AbstractTransform):
         self.std_min  = params.get('GaussianNoise_std_min'.lower(), 0.02)
         self.std_max  = params.get('GaussianNoise_std_max'.lower(), 0.1)
         self.prob     = params.get('GaussianNoise_probability'.lower(), 0.5)
+        self.prob_per_channel = params.get('GaussianNoise_probability_per_channel'.lower(), 0.5)
         self.inverse  = params.get('GaussianNoise_inverse'.lower(), False)
     
     def __call__(self, sample):
-        image = sample['image']
-        if(self.channels is None):
-            self.channels = range(image.shape[0])
-        for chn in self.channels:
-            if(np.random.uniform() < self.prob):
-                image[chn] = gaussian_noise(image[chn], self.std_min, self.std_max)
-        sample['image'] = image
-        return sample
+        if(np.random.uniform() > self.prob):
+            return sample
+        else:
+            image = sample['image']
+            if(self.channels is None):
+                self.channels = range(image.shape[0])
+            for chn in self.channels:
+                if(np.random.uniform() < self.prob_per_channel):
+                    image[chn] = gaussian_noise(image[chn], self.std_min, self.std_max)
+            sample['image'] = image
+            return sample
+
+class GaussianBlur(AbstractTransform):
+    def __init__(self, params):
+        super(GaussianBlur, self).__init__(params)
+        self.channels   = params.get('GaussianBlur_channels'.lower(), None)
+        self.sigma_min  = params['GaussianBlur_sigma_min'.lower()]
+        self.sigma_max  = params['GaussianBlur_sigma_max'.lower()]
+        self.prob       = params.get('GaussianBlur_probability'.lower(), 0.5)
+        self.prob_per_channel = params.get('GaussianBlur_probability_per_channel'.lower(), 0.5)
+    
+    def __call__(self, sample):
+        if(np.random.uniform() > self.prob):
+            return sample
+        else:
+            image = sample['image']
+            if(self.channels is None):
+                self.channels = range(image.shape[0])
+
+            for chn in self.channels:
+                if(np.random.uniform() < self.prob_per_channel):
+                    image[chn] = gaussian_blur(image[chn], self.sigma_min, self.sigma_max)
+            sample['image'] = image
+
+            return sample
+
+class BrightnessAdditive(AbstractTransform):
+    def __init__(self, params):
+        super(BrightnessAdditive, self).__init__(params)
+        self.channels  = params.get('BrightnessAdditive_channels'.lower(), None)
+        self.sigma_min = params['BrightnessAdditive_sigma_min'.lower()]
+        self.sigma_max = params['BrightnessAdditive_sigma_max'.lower()]
+        self.prob      = params.get('BrightnessAdditive_probability'.lower(), 0.5)
+        self.prob_per_channel = params.get('BrightnessAdditive_probability_per_channel'.lower(), 0.5)
+    
+    def __call__(self, sample):
+        if(np.random.uniform() > self.prob):
+            return sample
+        else:
+            image = sample['image']
+            if(self.channels is None):
+                self.channels = range(image.shape[0])
+
+            for chn in self.channels:
+                if(np.random.uniform() < self.prob_per_channel):
+                    sigma = random.uniform(self.sigma_min,self.sigma_max)
+                    image[chn] += sigma
+            sample['image'] = image
+            return sample
+    
+class BrightnessMultiplicative(AbstractTransform):
+    def __init__(self, params):
+        super(BrightnessMultiplicative, self).__init__(params)
+        self.channels  = params.get('BrightnessMultiplicative_channels'.lower(), None)
+        self.sigma_min = params['BrightnessMultiplicative_sigma_min'.lower()]
+        self.sigma_max = params['BrightnessMultiplicative_sigma_max'.lower()]
+        self.prob      = params.get('BrightnessMultiplicative_probability'.lower(), 0.5)
+        self.prob_per_channel = params.get('BrightnessMultiplicative_probability_per_channel'.lower(), 0.5)
+    
+    def __call__(self, sample):
+        if(np.random.uniform() > self.prob):
+            return sample
+        else:
+            image = sample['image']
+            if(self.channels is None):
+                self.channels = range(image.shape[0])
+
+            for chn in self.channels:
+                if(np.random.uniform() < self.prob_per_channel):
+                    sigma = random.uniform(self.sigma_min,self.sigma_max)
+                    image[chn] *= sigma
+
+            sample['image'] = image
+            return sample
+
+class ContrastAdjust(AbstractTransform):
+    def __init__(self, params):
+        super(ContrastAdjust, self).__init__(params)
+        self.channels  = params.get('ContrastAdjust_channels'.lower(), None)
+        self.factor_min = params.get('ContrastAdjust_factor_min'.lower(), 0.75)
+        self.factor_max = params.get('ContrastAdjust_factor_max'.lower(), 1.25)
+        self.preserve_range = params.get('ContrastAdjust_preserve_range'.lower(), True)
+        self.prob      = params.get('ContrastAdjust_probability'.lower(), 0.5)
+        self.prob_per_channel = params.get('ContrastAdjust_probability_per_channel'.lower(), 0.5)
+    
+    def __call__(self, sample):
+        if(np.random.uniform() > self.prob):
+            return sample
+        else:
+            image = sample['image']
+            if(self.channels is None):
+                self.channels = range(image.shape[0])
+
+            for chn in self.channels:
+                if(np.random.uniform() < self.prob_per_channel):
+                    image[chn] = augment_contrast(image[chn], 
+                        self.factor_min, self.factor_max, self.preserve_range)
+            sample['image'] = image
+            return sample
 
 def adaptive_contrast_adjust(image, p0=0.1, p1=99.9):
     v_min = image.min()
@@ -556,6 +673,7 @@ class MaskedImageModeling(AbstractTransform):
         super(MaskedImageModeling, self).__init__(params)
         self.ratio       = params.get('MaskedImageModeling_ratio'.lower(), 0.45)
         self.block_size  = params.get('MaskedImageModeling_block_size'.lower(), [8, 16, 16])
+        self.per_chanel  = params.get('MaskedImageModeling_per_channel'.lower(), False)
         self.inverse  = params.get('MaskedImageModeling_inverse'.lower(), False)
 
     def __call__(self, sample): 
@@ -563,22 +681,23 @@ class MaskedImageModeling(AbstractTransform):
         C, D, H, W = image.shape
         img_out = copy.deepcopy(image)
         
-        block = np.zeros([C] + list(self.block_size))
+        if(self.per_chanel):
+            block = np.zeros(list(self.block_size))
+        else:
+            block = np.zeros([C] + list(self.block_size))
         for d in range(0, D, self.block_size[0]):
-            d1 = d + self.block_size[0] 
-            if d1 > D:
-                continue 
+            d1 = min(d + self.block_size[0], D) 
             for h in range(0, H, self.block_size[1]):
-                h1 = h + self.block_size[1]
-                if  h1 > H:
-                    continue
+                h1 = min(h + self.block_size[1], H)
                 for w in range(0, W, self.block_size[2]):
-                    w1 = w + self.block_size[2]
-                    if w1 > W:
-                        continue 
-                    r = random.random()
-                    if ( r < self.ratio):
-                        img_out[:, d:d1, h:h1, w:w1] = block
+                    w1 = min(w + self.block_size[2], W)
+                    if(self.per_chanel):
+                        for c in range(C):
+                            if(random.random() < self.ratio):
+                                img_out[c, d:d1, h:h1, w:w1] = block
+                    else:
+                        if (random.random() < self.ratio):
+                            img_out[:, d:d1, h:h1, w:w1] = block
 
         sample['image'] = img_out
         sample['label'] = image

@@ -51,21 +51,33 @@ def is_list(val_str):
         return False
     
 def parse_list(val_str):
-    sub_str = val_str[1:-1]
-    splits = sub_str.split(',')
-    output = []
-    for item in splits:
-        item = item.strip()
-        if(is_int(item)):
-            output.append(int(item))
-        elif(is_float(item)):
-            output.append(float(item))
-        elif(is_bool(item)):
-            output.append(parse_bool(item))
-        elif(item.lower() == 'none'):
-            output.append(None)
-        else:
-            output.append(item)
+    if('[' in val_str):
+        splits = val_str.split('],')
+        output = []
+        for item in splits:
+            item = item.strip()
+            if(item[0] == '['):
+                item = item[1:]
+            if(item[-1] == ']'):
+                item = item[:-1]
+            print(item)
+            output.append(parse_list(item))
+        return output
+    else:    
+        splits = val_str.split(',')
+        output = []
+        for item in splits:
+            item = item.strip()
+            if(is_int(item)):
+                output.append(int(item))
+            elif(is_float(item)):
+                output.append(float(item))
+            elif(is_bool(item)):
+                output.append(parse_bool(item))
+            elif(item.lower() == 'none'):
+                output.append(None)
+            else:
+                output.append(item)
     return output
 
 def parse_value_from_string(val_str):
@@ -75,7 +87,7 @@ def parse_value_from_string(val_str):
     elif(is_float(val_str)):
         val = float(val_str)
     elif(is_list(val_str)):
-        val = parse_list(val_str)
+        val = parse_list(val_str[1:-1])
     elif(is_bool(val_str)):
         val = parse_bool(val_str)
     elif(val_str.lower() == 'none'):

@@ -1,1 +1,5 @@
 2025.8.1 Add code of DMSPS
+2025.12.23 Add code of PS-Seg
+
+To do:
+(2025.8.25) data augmentation in Crop4vox2vec should be implemented in external transforms

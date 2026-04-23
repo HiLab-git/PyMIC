@@ -7,6 +7,7 @@ from pymic.net_run.weak_sup.wsl_tv import WSLTotalVariation
 from pymic.net_run.weak_sup.wsl_ustm import WSLUSTM
 from pymic.net_run.weak_sup.wsl_dmpls import WSLDMPLS
 from pymic.net_run.weak_sup.wsl_dmsps import WSLDMSPS
+from pymic.net_run.weak_sup.wsl_psseg import WSLPSSEG
 
 WSLMethodDict = {'EntropyMinimization': WSLEntropyMinimization,
     'GatedCRF': WSLGatedCRF,
@@ -14,4 +15,5 @@ WSLMethodDict = {'EntropyMinimization': WSLEntropyMinimization,
     'TotalVariation': WSLTotalVariation,
     'USTM': WSLUSTM,
     'DMPLS': WSLDMPLS,
-    'DMSPS': WSLDMSPS}
+    'DMSPS': WSLDMSPS,
+    'PSSeg': WSLPSSEG}

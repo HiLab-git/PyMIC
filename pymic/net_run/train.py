@@ -50,7 +50,7 @@ def main():
     """
     if(len(sys.argv) < 2):
         print('Number of arguments should be at least 2. e.g.')
-        print('   pymic_train config.cfg -train_csv train.csv')
+        print('   pymic_train config.cfg --train_csv train.csv')
         exit()
     parser = argparse.ArgumentParser()
     parser.add_argument("cfg", help="configuration file for training")

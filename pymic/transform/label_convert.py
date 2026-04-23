@@ -25,6 +25,33 @@ class ReduceLabelDim(AbstractTransform):
         sample['label'] = label_converted
         return sample
 
+class LabelSelect(AbstractTransform):
+    """ 
+    Select a subset of foreground labels for segmentation tasks, and map the label index to 1-N,
+    where N is the number of new foreground labels. 
+    
+    The arguments should be written in the `params` dictionary, and it has the
+    following fields:
+
+    :param `LabelSelect_target_list`: (list) The target label list.
+    :param `LabelSelect_inverse`: (optional, bool) 
+        Is inverse transform needed for inference. Default is `False`.
+    """
+    def __init__(self, params):
+        super(LabelSelect, self).__init__(params)
+        self.target_list = params['LabelSelect_target_list'.lower()]
+        self.inverse = params.get('LabelSelect_inverse'.lower(), False)
+    
+    def __call__(self, sample):
+        label = sample['label']
+        label_new = np.zeros_like(label)
+        for i in range(len(self.target_list)):
+            source_lab = self.target_list[i]
+            target_lab = i + 1
+            label_new = (label == source_lab) * target_lab + label_new
+        sample['label'] = label_new
+        return sample
+
 class LabelConvert(AbstractTransform):
     """ 
     Convert the label based on a source list and target list. 
@@ -146,6 +173,7 @@ class PartialLabelToProbability(AbstractTransform):
     def __call__(self, sample):
         label = sample['label'][0]
         assert(label.max() <= self.class_num)
+        
         label_prob = np.zeros((self.class_num, *label.shape), dtype = np.float32)
         for i in range(self.class_num):
             label_prob[i] = label == i*np.ones_like(label)
