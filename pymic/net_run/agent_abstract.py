@@ -25,6 +25,12 @@ def seed_torch(seed=1):
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
+def worker_init_fn(worker_id):
+    # workder_seed = self.random_seed+worker_id 
+    workder_seed = torch.initial_seed() % 2 ** 32
+    np.random.seed(workder_seed)
+    random.seed(workder_seed)  
+
 class NetRunAgent(object):
     """
     The abstract class for medical image segmentation.
@@ -273,12 +279,7 @@ class NetRunAgent(object):
                     self.valid_set = self.get_stage_dataset_from_config('valid')
                 else:
                     logging.warning("Dataset for validation is not created, as valid_dir is not provided.")
-            if(self.deterministic):
-                def worker_init_fn(worker_id):
-                    # workder_seed = self.random_seed+worker_id 
-                    workder_seed = torch.initial_seed() % 2 ** 32
-                    np.random.seed(workder_seed)
-                    random.seed(workder_seed)                    
+            if(self.deterministic):                  
                 worker_init = worker_init_fn
             else:
                 worker_init = None
