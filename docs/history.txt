@@ -3,3 +3,5 @@
 
 To do:
 (2025.8.25) data augmentation in Crop4vox2vec should be implemented in external transforms
+2026.4.28 In windows, the multiple process has some problem --> use a new pytorch version
+dependency should be added in requirement: imops, monai, ml_collections, einops, timm
