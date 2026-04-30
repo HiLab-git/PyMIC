@@ -10,3 +10,8 @@ tensorboard
 tensorboardX
 torch>=1.1.12
 torchvision>=0.13.0
+imops>=0.10.0
+monai>=1.5.2
+ml_collections>=1.1.0
+einops>=0.8.2
+timm>=1.0.26
