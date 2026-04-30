@@ -481,7 +481,7 @@ class SegmentationAgent(NetRunAgent):
 
         # load network parameters and set the network as evaluation mode
         print("ckpt name", ckpt_name)
-        checkpoint = torch.load(ckpt_name, map_location = device)
+        checkpoint = torch.load(ckpt_name, map_location = device, weights_only = False)
         self.net.load_state_dict(checkpoint['model_state_dict'])
 
         if(self.inferer is None):
